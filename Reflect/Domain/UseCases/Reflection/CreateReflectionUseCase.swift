@@ -1,0 +1,99 @@
+import Foundation
+
+protocol CreateReflectionUseCaseProtocol {
+    func execute(input: CreateReflectionInput) async throws -> Reflection
+}
+
+final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
+    private let reflectionRepository: ReflectionRepositoryProtocol
+    private let learningRepository: LearningRepositoryProtocol
+    private let hashtagRepository: HashtagRepositoryProtocol
+    private let imageService: ImageProcessingServiceProtocol
+
+    init(
+        reflectionRepository: ReflectionRepositoryProtocol,
+        learningRepository: LearningRepositoryProtocol,
+        hashtagRepository: HashtagRepositoryProtocol,
+        imageService: ImageProcessingServiceProtocol
+    ) {
+        self.reflectionRepository = reflectionRepository
+        self.learningRepository = learningRepository
+        self.hashtagRepository = hashtagRepository
+        self.imageService = imageService
+    }
+
+    func execute(input: CreateReflectionInput) async throws -> Reflection {
+        guard input.isValid else {
+            throw ReflectionError.invalidInput(input.validationErrors.first ?? "Invalid input")
+        }
+
+        guard let learningId = input.learningId,
+              let learning = try await learningRepository.fetch(id: learningId) else {
+            throw ReflectionError.learningNotFound
+        }
+
+        let reflection = Reflection(
+            title: input.title.trimmingCharacters(in: .whitespaces),
+            plainTextContent: input.content
+        )
+        reflection.learning = learning
+
+        // Process images
+        for (index, imageInput) in input.images.enumerated() {
+            let imageData = imageService.compressImage(imageInput.image, quality: .high)
+            let thumbnailData = imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
+
+            let attachment = ImageAttachment(
+                imageData: imageData,
+                thumbnailData: thumbnailData,
+                caption: imageInput.caption,
+                sortOrder: index
+            )
+            reflection.images.append(attachment)
+        }
+
+        // Process voice recordings
+        for (index, voiceInput) in input.voiceRecordings.enumerated() {
+            let recording = VoiceRecording(
+                audioData: voiceInput.audioData,
+                transcription: voiceInput.transcription,
+                language: voiceInput.language,
+                duration: voiceInput.duration,
+                sortOrder: index
+            )
+            reflection.voiceRecordings.append(recording)
+        }
+
+        // Process hashtags
+        for hashtagName in input.hashtags {
+            let hashtag = try await hashtagRepository.fetchOrCreate(name: hashtagName)
+            reflection.hashtags.append(hashtag)
+        }
+
+        try await reflectionRepository.create(reflection)
+        return reflection
+    }
+}
+
+enum ReflectionError: Error, LocalizedError {
+    case invalidInput(String)
+    case learningNotFound
+    case notFound
+    case titleRequired
+    case contentRequired
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidInput(let message):
+            return message
+        case .learningNotFound:
+            return "Learning not found"
+        case .notFound:
+            return "Reflection not found"
+        case .titleRequired:
+            return "Title is required"
+        case .contentRequired:
+            return "Content is required"
+        }
+    }
+}
