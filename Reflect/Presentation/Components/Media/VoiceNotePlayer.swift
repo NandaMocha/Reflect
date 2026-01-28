@@ -109,6 +109,7 @@ struct VoiceNotePlayer: View {
         .glassCard()
         .onDisappear {
             stopPlayback()
+            resetPlayback()
         }
     }
 
@@ -139,11 +140,15 @@ struct VoiceNotePlayer: View {
         guard let audioData = voiceRecording.audioData else { return }
 
         do {
+            // Reset to beginning for fresh playback
+            resetPlayback()
+
             audioPlayer = try AVAudioPlayer(data: audioData)
             audioPlayer?.delegate = AudioPlayerDelegateHandler(onFinished: {
                 stopPlayback()
             })
             audioPlayer?.play()
+            audioPlayer?.volume = 1.0
             isPlaying = true
 
             // Start timer for progress updates
@@ -162,17 +167,30 @@ struct VoiceNotePlayer: View {
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
-        currentTime = 0
         progressTimer?.invalidate()
         progressTimer = nil
+        // Don't reset currentTime here - let timer handle showing full duration
+        // currentTime will be reset to 0 when user starts playback again
+    }
+
+    private func resetPlayback() {
+        currentTime = 0
     }
 
     private func startProgressTimer() {
         progressTimer?.invalidate()
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-            if let player = audioPlayer, player.isPlaying {
+            guard let player = audioPlayer else {
+                timer.invalidate()
+                progressTimer = nil
+                return
+            }
+
+            if player.isPlaying {
                 currentTime = player.currentTime
             } else {
+                // Playback finished - ensure UI shows full duration
+                currentTime = voiceRecording.duration
                 timer.invalidate()
                 progressTimer = nil
             }
