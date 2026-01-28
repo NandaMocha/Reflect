@@ -28,14 +28,16 @@ struct ReflectionEditorView: View {
     @State private var content = ""
     @State private var selectedLearning: Learning?
     @State private var images: [ImageInput] = []
+    @State private var existingImageIds: Set<UUID> = []
     @State private var voiceRecordings: [VoiceRecordingInput] = []
-    @State private var hashtags: [String] = []
+    @State private var selectedDate = Date()
 
     // UI State
     @State private var showDiscardAlert = false
     @State private var showImagePicker = false
     @State private var showVoiceRecorder = false
-    @State private var showHashtagEditor = false
+    @State private var showLearningPicker = false
+    @State private var showDatePicker = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var hasChanges = false
     @State private var isSaving = false
@@ -64,255 +66,223 @@ struct ReflectionEditorView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: Constants.Spacing.lg) {
-                    learningPicker
-                    titleField
-                    formattingToolbar
-                    contentEditor
-                    attachmentsSection
-                    hashtagsSection
+            contentView
+                .navigationTitle(navigationTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { toolbarContent }
+                .alert("Discard Changes?", isPresented: $showDiscardAlert) {
+                    discardAlertButtons
+                } message: {
+                    discardAlertMessage
                 }
-                .padding(Constants.Spacing.md)
-            }
-            .navigationTitle(navigationTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        if hasChanges {
-                            showDiscardAlert = true
-                        } else {
-                            dismiss()
-                        }
-                    }
+                .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
+                .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
+                .sheet(isPresented: $showDatePicker) { datePickerSheet }
+                .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
+                .onChange(of: selectedPhotoItems) { _, newItems in
+                    Task { await loadImages(from: newItems) }
                 }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task {
-                            await save()
-                        }
-                    }
-                    .disabled(!isValid || isSaving)
-                    .fontWeight(.semibold)
-                }
-
-                ToolbarItem(placement: .keyboard) {
-                    keyboardToolbar
-                }
-            }
-            .alert("Discard Changes?", isPresented: $showDiscardAlert) {
-                Button("Keep Editing", role: .cancel) {}
-                Button("Discard", role: .destructive) {
-                    dismiss()
-                }
-            } message: {
-                Text("You have unsaved changes. Are you sure you want to discard them?")
-            }
-            .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
-            .sheet(isPresented: $showVoiceRecorder) {
-                VoiceRecorderView(isPresented: $showVoiceRecorder) { recording in
-                    voiceRecordings.append(recording)
-                    hasChanges = true
-                }
-            }
-            .sheet(isPresented: $showHashtagEditor) {
-                HashtagEditorSheet(selectedHashtags: $hashtags) {
-                    hasChanges = true
-                }
-            }
-            .onChange(of: selectedPhotoItems) { _, newItems in
-                Task {
-                    await loadImages(from: newItems)
-                }
-            }
-            .onAppear {
-                loadExistingData()
-            }
+                .onAppear { loadExistingData() }
         }
     }
 
-    // MARK: - Form Sections
+    // MARK: - View Components
 
-    private var learningPicker: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
-            Text("Learning")
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.secondary)
-
-            if learnings.isEmpty {
-                Text("No learnings yet. Create a learning first.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(Constants.Spacing.md)
-                    .frame(maxWidth: .infinity)
-                    .glassCard()
-            } else {
-                Menu {
-                    ForEach(learnings) { learning in
-                        Button {
-                            selectedLearning = learning
-                            hasChanges = true
-                        } label: {
-                            Label(learning.title, systemImage: learning.iconName)
-                        }
-                    }
-                } label: {
-                    HStack {
-                        if let learning = selectedLearning {
-                            Image(systemName: learning.iconName)
-                                .foregroundColor(Color(hex: learning.colorHex))
-                            Text(learning.title)
-                                .foregroundColor(.primary)
-                        } else {
-                            Text("Select a learning...")
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.down")
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(Constants.Spacing.md)
-                    .glassCard()
-                }
+    private var contentView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Constants.Spacing.md) {
+                headerView
+                titleField
+                voiceRecordingsList
+                contentEditor
+                imageAttachmentsList
             }
+            .padding()
         }
+        .scrollDismissesKeyboard(.interactively) // Dismiss on scroll
+        .background(Color.clear) // Ensure background captures taps
+        .contentShape(Rectangle()) // Make entire area tappable
+        .onTapGesture {
+            focusedField = nil
+        }
+    }
+
+    private var headerView: some View {
+        ReflectionEditorHeaderView(
+            selectedLearning: selectedLearning,
+            selectedDate: selectedDate,
+            onSelectLearning: {
+                if !learnings.isEmpty {
+                    showLearningPicker = true
+                }
+            },
+            onSelectDate: { showDatePicker = true }
+        )
     }
 
     private var titleField: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
-            Text("Title")
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.secondary)
-
-            TextField("Enter reflection title...", text: $title)
-                .textInputAutocapitalization(.sentences)
-                .focused($focusedField, equals: .title)
-                .padding(Constants.Spacing.md)
-                .glassCard()
-                .onChange(of: title) { _, _ in hasChanges = true }
-        }
+        TextField("Title", text: $title)
+            .font(.title2.weight(.semibold))
+            .focused($focusedField, equals: .title)
+            .onChange(of: title) { _, _ in hasChanges = true }
     }
 
-    private var formattingToolbar: some View {
-        FormattingToolbar(text: $content, onInsertDivider: {
-            content += "\n---\n"
-            hasChanges = true
-        })
-    }
-
-    private var contentEditor: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
-            Text("Content")
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.secondary)
-
-            RichTextEditor(text: $content, minHeight: 200)
-                .focused($focusedField, equals: .content)
-                .onChange(of: content) { _, _ in hasChanges = true }
-        }
-    }
-
-    private var attachmentsSection: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
-            Text("Attachments")
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.secondary)
-
-            AttachmentGrid(
-                images: images,
-                voiceRecordings: voiceRecordings,
-                onRemoveImage: { index in
-                    images.remove(at: index)
-                    hasChanges = true
-                },
-                onRemoveVoice: { index in
-                    voiceRecordings.remove(at: index)
-                    hasChanges = true
-                }
-            )
-
-            HStack(spacing: Constants.Spacing.sm) {
-                Button {
-                    showImagePicker = true
-                } label: {
-                    Label("Photo", systemImage: "photo")
-                        .font(.subheadline)
-                }
-                .disabled(images.count >= Constants.Limits.maxImagesPerReflection)
-
-                Button {
-                    showVoiceRecorder = true
-                } label: {
-                    Label("Voice", systemImage: "mic")
-                        .font(.subheadline)
-                }
-                .disabled(voiceRecordings.count >= Constants.Limits.maxVoiceNotesPerReflection)
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    private var hashtagsSection: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
-            Text("Hashtags")
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.secondary)
-
-            FlowLayout(spacing: Constants.Spacing.xs) {
-                ForEach(hashtags, id: \.self) { tag in
-                    HashtagChip(
-                        text: tag,
-                        isSelected: true,
-                        showRemove: true,
+    @ViewBuilder
+    private var voiceRecordingsList: some View {
+        if !voiceRecordings.isEmpty {
+            VStack(spacing: Constants.Spacing.sm) {
+                ForEach(Array(voiceRecordings.enumerated()), id: \.offset) { index, recording in
+                    VoiceRecordingItemView(
+                        recording: recording,
+                        onPlay: { /* Play recording */ },
                         onRemove: {
-                            hashtags.removeAll { $0 == tag }
+                            voiceRecordings.remove(at: index)
                             hasChanges = true
                         }
                     )
                 }
+            }
+        }
+    }
 
-                Button {
-                    showHashtagEditor = true
-                } label: {
-                    Label("Add", systemImage: "plus")
-                        .font(.subheadline)
-                        .foregroundColor(.primaryDefault)
-                        .padding(.horizontal, Constants.Spacing.sm)
-                        .padding(.vertical, Constants.Spacing.xs)
+    private var contentEditor: some View {
+        ZStack(alignment: .topLeading) {
+            if content.isEmpty {
+                Text("Write your reflection here...")
+                    .font(.body)
+                    .foregroundColor(.secondary.opacity(0.5))
+                    .padding(.top, 8)
+                    .padding(.leading, 5)
+                    .allowsHitTesting(false) // Allow taps to pass through to TextEditor
+            }
+
+            TextEditor(text: $content)
+                .font(.body)
+                .focused($focusedField, equals: .content)
+                .frame(minHeight: 200)
+                .scrollContentBackground(.hidden)
+                .onChange(of: content) { _, _ in hasChanges = true }
+        }
+        .padding(.horizontal, -4) // Align TextEditor padding with other fields
+    }
+
+    @ViewBuilder
+    private var imageAttachmentsList: some View {
+        if !images.isEmpty {
+            VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
+                Text("Images")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.primary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Constants.Spacing.sm) {
+                        ForEach(Array(images.enumerated()), id: \.offset) { index, imageInput in
+                            ImageAttachmentItemView(
+                                image: imageInput.image,
+                                onRemove: {
+                                    images.remove(at: index)
+                                    hasChanges = true
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 
-    private var keyboardToolbar: some View {
-        HStack {
-            Button {
-                showImagePicker = true
-            } label: {
-                Image(systemName: "photo")
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            cancelButton
+        }
+
+        ToolbarItem(placement: .confirmationAction) {
+            saveButton
+        }
+
+        ToolbarItem(placement: .bottomBar) {
+            bottomToolbar
+        }
+    }
+
+    private var cancelButton: some View {
+        Button("Cancel") {
+            if hasChanges {
+                showDiscardAlert = true
+            } else {
+                dismiss()
+            }
+        }
+    }
+
+    private var saveButton: some View {
+        Button {
+            Task { await save() }
+        } label: {
+            Image(systemName: "checkmark")
+                .fontWeight(.semibold)
+        }
+        .disabled(!isValid || isSaving)
+    }
+
+    private var bottomToolbar: some View {
+        HStack(spacing: Constants.Spacing.lg) {
+            Button { showImagePicker = true } label: {
+                Image(systemName: "photo").font(.callout)
             }
 
-            Button {
-                showVoiceRecorder = true
-            } label: {
-                Image(systemName: "mic")
+            Button { /* Camera */ } label: {
+                Image(systemName: "camera").font(.callout)
             }
 
-            Button {
-                showHashtagEditor = true
-            } label: {
-                Image(systemName: "number")
+            Button { showVoiceRecorder = true } label: {
+                Image(systemName: "waveform").font(.callout)
             }
+        }
+        .padding(Constants.Spacing.xxs)
+    }
 
-            Spacer()
+    // MARK: - Sheets & Alerts
 
-            Button {
-                focusedField = nil
-            } label: {
-                Image(systemName: "keyboard.chevron.compact.down")
+    private var discardAlertButtons: some View {
+        Group {
+            Button("Keep Editing", role: .cancel) {}
+            Button("Discard", role: .destructive) { dismiss() }
+        }
+    }
+
+    private var discardAlertMessage: some View {
+        Text("You have unsaved changes. Are you sure you want to discard them?")
+    }
+
+    private var learningPickerSheet: some View {
+        LearningPickerSheet(
+            selectedLearning: $selectedLearning,
+            learnings: learnings,
+            onDismiss: {
+                hasChanges = true
+                showLearningPicker = false
             }
+        )
+    }
+
+    private var datePickerSheet: some View {
+        DatePickerSheet(
+            selectedDate: $selectedDate,
+            onDismiss: {
+                hasChanges = true
+                showDatePicker = false
+            }
+        )
+    }
+
+    private var voiceRecorderSheet: some View {
+        VoiceRecorderView(isPresented: $showVoiceRecorder) { recording in
+            voiceRecordings.append(recording)
+            hasChanges = true
         }
     }
 
@@ -329,8 +299,37 @@ struct ReflectionEditorView: View {
             title = reflection.title
             content = reflection.plainTextContent
             selectedLearning = reflection.learning
-            hashtags = reflection.hashtags.map { $0.name }
-            // Note: Images and voice recordings would need special handling
+            selectedDate = reflection.createdAt
+
+            // Load Images
+            images = reflection.images
+                .sorted(by: { $0.sortOrder < $1.sortOrder })
+                .compactMap { imageAttachment in
+                    guard let imageData = imageAttachment.imageData,
+                          let image = UIImage(data: imageData) else { return nil }
+                    existingImageIds.insert(imageAttachment.id)
+                    return ImageInput(
+                        id: imageAttachment.id,
+                        image: image,
+                        caption: imageAttachment.caption
+                    )
+                }
+
+            // Load Voice Recordings
+            voiceRecordings = reflection.voiceRecordings
+                .sorted(by: { $0.sortOrder < $1.sortOrder })
+                .compactMap {
+                    guard let data = $0.audioData else { return nil }
+                    return VoiceRecordingInput(
+                        id: UUID(), // temporary ID for View identity
+                        existingId: $0.id,
+                        audioData: data,
+                        transcription: $0.transcription,
+                        language: $0.language,
+                        duration: $0.duration
+                    )
+                }
+
             hasChanges = false
         }
     }
@@ -381,12 +380,7 @@ struct ReflectionEditorView: View {
             plainTextContent: content.trimmingCharacters(in: .whitespaces)
         )
         reflection.learning = selectedLearning
-
-        // Add hashtags
-        for tagName in hashtags {
-            let hashtag = Hashtag(name: tagName)
-            reflection.hashtags.append(hashtag)
-        }
+        reflection.createdAt = selectedDate
 
         // Add images
         let imageService = ImageProcessingService.shared
@@ -423,146 +417,84 @@ struct ReflectionEditorView: View {
         reflection.title = title.trimmingCharacters(in: .whitespaces)
         reflection.plainTextContent = content.trimmingCharacters(in: .whitespaces)
         reflection.learning = selectedLearning
+        reflection.createdAt = selectedDate
         reflection.updatedAt = Date()
 
-        // Update hashtags
-        reflection.hashtags.removeAll()
-        for tagName in hashtags {
-            let hashtag = Hashtag(name: tagName)
-            reflection.hashtags.append(hashtag)
+        // Sync Images
+        let imageService = ImageProcessingService.shared
+
+        // 1. Identify existing image IDs to keep
+        let currentImageIds = Set(images.map { $0.id })
+
+        // 2. Remove deleted images from DB
+        let imagesToRemove = reflection.images.filter { !currentImageIds.contains($0.id) }
+        for image in imagesToRemove {
+            modelContext.delete(image)
+            if let index = reflection.images.firstIndex(where: { $0.id == image.id }) {
+                reflection.images.remove(at: index)
+            }
+        }
+
+        // 3. Add new images and update existing ones, maintain sort order
+        for (index, imageInput) in images.enumerated() {
+            if existingImageIds.contains(imageInput.id),
+               let existingImage = reflection.images.first(where: { $0.id == imageInput.id }) {
+                // Update sort order for existing
+                existingImage.sortOrder = index
+                existingImage.caption = imageInput.caption
+            } else {
+                // Create new image
+                if let imageData = imageService.compressImage(imageInput.image, quality: .high),
+                   let thumbnailData = imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200)) {
+                    let newImage = ImageAttachment(
+                        imageData: imageData,
+                        thumbnailData: thumbnailData,
+                        caption: imageInput.caption
+                    )
+                    newImage.sortOrder = index
+                    reflection.images.append(newImage)
+                }
+            }
+        }
+
+        // Sync Voice Recordings
+
+        // 1. Identify existing IDs to keep
+        let existingIdsToKeep = Set(voiceRecordings.compactMap { $0.existingId })
+
+        // 2. Remove deleted recordings from DB
+        let recordingsToRemove = reflection.voiceRecordings.filter { !existingIdsToKeep.contains($0.id) }
+        for recording in recordingsToRemove {
+            modelContext.delete(recording) // Remove from context and relationship
+            if let index = reflection.voiceRecordings.firstIndex(where: { $0.id == recording.id }) {
+                reflection.voiceRecordings.remove(at: index)
+            }
+        }
+
+        // 3. Add new recordings and update sort order
+        for (index, input) in voiceRecordings.enumerated() {
+            if let existingId = input.existingId,
+               let existingRecording = reflection.voiceRecordings.first(where: { $0.id == existingId }) {
+                // Update sort order for existing
+                existingRecording.sortOrder = index
+            } else {
+                // Create new
+                let newRecording = VoiceRecording(
+                    audioData: input.audioData,
+                    transcription: input.transcription,
+                    language: input.language,
+                    duration: input.duration
+                )
+                newRecording.sortOrder = index
+                reflection.voiceRecordings.append(newRecording)
+            }
         }
 
         try modelContext.save()
     }
 }
 
-// MARK: - Hashtag Editor Sheet
-
-struct HashtagEditorSheet: View {
-    @Binding var selectedHashtags: [String]
-    let onUpdate: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Hashtag.name) private var existingHashtags: [Hashtag]
-
-    @State private var newHashtag = ""
-
-    private var filteredSuggestions: [Hashtag] {
-        if newHashtag.isEmpty {
-            return existingHashtags.filter { !selectedHashtags.contains($0.name) }
-        }
-        return existingHashtags.filter {
-            $0.name.lowercased().contains(newHashtag.lowercased()) &&
-            !selectedHashtags.contains($0.name)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Input
-                HStack {
-                    Text("#")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    TextField("Add hashtag", text: $newHashtag)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit {
-                            addHashtag()
-                        }
-
-                    if !newHashtag.isEmpty {
-                        Button("Add") {
-                            addHashtag()
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                }
-                .padding()
-
-                Divider()
-
-                // Selected hashtags
-                if !selectedHashtags.isEmpty {
-                    VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
-                        Text("Selected")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-
-                        FlowLayout(spacing: Constants.Spacing.xs) {
-                            ForEach(selectedHashtags, id: \.self) { tag in
-                                HashtagChip(
-                                    text: tag,
-                                    isSelected: true,
-                                    showRemove: true,
-                                    onRemove: {
-                                        selectedHashtags.removeAll { $0 == tag }
-                                        onUpdate()
-                                    }
-                                )
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    .padding(.vertical)
-
-                    Divider()
-                }
-
-                // Suggestions
-                if !filteredSuggestions.isEmpty {
-                    List {
-                        Section("Suggestions") {
-                            ForEach(filteredSuggestions) { hashtag in
-                                Button {
-                                    selectedHashtags.append(hashtag.name)
-                                    newHashtag = ""
-                                    onUpdate()
-                                } label: {
-                                    HStack {
-                                        Text(hashtag.displayName)
-                                        Spacer()
-                                        Text("\(hashtag.usageCount)")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-                }
-
-                Spacer()
-            }
-            .navigationTitle("Hashtags")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-
-    private func addHashtag() {
-        let tag = newHashtag.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !tag.isEmpty, !selectedHashtags.contains(tag) else { return }
-
-        selectedHashtags.append(tag)
-        newHashtag = ""
-        onUpdate()
-        HapticManager.shared.lightImpact()
-    }
-}
-
 #Preview {
     ReflectionEditorView(mode: .create)
-        .modelContainer(for: [Learning.self, Reflection.self, Hashtag.self], inMemory: true)
+        .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self], inMemory: true)
 }
