@@ -126,32 +126,28 @@ struct ReflectionListView: View {
     }
 
     private var reflectionList: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                // Hashtag chips
-                if !hashtags.isEmpty {
-                    hashtagChips
-                }
-
-                // Reflection groups
-                LazyVStack(spacing: Constants.Spacing.sm, pinnedViews: .sectionHeaders) {
-                    ForEach(groupedReflections, id: \.0) { section, sectionReflections in
-                        Section {
-                            ForEach(sectionReflections) { reflection in
-                                NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
-                                    ReflectionCard(reflection: reflection) {}
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        } header: {
-                            DateSectionHeader(date: sectionReflections.first?.createdAt ?? Date())
-                                .background(Color(.systemBackground).opacity(0.95))
-                        }
-                    }
-                }
-                .padding(.horizontal, Constants.Spacing.md)
-                .padding(.bottom, 100) // Space for FAB
+        List {
+            if !hashtags.isEmpty {
+                hashtagChips
             }
+            
+            ForEach(groupedReflections, id: \.0) { section, sectionReflections in
+                Section {
+                    ForEach(sectionReflections) { reflection in
+                        NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
+                            ReflectionCard(reflection: reflection) {}
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    DateSectionHeader(date: sectionReflections.first?.createdAt ?? Date())
+                        .background(Color(.systemBackground).opacity(0.95))
+                }
+            }
+            
+            .padding(.horizontal, Constants.Spacing.md)
+            .padding(.bottom, 100) // Space for FAB
+
         }
     }
 

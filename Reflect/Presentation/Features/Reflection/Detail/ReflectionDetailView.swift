@@ -9,6 +9,7 @@ struct ReflectionDetailView: View {
 
     @State private var showDeleteAlert = false
     @State private var showShareSheet = false
+    @State private var showEditSheet = false
     @State private var showFullscreenImage: ImageAttachment?
 
     var body: some View {
@@ -57,7 +58,9 @@ struct ReflectionDetailView: View {
             }
 
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink(destination: ReflectionEditorView(mode: .edit(reflection))) {
+                Button {
+                    showEditSheet = true
+                } label: {
                     Image(systemName: "pencil")
                 }
             }
@@ -75,6 +78,9 @@ struct ReflectionDetailView: View {
         }
         .fullScreenCover(item: $showFullscreenImage) { image in
             ImageFullscreenView(image: image)
+        }
+        .fullScreenCover(isPresented: $showEditSheet) {
+            ReflectionEditorView(mode: .edit(reflection))
         }
     }
 
@@ -106,10 +112,7 @@ struct ReflectionDetailView: View {
 
                 Spacer()
 
-                if reflection.isFavorite {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.warning)
-                }
+
             }
 
             Text(reflection.createdAt.formatted())
@@ -185,15 +188,6 @@ struct ReflectionDetailView: View {
     @ViewBuilder
     private var menuItems: some View {
         Button {
-            toggleFavorite()
-        } label: {
-            Label(
-                reflection.isFavorite ? "Remove from Favorites" : "Add to Favorites",
-                systemImage: reflection.isFavorite ? "star.slash" : "star"
-            )
-        }
-
-        Button {
             showShareSheet = true
         } label: {
             Label("Share", systemImage: "square.and.arrow.up")
@@ -226,13 +220,6 @@ struct ReflectionDetailView: View {
         }
 
         return text
-    }
-
-    private func toggleFavorite() {
-        reflection.isFavorite.toggle()
-        reflection.updatedAt = Date()
-        try? modelContext.save()
-        HapticManager.shared.selection()
     }
 
     private func copyText() {

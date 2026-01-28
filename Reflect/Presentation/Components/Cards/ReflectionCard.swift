@@ -72,10 +72,9 @@ struct ReflectionCard: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(Constants.Spacing.md)
+//            .padding(Constants.Spacing.md)
             .glassCard()
         }
-        .buttonStyle(PressableCardStyle())
     }
 }
 
@@ -105,11 +104,7 @@ struct ReflectionCardCompact: View {
 
                     Spacer()
 
-                    if reflection.isFavorite {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundColor(.warning)
-                    }
+
                 }
             }
             .padding(Constants.Spacing.sm)

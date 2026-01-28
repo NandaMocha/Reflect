@@ -16,7 +16,7 @@ enum Constants {
 
     // MARK: - Validation Limits
     enum Limits {
-        static let learningTitleMaxLength = 100
+        static let learningTitleMaxLength = 30
         static let learningDescriptionMaxLength = 500
         static let reflectionTitleMaxLength = 200
         static let hashtagMaxLength = 50

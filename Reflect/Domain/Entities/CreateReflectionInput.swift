@@ -72,6 +72,7 @@ struct ImageInput: Identifiable {
 
 struct VoiceRecordingInput: Identifiable {
     let id: UUID
+    let existingId: UUID?
     let audioData: Data
     var transcription: String?
     let language: String
@@ -79,12 +80,14 @@ struct VoiceRecordingInput: Identifiable {
 
     init(
         id: UUID = UUID(),
+        existingId: UUID? = nil,
         audioData: Data,
         transcription: String? = nil,
         language: String,
         duration: TimeInterval
     ) {
         self.id = id
+        self.existingId = existingId
         self.audioData = audioData
         self.transcription = transcription
         self.language = language

@@ -4,32 +4,56 @@ import SwiftData
 struct LearningListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Learning.sortOrder) private var learnings: [Learning]
+    
+    // State Persistence
+    @AppStorage("lastOpenedLearningId") private var lastOpenedLearningId: String?
+    @State private var navigationPath = NavigationPath()
 
+    // Search
+    @State private var searchText = ""
+
+    // UI State
     @State private var showAddLearning = false
     @State private var learningToEdit: Learning?
     @State private var learningToDelete: Learning?
     @State private var showDeleteAlert = false
     @State private var showSettings = false
+    @State private var isRestoringState = true
+
+    var filteredLearnings: [Learning] {
+        if searchText.isEmpty {
+            return learnings
+        } else {
+            return learnings.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if learnings.isEmpty {
                     emptyState
+                } else if filteredLearnings.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
                 } else {
                     learningList
                 }
             }
             .navigationTitle("Learnings")
+            .navigationDestination(for: Learning.self) { learning in
+                FilteredReflectionListView(learning: learning)
+                    .onAppear {
+                        lastOpenedLearningId = learning.id.uuidString
+                    }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         HapticManager.shared.lightImpact()
                         showSettings = true
                     } label: {
-                        Image(systemName: "person.circle.fill")
+                        Image(systemName: "person.circle")
                             .font(.title3)
-                            .foregroundColor(.primaryDefault)
                     }
                 }
                 
@@ -64,6 +88,22 @@ struct LearningListView: View {
                 }
             }
         }
+        .onAppear {
+            restoreState()
+        }
+    }
+
+    private func restoreState() {
+        guard isRestoringState, let learningIdString = lastOpenedLearningId, let learningId = UUID(uuidString: learningIdString) else {
+            return
+        }
+        
+        // Find the learning with this ID
+        if let learning = learnings.first(where: { $0.id == learningId }) {
+            navigationPath.append(learning)
+        }
+        
+        isRestoringState = false
     }
 
     private var emptyState: some View {
@@ -79,15 +119,14 @@ struct LearningListView: View {
 
     private var learningList: some View {
         List {
-            ForEach(learnings) { learning in
+            ForEach(filteredLearnings) { learning in
                 ZStack {
-                    NavigationLink(destination: FilteredReflectionListView(learning: learning)) {}
+                    NavigationLink(value: learning) { EmptyView() }
+                        .opacity(0) // Hide default arrow
+                    
                     LearningCard(learning: learning) {}
                 }
-                .listRowInsets(EdgeInsets(top: Constants.Spacing.sm,
-                                          leading: Constants.Spacing.md,
-                                          bottom: Constants.Spacing.sm,
-                                          trailing: Constants.Spacing.md))
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -97,6 +136,13 @@ struct LearningListView: View {
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
+                    
+                    Button {
+                        learningToEdit = learning
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                        .tint(.orange)
+                    }
                 }
                 .contextMenu {
                     contextMenuItems(for: learning)
@@ -105,6 +151,7 @@ struct LearningListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .scrollIndicators(.hidden)
     }
 
     @ViewBuilder
@@ -145,6 +192,20 @@ struct FilteredReflectionListView: View {
     @State private var reflectionToDelete: Reflection?
     @State private var showDeleteAlert = false
 
+    @Environment(\.isSearching) private var isSearching
+    @State private var searchText = ""
+
+    var filteredReflections: [Reflection] {
+        if searchText.isEmpty {
+            return reflections
+        } else {
+            return reflections.filter {
+                $0.title.localizedCaseInsensitiveContains(searchText) ||
+                $0.plainTextContent.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+
     init(learning: Learning) {
         self.learning = learning
         let learningId = learning.id
@@ -166,51 +227,59 @@ struct FilteredReflectionListView: View {
                         title: "No reflections yet",
                         subtitle: "Start capturing your reflections for \(learning.title)"
                     )
+                } else if filteredReflections.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: Constants.Spacing.sm) {
-                            ForEach(reflections) { reflection in
-                                NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
-                                    ReflectionCard(reflection: reflection) {}
+                    List {
+                        ForEach(filteredReflections) { reflection in
+                            ZStack {
+                                NavigationLink(destination: ReflectionDetailView(reflection: reflection)) { EmptyView() }
+                                    .opacity(0)
+                                
+                                ReflectionCard(reflection: reflection) {}
+                            }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    reflectionToDelete = reflection
+                                    showDeleteAlert = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
-                                .buttonStyle(.plain)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        reflectionToDelete = reflection
-                                        showDeleteAlert = true
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
 
-                                    Button {
-                                        reflectionToEdit = reflection
-                                    } label: {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                    .tint(.orange)
+                                Button {
+                                    reflectionToEdit = reflection
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
                                 }
+                                .tint(.orange)
                             }
                         }
-                        .padding(.horizontal, Constants.Spacing.md)
-                        .padding(.vertical, Constants.Spacing.sm)
-                        .padding(.bottom, 80) // Space for FAB
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
-            
-            // Floating Action Button
-            FloatingActionButton(icon: "plus") {
-                showAddReflection = true
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Floating Action Button - Always visible
+            if !isSearching {
+                FloatingActionButton(icon: "plus") {
+                    showAddReflection = true
+                }
+                .padding(.trailing, Constants.Spacing.lg)
+                .padding(.bottom, Constants.Spacing.lg)
             }
-            .padding(.trailing, Constants.Spacing.lg)
-            .padding(.bottom, Constants.Spacing.lg)
         }
         .navigationTitle("\(learning.title) Reflections")
         .navigationBarTitleDisplayMode(.large)
-        .sheet(isPresented: $showAddReflection) {
+        .searchable(text: $searchText, prompt: "Search reflections...")
+        .fullScreenCover(isPresented: $showAddReflection) {
             ReflectionEditorView(mode: .create, preselectedLearning: learning)
         }
-        .sheet(item: $reflectionToEdit) { reflection in
+        .fullScreenCover(item: $reflectionToEdit) { reflection in
             ReflectionEditorView(mode: .edit(reflection))
         }
         .alert("Delete Reflection", isPresented: $showDeleteAlert) {

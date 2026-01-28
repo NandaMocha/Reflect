@@ -15,6 +15,7 @@ struct VoiceRecorderView: View {
     @State private var recordingResult: AudioRecordingResult?
     @State private var showConfirmation = false
     @State private var error: Error?
+    @State private var timer: Timer?
 
     @StateObject private var audioRecorder = AudioRecorderWrapper()
     @StateObject private var speechRecognizer = SpeechRecognizerWrapper()
@@ -71,7 +72,11 @@ struct VoiceRecorderView: View {
                 }
             }
             .onChange(of: audioRecorder.currentTime) { _, newValue in
-                duration = newValue
+                // If audioRecorder supports reporting time, sync with it.
+                // Otherwise we rely on our manual timer.
+                if newValue > 0 {
+                    duration = newValue
+                }
                 if duration >= maxDuration {
                     Task { await stopRecording() }
                 }
@@ -139,9 +144,21 @@ struct VoiceRecorderView: View {
         VStack(spacing: Constants.Spacing.md) {
             if !transcription.isEmpty {
                 VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
-                    Text("Transcription")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Text("Transcription")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Button {
+                            UIPasteboard.general.string = transcription
+                            HapticManager.shared.success()
+                        } label: {
+                            Label("Copy", systemImage: "doc.on.doc")
+                                .font(.caption)
+                        }
+                    }
 
                     ScrollView {
                         Text(transcription)
@@ -227,6 +244,10 @@ struct VoiceRecorderView: View {
             try await audioRecorder.startRecording()
             try await speechRecognizer.startRecording(language: selectedLanguage)
             isRecording = true
+            duration = 0
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                duration += 1
+            }
             HapticManager.shared.lightImpact()
         } catch {
             self.error = error
@@ -236,6 +257,8 @@ struct VoiceRecorderView: View {
 
     @MainActor
     private func stopRecording() async {
+        timer?.invalidate()
+        timer = nil
         do {
             let audioResult = try await audioRecorder.stopRecording()
             let speechResult = try await speechRecognizer.stopRecording()
@@ -254,6 +277,8 @@ struct VoiceRecorderView: View {
     private func cancelRecording() {
         audioRecorder.cancelRecording()
         speechRecognizer.cancelRecording()
+        timer?.invalidate()
+        timer = nil
     }
 
     private func retakeRecording() {
