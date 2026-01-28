@@ -8,6 +8,7 @@ struct VoiceNotePlayer: View {
     @State private var currentTime: TimeInterval = 0
     @State private var showTranscription = false
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var progressTimer: Timer?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
@@ -149,14 +150,18 @@ struct VoiceNotePlayer: View {
         audioPlayer = nil
         isPlaying = false
         currentTime = 0
+        progressTimer?.invalidate()
+        progressTimer = nil
     }
 
     private func startProgressTimer() {
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+        progressTimer?.invalidate()
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
             if let player = audioPlayer, player.isPlaying {
                 currentTime = player.currentTime
             } else {
                 timer.invalidate()
+                progressTimer = nil
             }
         }
     }

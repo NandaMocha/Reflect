@@ -112,7 +112,15 @@ final class AudioPlayerService: NSObject, AudioPlayerServiceProtocol {
 extension AudioPlayerService: AVAudioPlayerDelegate {
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         stopDisplayLink()
+
+        // Reset player to beginning for next playback
+        if let duration = audioPlayer?.duration {
+            audioPlayer?.currentTime = 0
+        }
+
+        // Send finished state, then transition to idle
         playbackStateSubject.send(.finished)
+        playbackStateSubject.send(.idle)
     }
 
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
