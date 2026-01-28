@@ -75,10 +75,23 @@ struct VoiceNotePlayer: View {
                 DisclosureGroup(
                     isExpanded: $showTranscription,
                     content: {
-                        Text(transcription)
-                            .font(.body)
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
+                            Text(transcription)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+
+                            Button(action: copyTranscription) {
+                                HStack(spacing: Constants.Spacing.xs) {
+                                    Image(systemName: "doc.on.doc")
+                                        .font(.caption)
+                                    Text("Copy")
+                                        .font(.caption.weight(.medium))
+                                }
+                                .foregroundColor(.primaryDefault)
+                            }
                             .padding(.top, Constants.Spacing.xs)
+                        }
+                        .padding(.top, Constants.Spacing.xs)
                     },
                     label: {
                         HStack {
@@ -163,6 +176,13 @@ struct VoiceNotePlayer: View {
                 timer.invalidate()
                 progressTimer = nil
             }
+        }
+    }
+
+    private func copyTranscription() {
+        if let transcription = voiceRecording.transcription {
+            UIPasteboard.general.string = transcription
+            HapticManager.shared.success()
         }
     }
 }
