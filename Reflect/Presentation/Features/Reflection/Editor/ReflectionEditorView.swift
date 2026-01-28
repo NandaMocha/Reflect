@@ -121,10 +121,15 @@ struct ReflectionEditorView: View {
     }
 
     private var titleField: some View {
-        TextField("Title", text: $title)
-            .font(.title2.weight(.semibold))
-            .focused($focusedField, equals: .title)
-            .onChange(of: title) { _, _ in hasChanges = true }
+        VStack(spacing: Constants.Spacing.sm) {
+            TextField("Title", text: $title)
+                .font(.title2.weight(.semibold))
+                .focused($focusedField, equals: .title)
+                .onChange(of: title) { _, _ in hasChanges = true }
+
+            Divider()
+                .opacity(0.3)
+        }
     }
 
     @ViewBuilder
@@ -224,8 +229,12 @@ struct ReflectionEditorView: View {
         } label: {
             Image(systemName: "checkmark")
                 .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .frame(width: 32, height: 32)
+                .background(Color.primaryDefault)
+                .clipShape(Circle())
         }
-        .disabled(!isValid || isSaving)
+        .opacity(isValid && !isSaving ? 1.0 : 0.5)
     }
 
     private var bottomToolbar: some View {

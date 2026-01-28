@@ -6,32 +6,33 @@ struct VoiceRecordingItemView: View {
     let onRemove: () -> Void
 
     var body: some View {
-        HStack {
+        HStack(spacing: Constants.Spacing.sm) {
             Button(action: onPlay) {
-                Image(systemName: "play.circle.fill")
-                    .font(.title)
+                Image(systemName: "play.fill")
+                    .font(.caption)
                     .foregroundColor(.primaryDefault)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(formatDuration(recording.duration))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Voice Note")
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.primary)
 
-                // Waveform visualization placeholder
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.primaryDefault.opacity(0.3))
-                    .frame(height: 40)
+                Text(formatDuration(recording.duration))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
 
+            Spacer()
+
             Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
+                Image(systemName: "xmark")
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.medium))
+        .padding(.vertical, Constants.Spacing.xs)
+        .padding(.horizontal, Constants.Spacing.sm)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
