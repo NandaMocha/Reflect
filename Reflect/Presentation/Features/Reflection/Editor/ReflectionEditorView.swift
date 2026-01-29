@@ -58,6 +58,12 @@ struct ReflectionEditorView: View {
         isEditing ? "Edit Reflection" : "New Reflection"
     }
 
+    private var defaultTitle: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, d"
+        return "Reflection on \(formatter.string(from: selectedDate))"
+    }
+
     private var isValid: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !content.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -144,10 +150,20 @@ struct ReflectionEditorView: View {
 
     private var titleField: some View {
         VStack(spacing: Constants.Spacing.sm) {
-            TextField("Title", text: $title)
-                .font(.title2.weight(.semibold))
-                .focused($focusedField, equals: .title)
-                .onChange(of: title) { _, _ in hasChanges = true }
+            ZStack(alignment: .topLeading) {
+                if title.isEmpty {
+                    Text(defaultTitle)
+                        .font(.title2.weight(.semibold))
+                        .foregroundColor(.secondary.opacity(0.5))
+                        .padding(.top, 1)
+                        .allowsHitTesting(false)
+                }
+
+                TextField("", text: $title)
+                    .font(.title2.weight(.semibold))
+                    .focused($focusedField, equals: .title)
+                    .onChange(of: title) { _, _ in hasChanges = true }
+            }
 
             Divider()
                 .opacity(0.3)
@@ -196,26 +212,14 @@ struct ReflectionEditorView: View {
     }
 
     private var imageAttachmentsGallery: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.md) {
-            // Gallery grid - 2 columns
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: Constants.Spacing.sm),
-                    GridItem(.flexible(), spacing: Constants.Spacing.sm)
-                ],
-                spacing: Constants.Spacing.sm
-            ) {
-                ForEach(Array(images.enumerated()), id: \.offset) { index, imageInput in
-                    ImageAttachmentItemView(
-                        image: imageInput.image,
-                        onRemove: {
-                            images.remove(at: index)
-                            hasChanges = true
-                        }
-                    )
-                }
+        EditableImageCarouselView(
+            images: $images,
+            imageSize: 250,
+            showIndicators: true,
+            onImageRemoved: {
+                hasChanges = true
             }
-        }
+        )
     }
 
     // MARK: - Toolbar
