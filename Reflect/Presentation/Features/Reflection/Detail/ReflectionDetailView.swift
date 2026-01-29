@@ -14,34 +14,48 @@ struct ReflectionDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Constants.Spacing.lg) {
+            VStack(alignment: .leading, spacing: 0) {
                 // Learning Badge
                 if let learning = reflection.learning {
                     learningBadge(learning)
+                        .padding(.bottom, Constants.Spacing.md)
                 }
 
                 // Title and Date
                 headerSection
+                    .padding(.bottom, Constants.Spacing.md)
 
                 // Hashtags
                 if !reflection.hashtags.isEmpty {
                     hashtagSection
+                        .padding(.bottom, Constants.Spacing.md)
                 }
 
                 Divider()
-                    .padding(.vertical, Constants.Spacing.xs)
+                    .opacity(0.3)
+                    .padding(.bottom, Constants.Spacing.md)
 
                 // Content
                 contentSection
-
-                // Images
-                if !reflection.images.isEmpty {
-                    imagesSection
-                }
+                    .padding(.bottom, Constants.Spacing.md)
 
                 // Voice Notes
                 if !reflection.voiceRecordings.isEmpty {
+                    Divider()
+                        .opacity(0.3)
+                        .padding(.bottom, Constants.Spacing.md)
+
                     voiceNotesSection
+                        .padding(.bottom, Constants.Spacing.md)
+                }
+
+                // Images Gallery
+                if !reflection.images.isEmpty {
+                    Divider()
+                        .opacity(0.3)
+                        .padding(.bottom, Constants.Spacing.md)
+
+                    imagesGallery
                 }
             }
             .padding(Constants.Spacing.md)
@@ -138,16 +152,16 @@ struct ReflectionDetailView: View {
             .textSelection(.enabled)
     }
 
-    private var imagesSection: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
-            SectionHeader("Images")
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Constants.Spacing.sm) {
-                    ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
-                        imageCard(image)
-                    }
-                }
+    private var imagesGallery: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: Constants.Spacing.sm),
+                GridItem(.flexible(), spacing: Constants.Spacing.sm)
+            ],
+            spacing: Constants.Spacing.sm
+        ) {
+            ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
+                imageCard(image)
             }
         }
     }
@@ -160,7 +174,7 @@ struct ReflectionDetailView: View {
                 if let thumbnail = image.thumbnail {
                     Image(uiImage: thumbnail)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .scaledToFill()
                 } else {
                     Rectangle()
                         .fill(Color.secondary.opacity(0.2))
@@ -170,15 +184,13 @@ struct ReflectionDetailView: View {
                         }
                 }
             }
-            .frame(width: 150, height: 150)
+            .aspectRatio(1, contentMode: .fill)
             .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.medium))
         }
     }
 
     private var voiceNotesSection: some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
-            SectionHeader("Voice Notes")
-
             ForEach(reflection.voiceRecordings.sorted(by: { $0.sortOrder < $1.sortOrder })) { recording in
                 VoiceNotePlayer(voiceRecording: recording)
             }
