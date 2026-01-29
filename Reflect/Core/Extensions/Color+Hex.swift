@@ -38,23 +38,29 @@ extension Color {
     }
 }
 
-// MARK: - App Color Palette
+// MARK: - App Color Palette (Earth-Tone Theme)
 extension Color {
-    // Primary Colors (Teal - Accent)
-    static let primaryLight = Color(hex: "5EBECD")
-    static let primaryDefault = Color(hex: "3AAFA9")
-    static let primaryDark = Color(hex: "2B7A78")
+    // Primary Colors (Muted Green - Main Accent)
+    static let primaryLight = Color(hex: "628141")
+    static let primaryDefault = Color(hex: "628141")
+    static let primaryDark = Color(hex: "40513B")
 
-    // Secondary Colors (Sage Green)
-    static let secondaryLight = Color(hex: "DEF2F1")
+    // Secondary Colors (Warm Beige & Dark Sage)
+    static let secondaryLight = Color(hex: "E5D9B6")
     static let secondaryDefault = Color(hex: "17252A")
-    static let secondaryDark = Color(hex: "0D1B1E")
+    static let secondaryDark = Color(hex: "40513B")
 
     // Semantic Colors
     static let success = Color(hex: "7BC950")
     static let warning = Color(hex: "FFB74D")
     static let error = Color(hex: "EF6461")
     static let info = Color(hex: "64B5F6")
+
+    // New Palette - Earth Tone Theme
+    static let sageDark = Color(hex: "40513B")          // Dark Sage Green
+    static let sageMedium = Color(hex: "628141")        // Muted Green (Primary)
+    static let beigeLight = Color(hex: "E5D9B6")        // Warm Beige/Cream
+    static let orangeWarm = Color(hex: "E67E22")        // Warm Orange (Action/Warning)
 
     // Learning Category Colors
     static let coral = Color(hex: "FF8A80")
@@ -71,10 +77,10 @@ extension Color {
     static let backgroundSecondaryLight = Color(hex: "F7F9FA")
     static let backgroundTertiaryLight = Color(hex: "EDF2F4")
 
-    // Background Colors - Dark Mode
-    static let backgroundPrimaryDark = Color(hex: "17252A")
-    static let backgroundSecondaryDark = Color(hex: "1E3235")
-    static let backgroundTertiaryDark = Color(hex: "2B4548")
+    // Background Colors - Dark Mode (Dark Sage)
+    static let backgroundPrimaryDark = Color(hex: "40513B")
+    static let backgroundSecondaryDark = Color(hex: "3D4C37")
+    static let backgroundTertiaryDark = Color(hex: "34422F")
 
     // Category color array for picker
     static let categoryColors: [Color] = [
