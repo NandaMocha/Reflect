@@ -102,11 +102,15 @@ struct VoiceNotePlayer: View {
         guard let audioData = voiceRecording.audioData else { return }
 
         do {
-            resetPlayback()
-            audioPlayer = try AVAudioPlayer(data: audioData)
-            audioPlayer?.delegate = AudioPlayerDelegateHandler(onFinished: {
-                stopPlayback()
-            })
+            // If no player exists or playback finished, create new player and reset to start
+            if audioPlayer == nil {
+                audioPlayer = try AVAudioPlayer(data: audioData)
+                audioPlayer?.delegate = AudioPlayerDelegateHandler(onFinished: {
+                    stopPlayback()
+                })
+                audioPlayer?.currentTime = currentTime // Resume from where paused
+            }
+
             audioPlayer?.play()
             audioPlayer?.volume = 1.0
             isPlaying = true
