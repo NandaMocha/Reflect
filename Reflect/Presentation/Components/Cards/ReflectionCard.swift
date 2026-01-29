@@ -20,7 +20,7 @@ struct ReflectionCard: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
-                    Spacer(minLength: 16)
+                    Spacer(minLength: 8)
                     
                     HStack(spacing: Constants.Spacing.xs) {
                         // Media indicators
