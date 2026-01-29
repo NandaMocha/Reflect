@@ -153,15 +153,18 @@ struct ReflectionDetailView: View {
     }
 
     private var imagesGallery: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: Constants.Spacing.sm),
-                GridItem(.flexible(), spacing: Constants.Spacing.sm)
-            ],
-            spacing: Constants.Spacing.sm
-        ) {
-            ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
-                imageCard(image)
+        VStack(alignment: .leading, spacing: Constants.Spacing.md) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: Constants.Spacing.xs),
+                    GridItem(.flexible(), spacing: Constants.Spacing.xs),
+                    GridItem(.flexible(), spacing: Constants.Spacing.xs)
+                ],
+                spacing: Constants.Spacing.xs
+            ) {
+                ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
+                    imageCard(image)
+                }
             }
         }
     }
@@ -184,8 +187,9 @@ struct ReflectionDetailView: View {
                         }
                 }
             }
+            .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fill)
-            .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.medium))
+            .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.small))
         }
     }
 
