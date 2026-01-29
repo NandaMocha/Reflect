@@ -141,7 +141,7 @@ struct LearningListView: View {
                         learningToEdit = learning
                     } label: {
                         Label("Edit", systemImage: "pencil")
-                        .tint(.orange)
+                        .tint(Color.orangeWarm)
                     }
                 }
                 .contextMenu {
@@ -254,7 +254,7 @@ struct FilteredReflectionListView: View {
                                 } label: {
                                     Label("Edit", systemImage: "pencil")
                                 }
-                                .tint(.orange)
+                                .tint(Color.orangeWarm)
                             }
                         }
                     }
