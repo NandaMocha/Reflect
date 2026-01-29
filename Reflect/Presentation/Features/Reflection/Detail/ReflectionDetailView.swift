@@ -153,52 +153,14 @@ struct ReflectionDetailView: View {
     }
 
     private var imagesGallery: some View {
-        GeometryReader { geometry in
-            let columns = 3
-            let spacing = Constants.Spacing.xs
-            let totalSpacing = CGFloat(columns - 1) * spacing
-            let availableWidth = geometry.size.width - totalSpacing
-            let imageSize = availableWidth / CGFloat(columns)
+        let sortedImages = reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })
+        let uiImages = sortedImages.compactMap { $0.image }
 
-            VStack(alignment: .leading, spacing: Constants.Spacing.md) {
-                LazyVGrid(
-                    columns: [
-                        GridItem(.fixed(imageSize), spacing: spacing),
-                        GridItem(.fixed(imageSize), spacing: spacing),
-                        GridItem(.fixed(imageSize), spacing: spacing)
-                    ],
-                    spacing: spacing
-                ) {
-                    ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
-                        imageCard(image, size: imageSize)
-                    }
-                }
-            }
-        }
-        .frame(height: nil) // Let it size based on content
-    }
-
-    private func imageCard(_ image: ImageAttachment, size: CGFloat) -> some View {
-        Button {
-            showFullscreenImage = image
-        } label: {
-            Group {
-                if let thumbnail = image.thumbnail {
-                    Image(uiImage: thumbnail)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.2))
-                        .overlay {
-                            Image(systemName: "photo")
-                                .foregroundColor(.secondary)
-                        }
-                }
-            }
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.small))
-        }
+        return ImageCarouselView(
+            images: uiImages,
+            imageSize: 250,
+            showIndicators: true
+        )
     }
 
     private var voiceNotesSection: some View {
