@@ -7,13 +7,12 @@ struct SettingsView: View {
     @AppStorage(Constants.UserDefaults.selectedTheme) private var selectedTheme: String = "system"
     @AppStorage(Constants.UserDefaults.defaultLanguage) private var defaultLanguage: String = "en-US"
 
-    @State private var showClearDataAlert = false
-    @State private var showExportSheet = false
+    @State var showClearDataAlert = false
+    @State var showExportSheet = false
 
     var body: some View {
         NavigationStack {
             List {
-                // MARK: - Sync Section
                 Section {
                     NavigationLink(destination: CloudSyncView()) {
                         HStack {
@@ -32,7 +31,6 @@ struct SettingsView: View {
                     Text("Sync")
                 }
 
-                // MARK: - Appearance Section
                 Section {
                     Picker("Theme", selection: $selectedTheme) {
                         Text("System").tag("system")
@@ -43,7 +41,6 @@ struct SettingsView: View {
                     Text("Appearance")
                 }
 
-                // MARK: - Preferences Section
                 Section {
                     Picker("Default Voice Language", selection: $defaultLanguage) {
                         Text("English").tag("en-US")
@@ -53,7 +50,6 @@ struct SettingsView: View {
                     Text("Preferences")
                 }
 
-                // MARK: - Data Section
                 Section {
                     Button {
                         showExportSheet = true
@@ -82,9 +78,8 @@ struct SettingsView: View {
                     Text("Clearing data will permanently delete all learnings, reflections, and attachments.")
                 }
 
-                // MARK: - About Section
                 Section {
-                    NavigationLink(destination: AboutView()) {
+                    NavigationLink(destination: SettingsAboutView()) {
                         HStack {
                             Image(systemName: "info.circle")
                                 .foregroundColor(.primaryDefault)
@@ -140,21 +135,20 @@ struct SettingsView: View {
                     }
                 }
             }
-            .alert("Clear All Data?", isPresented: $showClearDataAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Clear", role: .destructive) {
-                    clearAllData()
-                }
-            } message: {
-                Text("This will permanently delete all your learnings, reflections, images, and voice notes. This action cannot be undone.")
+            .deleteConfirmationAlert(
+                itemName: "All Data",
+                isPresented: $showClearDataAlert,
+                additionalMessage: "This will permanently delete all your learnings, reflections, images, and voice notes. This action cannot be undone."
+            ) {
+                clearAllData()
             }
             .sheet(isPresented: $showExportSheet) {
-                ExportDataSheet()
+                SettingsExportDataSheet()
             }
         }
     }
 
-    private func clearAllData() {
+    func clearAllData() {
         do {
             try modelContext.delete(model: ImageAttachment.self)
             try modelContext.delete(model: VoiceRecording.self)
@@ -166,156 +160,6 @@ struct SettingsView: View {
         } catch {
             HapticManager.shared.error()
         }
-    }
-}
-
-// MARK: - About View
-
-struct AboutView: View {
-    var body: some View {
-        ScrollView {
-            VStack(spacing: Constants.Spacing.xl) {
-                // App Icon
-                Image(systemName: "book.closed.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.primaryDefault)
-                    .padding(.top, Constants.Spacing.xl)
-
-                // App Name
-                VStack(spacing: Constants.Spacing.xs) {
-                    Text("ReflectLearn")
-                        .font(.largeTitle.weight(.bold))
-
-                    Text("Capture your learning journey")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                // Features
-                VStack(alignment: .leading, spacing: Constants.Spacing.md) {
-                    FeatureRow(icon: "lightbulb.fill", title: "Organize Learnings", description: "Create categories with custom icons and colors")
-                    FeatureRow(icon: "text.book.closed.fill", title: "Rich Reflections", description: "Capture thoughts with text, images, and voice")
-                    FeatureRow(icon: "mic.fill", title: "Voice Transcription", description: "Speak in English or Indonesian")
-                    FeatureRow(icon: "icloud.fill", title: "iCloud Backup", description: "Keep your data safe in the cloud")
-                }
-                .padding(.horizontal, Constants.Spacing.lg)
-
-                Spacer()
-            }
-        }
-        .navigationTitle("About")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(spacing: Constants.Spacing.md) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.primaryDefault)
-                .frame(width: 44, height: 44)
-                .background(Color.primaryDefault.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-}
-
-// MARK: - Export Data Sheet
-
-struct ExportDataSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-
-    @State private var isExporting = false
-    @State private var exportedURL: URL?
-    @State private var showShareSheet = false
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: Constants.Spacing.lg) {
-                Image(systemName: "square.and.arrow.up.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(.primaryDefault)
-
-                VStack(spacing: Constants.Spacing.xs) {
-                    Text("Export Your Data")
-                        .font(.title2.weight(.bold))
-
-                    Text("Export all your learnings and reflections as a JSON file that you can backup or share.")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-
-                Spacer()
-
-                if isExporting {
-                    ProgressView()
-                        .padding()
-                } else {
-                    PrimaryButton("Export Data", icon: "arrow.down.doc") {
-                        Task {
-                            await exportData()
-                        }
-                    }
-                }
-            }
-            .padding(Constants.Spacing.lg)
-            .navigationTitle("Export")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-            .sheet(isPresented: $showShareSheet) {
-                if let url = exportedURL {
-                    ShareSheet(items: [url])
-                }
-            }
-        }
-    }
-
-    @MainActor
-    private func exportData() async {
-        isExporting = true
-
-        // Export logic would go here
-        // For now, just simulate
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-
-        isExporting = false
-        HapticManager.shared.success()
-
-        // Show share sheet with exported file
-        showShareSheet = true
-    }
-}
-
-// MARK: - Bundle Extension
-
-extension Bundle {
-    var appVersion: String {
-        infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-    }
-
-    var buildNumber: String {
-        infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
 }
 

