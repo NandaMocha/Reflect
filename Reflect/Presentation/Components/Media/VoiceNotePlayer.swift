@@ -119,6 +119,8 @@ struct VoiceNotePlayer: View {
     private func pausePlayback() {
         audioPlayer?.pause()
         isPlaying = false
+        progressTimer?.invalidate()
+        progressTimer = nil
     }
 
     private func stopPlayback() {

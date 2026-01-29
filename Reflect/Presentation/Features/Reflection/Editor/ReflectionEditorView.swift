@@ -90,18 +90,40 @@ struct ReflectionEditorView: View {
 
     private var contentView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Constants.Spacing.md) {
+            VStack(alignment: .leading, spacing: 0) {
                 headerView
+
                 titleField
-                voiceRecordingsList
-                contentEditor
-                imageAttachmentsList
+                    .padding(.bottom, Constants.Spacing.md)
+
+                // Content Section
+                contentEditorSection
+                    .padding(.bottom, Constants.Spacing.md)
+
+                // Voice Notes Section
+                if !voiceRecordings.isEmpty {
+                    Divider()
+                        .opacity(0.3)
+                        .padding(.bottom, Constants.Spacing.md)
+
+                    voiceRecordingsSection
+                        .padding(.bottom, Constants.Spacing.md)
+                }
+
+                // Images Section
+                if !images.isEmpty {
+                    Divider()
+                        .opacity(0.3)
+                        .padding(.bottom, Constants.Spacing.md)
+
+                    imageAttachmentsGallery
+                }
             }
             .padding()
         }
-        .scrollDismissesKeyboard(.interactively) // Dismiss on scroll
-        .background(Color.clear) // Ensure background captures taps
-        .contentShape(Rectangle()) // Make entire area tappable
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color.clear)
+        .contentShape(Rectangle())
         .onTapGesture {
             focusedField = nil
         }
@@ -132,65 +154,65 @@ struct ReflectionEditorView: View {
         }
     }
 
-    @ViewBuilder
-    private var voiceRecordingsList: some View {
-        if !voiceRecordings.isEmpty {
-            VStack(spacing: Constants.Spacing.sm) {
-                ForEach(Array(voiceRecordings.enumerated()), id: \.offset) { index, recording in
-                    VoiceRecordingItemView(
-                        recording: recording,
-                        onPlay: { /* Play recording */ },
+    private var voiceRecordingsSection: some View {
+        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
+            ForEach(Array(voiceRecordings.enumerated()), id: \.offset) { index, recording in
+                VoiceRecordingItemView(
+                    recording: recording,
+                    onPlay: { /* Play recording */ },
+                    onRemove: {
+                        voiceRecordings.remove(at: index)
+                        hasChanges = true
+                    }
+                )
+            }
+        }
+    }
+
+    private var contentEditorSection: some View {
+        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
+            ZStack(alignment: .topLeading) {
+                if content.isEmpty {
+                    Text("Write your reflection here...")
+                        .font(.body)
+                        .foregroundColor(.secondary.opacity(0.5))
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                }
+
+                TextEditor(text: $content)
+                    .font(.body)
+                    .focused($focusedField, equals: .content)
+                    .frame(minHeight: 200)
+                    .scrollContentBackground(.hidden)
+                    .onChange(of: content) { _, _ in hasChanges = true }
+            }
+            .padding(.horizontal, -4)
+
+            Divider()
+                .opacity(0.3)
+        }
+    }
+
+    private var imageAttachmentsGallery: some View {
+        VStack(alignment: .leading, spacing: Constants.Spacing.md) {
+            // Gallery grid - 2 columns
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: Constants.Spacing.sm),
+                    GridItem(.flexible(), spacing: Constants.Spacing.sm)
+                ],
+                spacing: Constants.Spacing.sm
+            ) {
+                ForEach(Array(images.enumerated()), id: \.offset) { index, imageInput in
+                    ImageAttachmentItemView(
+                        image: imageInput.image,
                         onRemove: {
-                            voiceRecordings.remove(at: index)
+                            images.remove(at: index)
                             hasChanges = true
                         }
                     )
-                }
-            }
-        }
-    }
-
-    private var contentEditor: some View {
-        ZStack(alignment: .topLeading) {
-            if content.isEmpty {
-                Text("Write your reflection here...")
-                    .font(.body)
-                    .foregroundColor(.secondary.opacity(0.5))
-                    .padding(.top, 8)
-                    .padding(.leading, 5)
-                    .allowsHitTesting(false) // Allow taps to pass through to TextEditor
-            }
-
-            TextEditor(text: $content)
-                .font(.body)
-                .focused($focusedField, equals: .content)
-                .frame(minHeight: 200)
-                .scrollContentBackground(.hidden)
-                .onChange(of: content) { _, _ in hasChanges = true }
-        }
-        .padding(.horizontal, -4) // Align TextEditor padding with other fields
-    }
-
-    @ViewBuilder
-    private var imageAttachmentsList: some View {
-        if !images.isEmpty {
-            VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
-                Text("Images")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.primary)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Constants.Spacing.sm) {
-                        ForEach(Array(images.enumerated()), id: \.offset) { index, imageInput in
-                            ImageAttachmentItemView(
-                                image: imageInput.image,
-                                onRemove: {
-                                    images.remove(at: index)
-                                    hasChanges = true
-                                }
-                            )
-                        }
-                    }
                 }
             }
         }
