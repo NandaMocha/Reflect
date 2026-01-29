@@ -58,17 +58,33 @@ struct EditableImageCarouselView: View {
                 // Indicators
                 if showIndicators && !images.isEmpty {
                     HStack(spacing: Constants.Spacing.xs) {
+                        Button(action: { if currentIndex > 0 { currentIndex -= 1 } }) {
+                            Image(systemName: "chevron.left")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.secondary)
+                                .opacity(currentIndex > 0 ? 1.0 : 0.3)
+                        }
+                        .disabled(currentIndex == 0)
+
+                        Spacer()
+
                         ForEach(0..<images.count, id: \.self) { index in
-                            Circle()
-                                .fill(index == currentIndex ? Color.primaryDefault : Color.secondary.opacity(0.3))
-                                .frame(width: 6, height: 6)
+                            Button(action: { currentIndex = index }) {
+                                Circle()
+                                    .fill(index == currentIndex ? Color.primaryDefault : Color.secondary.opacity(0.3))
+                                    .frame(width: 6, height: 6)
+                            }
                         }
 
                         Spacer()
 
-                        Text("\(currentIndex + 1)/\(images.count)")
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(.secondary)
+                        Button(action: { if currentIndex < images.count - 1 { currentIndex += 1 } }) {
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.secondary)
+                                .opacity(currentIndex < images.count - 1 ? 1.0 : 0.3)
+                        }
+                        .disabled(currentIndex >= images.count - 1)
                     }
                     .padding(.horizontal, Constants.Spacing.md)
                 }
