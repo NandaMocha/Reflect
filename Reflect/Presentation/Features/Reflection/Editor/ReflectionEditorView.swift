@@ -22,6 +22,7 @@ struct ReflectionEditorView: View {
     // UI State
     @State var showDiscardAlert = false
     @State var showImagePicker = false
+    @State var showCameraPicker = false
     @State var showVoiceRecorder = false
     @State var showLearningPicker = false
     @State var showDatePicker = false
@@ -47,7 +48,7 @@ struct ReflectionEditorView: View {
     }
 
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
+        // Title is not mandatory - uses default value if empty
         !content.trimmingCharacters(in: .whitespaces).isEmpty &&
         selectedLearning != nil
     }
@@ -70,6 +71,17 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
+                .sheet(isPresented: $showCameraPicker) {
+                    ImagePickerView(sourceType: .camera, selectedImage: Binding(
+                        get: { nil },
+                        set: { newImage in
+                            if let image = newImage {
+                                processCapturedImage(image)
+                            }
+                        }
+                    ))
+                    .ignoresSafeArea()
+                }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
                 .onChange(of: selectedPhotoItems) { _, newItems in

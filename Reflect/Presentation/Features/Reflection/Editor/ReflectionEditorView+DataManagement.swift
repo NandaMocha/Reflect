@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 // MARK: - Data Loading & Saving Extension
 
@@ -61,5 +62,11 @@ extension ReflectionEditorView {
         await MainActor.run {
             selectedPhotoItems = []
         }
+    }
+
+    func processCapturedImage(_ image: UIImage) {
+        let input = ImageInput(image: image)
+        images.append(input)
+        hasChanges = true
     }
 }

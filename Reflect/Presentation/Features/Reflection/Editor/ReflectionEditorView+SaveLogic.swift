@@ -27,8 +27,11 @@ extension ReflectionEditorView {
     }
 
     func createReflection() async throws {
+        // Use default title if empty
+        let finalTitle = title.trimmingCharacters(in: .whitespaces).isEmpty ? defaultTitle : title.trimmingCharacters(in: .whitespaces)
+
         let reflection = Reflection(
-            title: title.trimmingCharacters(in: .whitespaces),
+            title: finalTitle,
             plainTextContent: content.trimmingCharacters(in: .whitespaces)
         )
         reflection.learning = selectedLearning
@@ -64,7 +67,10 @@ extension ReflectionEditorView {
     }
 
     func updateReflection(_ reflection: Reflection) async throws {
-        reflection.title = title.trimmingCharacters(in: .whitespaces)
+        // Use default title if empty
+        let finalTitle = title.trimmingCharacters(in: .whitespaces).isEmpty ? defaultTitle : title.trimmingCharacters(in: .whitespaces)
+
+        reflection.title = finalTitle
         reflection.plainTextContent = content.trimmingCharacters(in: .whitespaces)
         reflection.learning = selectedLearning
         reflection.createdAt = selectedDate
