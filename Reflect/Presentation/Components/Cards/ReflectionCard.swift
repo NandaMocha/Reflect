@@ -6,73 +6,81 @@ struct ReflectionCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(alignment: .top, spacing: Constants.Spacing.sm) {
-                // Thumbnail (if available)
-                if let thumbnail = reflection.firstImage?.thumbnail {
-                    Image(uiImage: thumbnail)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.small))
-                }
+            GeometryReader { geometry in
+                let imageSize = geometry.size.width * 0.35 // 35% of card width
 
-                // Content
-                VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
-                    Text(reflection.title)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                ZStack(alignment: .topTrailing) {
+                    // Main content
+                    VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
+                        Text(reflection.title)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
 
-                    Text(reflection.contentPreview)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-
-                    HStack(spacing: Constants.Spacing.xs) {
-                        // Hashtags
-                        if !reflection.hashtags.isEmpty {
-                            ForEach(reflection.hashtags.prefix(2)) { hashtag in
-                                Text(hashtag.displayName)
-                                    .font(.caption)
-                                    .foregroundColor(.primaryDefault)
-                            }
-
-                            if reflection.hashtags.count > 2 {
-                                Text("+\(reflection.hashtags.count - 2)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        Spacer()
-
-                        // Media indicators
-                        HStack(spacing: Constants.Spacing.xxs) {
-                            if reflection.hasImages {
-                                Image(systemName: "photo")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if reflection.hasVoiceRecordings {
-                                Image(systemName: "mic")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        // Date
-                        Text(reflection.createdAt.shortFormatted)
-                            .font(.caption)
+                        Text(reflection.contentPreview)
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.leading)
+
+                        Spacer(minLength: 0)
+
+                        // Indicators row
+                        HStack(spacing: Constants.Spacing.xs) {
+                            // Hashtags
+                            if !reflection.hashtags.isEmpty {
+                                ForEach(reflection.hashtags.prefix(2)) { hashtag in
+                                    Text(hashtag.displayName)
+                                        .font(.caption)
+                                        .foregroundColor(.primaryDefault)
+                                }
+
+                                if reflection.hashtags.count > 2 {
+                                    Text("+\(reflection.hashtags.count - 2)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+
+                            Spacer()
+
+                            // Media indicators
+                            HStack(spacing: Constants.Spacing.xxs) {
+                                if reflection.hasImages {
+                                    Image(systemName: "photo")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                if reflection.hasVoiceRecordings {
+                                    Image(systemName: "mic")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+
+                            // Date
+                            Text(reflection.createdAt.shortFormatted)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(Constants.Spacing.md)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                    // Image in top-right corner
+                    if let thumbnail = reflection.firstImage?.thumbnail {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: imageSize, height: imageSize)
+                            .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.medium))
+                            .padding(Constants.Spacing.sm)
                     }
                 }
-
-                Spacer(minLength: 0)
             }
-//            .padding(Constants.Spacing.md)
+            .frame(height: 100) // Compact height
             .glassCard()
         }
     }
