@@ -146,7 +146,7 @@ struct ReflectionListView: View {
             }
             
             .padding(.horizontal, Constants.Spacing.md)
-            .padding(.bottom, 100) // Space for FAB
+            .padding(.bottom, 50) // Space for FAB
 
         }
     }
