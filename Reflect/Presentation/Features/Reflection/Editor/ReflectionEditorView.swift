@@ -212,14 +212,31 @@ struct ReflectionEditorView: View {
     }
 
     private var imageAttachmentsGallery: some View {
-        EditableImageCarouselView(
-            images: $images,
-            imageSize: 250,
-            showIndicators: true,
-            onImageRemoved: {
-                hasChanges = true
+        GeometryReader { geometry in
+            let columns = 2
+            let spacing = Constants.Spacing.xs
+            let totalSpacing = CGFloat(columns - 1) * spacing
+            let availableWidth = geometry.size.width - totalSpacing
+            let imageSize = availableWidth / CGFloat(columns)
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.fixed(imageSize), spacing: spacing),
+                    GridItem(.fixed(imageSize), spacing: spacing)
+                ],
+                spacing: spacing
+            ) {
+                ForEach(Array(images.enumerated()), id: \.offset) { index, imageInput in
+                    ImageAttachmentItemView(
+                        image: imageInput.image,
+                        onRemove: {
+                            images.remove(at: index)
+                            hasChanges = true
+                        }
+                    )
+                }
             }
-        )
+        }
     }
 
     // MARK: - Toolbar

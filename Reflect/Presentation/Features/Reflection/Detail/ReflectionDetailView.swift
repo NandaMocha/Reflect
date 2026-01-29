@@ -91,7 +91,10 @@ struct ReflectionDetailView: View {
             ShareSheet(items: [shareText])
         }
         .fullScreenCover(item: $showFullscreenImage) { image in
-            ImageFullscreenView(image: image)
+            ImageFullscreenView(
+                images: reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder }),
+                startingImage: image
+            )
         }
         .fullScreenCover(isPresented: $showEditSheet) {
             ReflectionEditorView(mode: .edit(reflection))
@@ -153,14 +156,49 @@ struct ReflectionDetailView: View {
     }
 
     private var imagesGallery: some View {
-        let sortedImages = reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })
-        let uiImages = sortedImages.compactMap { $0.image }
+        GeometryReader { geometry in
+            let columns = 2
+            let spacing = Constants.Spacing.xs
+            let totalSpacing = CGFloat(columns - 1) * spacing
+            let availableWidth = geometry.size.width - totalSpacing
+            let imageSize = availableWidth / CGFloat(columns)
 
-        return ImageCarouselView(
-            images: uiImages,
-            imageSize: 250,
-            showIndicators: true
-        )
+            LazyVGrid(
+                columns: [
+                    GridItem(.fixed(imageSize), spacing: spacing),
+                    GridItem(.fixed(imageSize), spacing: spacing)
+                ],
+                spacing: spacing
+            ) {
+                ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
+                    imageCard(image, size: imageSize)
+                }
+            }
+        }
+        .frame(height: nil)
+    }
+
+    private func imageCard(_ image: ImageAttachment, size: CGFloat) -> some View {
+        Button {
+            showFullscreenImage = image
+        } label: {
+            Group {
+                if let thumbnail = image.thumbnail {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.2))
+                        .overlay {
+                            Image(systemName: "photo")
+                                .foregroundColor(.secondary)
+                        }
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.medium))
+        }
     }
 
     private var voiceNotesSection: some View {
@@ -236,33 +274,83 @@ struct ShareSheet: UIViewControllerRepresentable {
 // MARK: - Image Fullscreen View
 
 struct ImageFullscreenView: View {
-    let image: ImageAttachment
+    let images: [ImageAttachment]
+    @State private var currentIndex: Int
     @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1.0
+
+    init(images: [ImageAttachment], startingImage: ImageAttachment) {
+        self.images = images
+        let index = images.firstIndex(where: { $0.id == startingImage.id }) ?? 0
+        _currentIndex = State(initialValue: index)
+    }
 
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                if let uiImage = image.image {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .scaleEffect(scale)
-                        .gesture(
-                            MagnificationGesture()
-                                .onChanged { value in
-                                    scale = value
-                                }
-                                .onEnded { _ in
-                                    withAnimation {
-                                        scale = 1.0
-                                    }
-                                }
-                        )
+                let currentImage = images[currentIndex]
+                if let uiImage = currentImage.image {
+                    ZStack {
+                        Color.black.ignoresSafeArea()
+
+                        VStack {
+                            // Image
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .scaleEffect(scale)
+                                .gesture(
+                                    MagnificationGesture()
+                                        .onChanged { value in
+                                            scale = value
+                                        }
+                                        .onEnded { _ in
+                                            withAnimation {
+                                                scale = 1.0
+                                            }
+                                        }
+                                )
+                                .gesture(
+                                    DragGesture()
+                                        .onEnded { value in
+                                            if value.translation.width > 50 {
+                                                // Swipe right - previous image
+                                                if currentIndex > 0 {
+                                                    withAnimation {
+                                                        currentIndex -= 1
+                                                        scale = 1.0
+                                                    }
+                                                }
+                                            } else if value.translation.width < -50 {
+                                                // Swipe left - next image
+                                                if currentIndex < images.count - 1 {
+                                                    withAnimation {
+                                                        currentIndex += 1
+                                                        scale = 1.0
+                                                    }
+                                                }
+                                            }
+                                        }
+                                )
+
+                            // Image counter
+                            HStack {
+                                Spacer()
+                                Text("\(currentIndex + 1)/\(images.count)")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, Constants.Spacing.md)
+                                    .padding(.vertical, Constants.Spacing.sm)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(Constants.CornerRadius.small)
+                                Spacer()
+                            }
+                            .padding(Constants.Spacing.md)
+                        }
+                    }
                 }
             }
-            .background(Color.black)
             .ignoresSafeArea()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
