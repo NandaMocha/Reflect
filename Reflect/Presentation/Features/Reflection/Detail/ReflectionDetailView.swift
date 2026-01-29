@@ -153,23 +153,32 @@ struct ReflectionDetailView: View {
     }
 
     private var imagesGallery: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.md) {
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: Constants.Spacing.xs),
-                    GridItem(.flexible(), spacing: Constants.Spacing.xs),
-                    GridItem(.flexible(), spacing: Constants.Spacing.xs)
-                ],
-                spacing: Constants.Spacing.xs
-            ) {
-                ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
-                    imageCard(image)
+        GeometryReader { geometry in
+            let columns = 3
+            let spacing = Constants.Spacing.xs
+            let totalSpacing = CGFloat(columns - 1) * spacing
+            let availableWidth = geometry.size.width - totalSpacing
+            let imageSize = availableWidth / CGFloat(columns)
+
+            VStack(alignment: .leading, spacing: Constants.Spacing.md) {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.fixed(imageSize), spacing: spacing),
+                        GridItem(.fixed(imageSize), spacing: spacing),
+                        GridItem(.fixed(imageSize), spacing: spacing)
+                    ],
+                    spacing: spacing
+                ) {
+                    ForEach(reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
+                        imageCard(image, size: imageSize)
+                    }
                 }
             }
         }
+        .frame(height: nil) // Let it size based on content
     }
 
-    private func imageCard(_ image: ImageAttachment) -> some View {
+    private func imageCard(_ image: ImageAttachment, size: CGFloat) -> some View {
         Button {
             showFullscreenImage = image
         } label: {
@@ -187,8 +196,7 @@ struct ReflectionDetailView: View {
                         }
                 }
             }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fill)
+            .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.small))
         }
     }
