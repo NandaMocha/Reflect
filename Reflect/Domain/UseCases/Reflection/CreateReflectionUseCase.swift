@@ -7,18 +7,15 @@ protocol CreateReflectionUseCaseProtocol {
 final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
     private let reflectionRepository: ReflectionRepositoryProtocol
     private let learningRepository: LearningRepositoryProtocol
-    private let hashtagRepository: HashtagRepositoryProtocol
     private let imageService: ImageProcessingServiceProtocol
 
     init(
         reflectionRepository: ReflectionRepositoryProtocol,
         learningRepository: LearningRepositoryProtocol,
-        hashtagRepository: HashtagRepositoryProtocol,
         imageService: ImageProcessingServiceProtocol
     ) {
         self.reflectionRepository = reflectionRepository
         self.learningRepository = learningRepository
-        self.hashtagRepository = hashtagRepository
         self.imageService = imageService
     }
 
@@ -62,12 +59,6 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
                 sortOrder: index
             )
             reflection.voiceRecordings.append(recording)
-        }
-
-        // Process hashtags
-        for hashtagName in input.hashtags {
-            let hashtag = try await hashtagRepository.fetchOrCreate(name: hashtagName)
-            reflection.hashtags.append(hashtag)
         }
 
         try await reflectionRepository.create(reflection)

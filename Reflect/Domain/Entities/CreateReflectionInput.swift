@@ -7,22 +7,19 @@ struct CreateReflectionInput {
     var learningId: UUID?
     var images: [ImageInput]
     var voiceRecordings: [VoiceRecordingInput]
-    var hashtags: [String]
 
     init(
         title: String = "",
         content: String = "",
         learningId: UUID? = nil,
         images: [ImageInput] = [],
-        voiceRecordings: [VoiceRecordingInput] = [],
-        hashtags: [String] = []
+        voiceRecordings: [VoiceRecordingInput] = []
     ) {
         self.title = title
         self.content = content
         self.learningId = learningId
         self.images = images
         self.voiceRecordings = voiceRecordings
-        self.hashtags = hashtags
     }
 
     var isValid: Bool {
@@ -50,9 +47,6 @@ struct CreateReflectionInput {
         }
         if voiceRecordings.count > Constants.Limits.maxVoiceNotesPerReflection {
             errors.append("Too many voice recordings")
-        }
-        if hashtags.count > Constants.Limits.maxHashtagsPerReflection {
-            errors.append("Too many hashtags")
         }
         return errors
     }
@@ -104,7 +98,6 @@ struct UpdateReflectionInput {
     var imageIdsToRemove: [UUID]
     var voiceRecordingsToAdd: [VoiceRecordingInput]
     var voiceRecordingIdsToRemove: [UUID]
-    var hashtags: [String]
 
     var isValid: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&

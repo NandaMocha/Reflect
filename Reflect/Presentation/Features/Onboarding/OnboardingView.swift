@@ -16,7 +16,7 @@ struct OnboardingView: View {
         OnboardingPage(
             icon: "folder.fill.badge.gearshape",
             title: "Organize Your Learnings",
-            subtitle: "Create categories, add hashtags, and find insights instantly",
+            subtitle: "Create categories and find insights instantly",
             color: .success
         ),
         OnboardingPage(

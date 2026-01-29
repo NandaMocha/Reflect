@@ -8,9 +8,7 @@ final class ReflectionListViewModel {
     // MARK: - State
     var reflections: [Reflection] = []
     var groupedReflections: [ReflectionDateGroup: [Reflection]] = [:]
-    var popularHashtags: [Hashtag] = []
     var searchQuery: String = ""
-    var selectedHashtags: Set<String> = []
     var sortOption: Constants.SortOption = .newestFirst
     var isLoading: Bool = false
     var errorMessage: String?
@@ -23,7 +21,6 @@ final class ReflectionListViewModel {
     let modelContext: ModelContext
     let searchUseCase: SearchReflectionsUseCaseProtocol
     let deleteUseCase: DeleteReflectionUseCaseProtocol
-    let hashtagRepository: HashtagRepositoryProtocol
 
     var searchCancellable: AnyCancellable?
     let searchSubject = PassthroughSubject<String, Never>()
@@ -33,18 +30,14 @@ final class ReflectionListViewModel {
     init(
         modelContext: ModelContext,
         searchUseCase: SearchReflectionsUseCaseProtocol? = nil,
-        deleteUseCase: DeleteReflectionUseCaseProtocol? = nil,
-        hashtagRepository: HashtagRepositoryProtocol? = nil
+        deleteUseCase: DeleteReflectionUseCaseProtocol? = nil
     ) {
         self.modelContext = modelContext
         let reflectionRepo = ReflectionRepository(modelContext: modelContext)
-        let hashtagRepo = HashtagRepository(modelContext: modelContext)
         self.searchUseCase = searchUseCase ?? SearchReflectionsUseCase(repository: reflectionRepo)
         self.deleteUseCase = deleteUseCase ?? DeleteReflectionUseCase(
-            reflectionRepository: reflectionRepo,
-            hashtagRepository: hashtagRepo
+            reflectionRepository: reflectionRepo
         )
-        self.hashtagRepository = hashtagRepository ?? hashtagRepo
 
         setupSearchDebounce()
     }

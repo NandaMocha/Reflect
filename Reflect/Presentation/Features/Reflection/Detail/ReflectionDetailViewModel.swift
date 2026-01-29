@@ -25,7 +25,7 @@ final class ReflectionDetailViewModel {
         self.reflection = reflection
         self.modelContext = modelContext
         self.deleteUseCase = deleteUseCase ?? DeleteReflectionUseCase(
-            reflectionRepository: ReflectionRepository(modelContext: modelContext), hashtagRepository: HashtagRepository(modelContext: modelContext)
+            reflectionRepository: ReflectionRepository(modelContext: modelContext)
         )
     }
 
@@ -34,12 +34,6 @@ final class ReflectionDetailViewModel {
     var shareText: String {
         var text = "# \(reflection.title)\n\n"
         text += reflection.plainTextContent
-
-        if !reflection.hashtags.isEmpty {
-            text += "\n\n"
-            text += reflection.hashtags.map { $0.displayName }.joined(separator: " ")
-        }
-
         return text
     }
 

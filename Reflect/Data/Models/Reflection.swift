@@ -19,9 +19,6 @@ final class Reflection {
     @Relationship(deleteRule: .cascade, inverse: \VoiceRecording.reflection)
     var voiceRecordings: [VoiceRecording] = []
 
-    @Relationship(inverse: \Hashtag.reflections)
-    var hashtags: [Hashtag] = []
-
     init(
         id: UUID = UUID(),
         title: String,
@@ -56,19 +53,11 @@ final class Reflection {
         images.sorted { $0.sortOrder < $1.sortOrder }.first
     }
 
-    var hashtagStrings: [String] {
-        hashtags.map { $0.name }
-    }
-
     var hasImages: Bool {
         !images.isEmpty
     }
 
     var hasVoiceRecordings: Bool {
         !voiceRecordings.isEmpty
-    }
-
-    var hasHashtags: Bool {
-        !hashtags.isEmpty
     }
 }

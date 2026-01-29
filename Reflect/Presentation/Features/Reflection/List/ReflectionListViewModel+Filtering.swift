@@ -3,20 +3,7 @@ import Foundation
 // MARK: - Filtering Extension
 
 extension ReflectionListViewModel {
-    func toggleHashtag(_ hashtag: String) {
-        if selectedHashtags.contains(hashtag) {
-            selectedHashtags.remove(hashtag)
-        } else {
-            selectedHashtags.insert(hashtag)
-        }
-        HapticManager.shared.selection()
-        Task { @MainActor in
-            await loadReflections()
-        }
-    }
-
     func clearFilters() {
-        selectedHashtags.removeAll()
         showFavoritesOnly = false
         learningFilter = nil
         searchQuery = ""
@@ -50,7 +37,6 @@ extension ReflectionListViewModel {
         SearchFilters(
             query: searchQuery,
             learningId: learningFilter?.id,
-            hashtags: Array(selectedHashtags),
             favoritesOnly: showFavoritesOnly,
             sortOption: sortOption
         )

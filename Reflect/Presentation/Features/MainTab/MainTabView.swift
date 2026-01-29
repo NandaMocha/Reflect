@@ -25,5 +25,5 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
-        .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self, Hashtag.self], inMemory: true)
+        .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self], inMemory: true)
 }

@@ -26,7 +26,7 @@ extension ReflectionListViewModel {
     }
 
     var hasActiveFilters: Bool {
-        !selectedHashtags.isEmpty || showFavoritesOnly || learningFilter != nil || !searchQuery.isEmpty
+        showFavoritesOnly || learningFilter != nil || !searchQuery.isEmpty
     }
 
     var isEmpty: Bool {

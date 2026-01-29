@@ -30,13 +30,6 @@ final class DIContainer {
         return ReflectionRepository(modelContext: context)
     }
 
-    func makeHashtagRepository() -> HashtagRepositoryProtocol {
-        guard let context = modelContext else {
-            fatalError("ModelContext not configured. Call configure(with:) first.")
-        }
-        return HashtagRepository(modelContext: context)
-    }
-
     // MARK: - Use Cases - Learning
 
     func makeCreateLearningUseCase() -> CreateLearningUseCaseProtocol {
@@ -61,7 +54,6 @@ final class DIContainer {
         CreateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            hashtagRepository: makeHashtagRepository(),
             imageService: makeImageProcessingService()
         )
     }
@@ -70,14 +62,12 @@ final class DIContainer {
         UpdateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            hashtagRepository: makeHashtagRepository(),
             imageService: makeImageProcessingService()
         )
     }
 
     func makeDeleteReflectionUseCase() -> DeleteReflectionUseCaseProtocol {
-        DeleteReflectionUseCase(reflectionRepository: makeReflectionRepository(),
-                                hashtagRepository: makeHashtagRepository())
+        DeleteReflectionUseCase(reflectionRepository: makeReflectionRepository())
     }
 
     func makeFetchReflectionsUseCase() -> FetchReflectionsUseCaseProtocol {
@@ -141,8 +131,7 @@ final class DIContainer {
         return ReflectionListViewModel(
             modelContext: context,
             searchUseCase: makeSearchReflectionsUseCase(),
-            deleteUseCase: makeDeleteReflectionUseCase(),
-            hashtagRepository: makeHashtagRepository()
+            deleteUseCase: makeDeleteReflectionUseCase()
         )
     }
 

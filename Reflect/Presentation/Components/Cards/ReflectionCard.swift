@@ -24,17 +24,19 @@ struct ReflectionCard: View {
                     
                     HStack(spacing: Constants.Spacing.xs) {
                         // Media indicators
-                        HStack(spacing: Constants.Spacing.xxs) {
-                            if reflection.hasImages {
-                                Image(systemName: "photo")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if reflection.hasVoiceRecordings {
-                                Image(systemName: "mic")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
+                        if reflection.hasImages || reflection.hasVoiceRecordings {
+                            HStack(spacing: Constants.Spacing.xxs) {
+                                if reflection.hasImages {
+                                    Image(systemName: "photo")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                if reflection.hasVoiceRecordings {
+                                    Image(systemName: "mic")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
 

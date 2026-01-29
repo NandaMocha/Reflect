@@ -7,12 +7,6 @@ extension ReflectionDetailView {
     var shareText: String {
         var text = "# \(reflection.title)\n\n"
         text += reflection.plainTextContent
-
-        if !reflection.hashtags.isEmpty {
-            text += "\n\n"
-            text += reflection.hashtags.map { $0.displayName }.joined(separator: " ")
-        }
-
         return text
     }
 

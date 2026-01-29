@@ -25,15 +25,6 @@ final class SearchReflectionsUseCase: SearchReflectionsUseCaseProtocol {
             results = try await repository.fetchAll()
         }
 
-        // Apply hashtag filter
-        if !filters.hashtags.isEmpty {
-            results = results.filter { reflection in
-                let reflectionHashtags = Set(reflection.hashtags.map { $0.name.lowercased() })
-                let filterHashtags = Set(filters.hashtags.map { $0.lowercased() })
-                return !reflectionHashtags.isDisjoint(with: filterHashtags)
-            }
-        }
-
         // Apply favorites filter (if not already applied)
         if filters.favoritesOnly && !filters.query.isEmpty {
             results = results.filter { $0.isFavorite }

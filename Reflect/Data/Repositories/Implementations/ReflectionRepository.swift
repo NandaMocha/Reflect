@@ -51,18 +51,6 @@ final class ReflectionRepository: ReflectionRepositoryProtocol {
         }
     }
 
-    func searchByHashtag(_ hashtag: String) async throws -> [Reflection] {
-        let normalizedHashtag = hashtag.lowercased().replacingOccurrences(of: "#", with: "")
-        let descriptor = FetchDescriptor<Reflection>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        let allReflections = try modelContext.fetch(descriptor)
-
-        return allReflections.filter { reflection in
-            reflection.hashtags.contains { $0.name.lowercased() == normalizedHashtag }
-        }
-    }
-
     func create(_ reflection: Reflection) async throws {
         modelContext.insert(reflection)
         try modelContext.save()

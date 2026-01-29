@@ -19,8 +19,7 @@ struct ReflectApp: App {
                 Learning.self,
                 Reflection.self,
                 ImageAttachment.self,
-                VoiceRecording.self,
-                Hashtag.self
+                VoiceRecording.self
             ])
 
             let modelConfiguration = ModelConfiguration(

@@ -23,11 +23,6 @@ struct ReflectionDetailView: View {
                 headerSection
                     .padding(.bottom, Constants.Spacing.md)
 
-                if !reflection.hashtags.isEmpty {
-                    hashtagSection
-                        .padding(.bottom, Constants.Spacing.md)
-                }
-
                 Divider()
                     .opacity(0.3)
                     .padding(.bottom, Constants.Spacing.md)

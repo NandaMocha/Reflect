@@ -51,7 +51,6 @@ final class SettingsViewModel {
         do {
             try modelContext.delete(model: ImageAttachment.self)
             try modelContext.delete(model: VoiceRecording.self)
-            try modelContext.delete(model: Hashtag.self)
             try modelContext.delete(model: Reflection.self)
             try modelContext.delete(model: Learning.self)
             try modelContext.save()
@@ -143,7 +142,6 @@ struct ReflectionExport: Codable {
     let learningId: String?
     let title: String
     let content: String
-    let hashtags: [String]
     let isFavorite: Bool
     let createdAt: Date
     let updatedAt: Date
@@ -155,7 +153,6 @@ struct ReflectionExport: Codable {
         self.learningId = reflection.learning?.id.uuidString
         self.title = reflection.title
         self.content = reflection.plainTextContent
-        self.hashtags = reflection.hashtags.map { $0.name }
         self.isFavorite = reflection.isFavorite
         self.createdAt = reflection.createdAt
         self.updatedAt = reflection.updatedAt

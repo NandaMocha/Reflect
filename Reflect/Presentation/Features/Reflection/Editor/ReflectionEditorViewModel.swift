@@ -10,7 +10,6 @@ final class ReflectionEditorViewModel {
     var title: String = ""
     var content: String = ""
     var selectedLearning: Learning?
-    var hashtags: [String] = []
     var images: [ImageInput] = []
     var voiceRecordings: [VoiceRecordingInput] = []
 
@@ -20,7 +19,6 @@ final class ReflectionEditorViewModel {
     var hasChanges: Bool = false
     var showVoiceRecorder: Bool = false
     var showImagePicker: Bool = false
-    var showHashtagEditor: Bool = false
     var selectedPhotoItems: [PhotosPickerItem] = []
 
     // MARK: - Mode
@@ -53,18 +51,15 @@ final class ReflectionEditorViewModel {
 
         let reflectionRepo = ReflectionRepository(modelContext: modelContext)
         let learningRepo = LearningRepository(modelContext: modelContext)
-        let hashtagRepo = HashtagRepository(modelContext: modelContext)
 
         self.createUseCase = createUseCase ?? CreateReflectionUseCase(
             reflectionRepository: reflectionRepo,
             learningRepository: learningRepo,
-            hashtagRepository: hashtagRepo,
             imageService: ImageProcessingService.shared
         )
         self.updateUseCase = updateUseCase ?? UpdateReflectionUseCase(
             reflectionRepository: reflectionRepo,
             learningRepository: learningRepo,
-            hashtagRepository: hashtagRepo,
             imageService: ImageProcessingService.shared
         )
         self.imageService = imageService ?? ImageProcessingService.shared
@@ -87,7 +82,6 @@ final class ReflectionEditorViewModel {
         title = reflection.title
         content = reflection.plainTextContent
         selectedLearning = reflection.learning
-        hashtags = reflection.hashtags.map { $0.name }
 
         // Convert existing images to ImageInput
         images = reflection.images.compactMap { attachment in
@@ -213,27 +207,6 @@ final class ReflectionEditorViewModel {
         HapticManager.shared.lightImpact()
     }
 
-    // MARK: - Hashtag Actions
-
-    func addHashtag(_ hashtag: String) {
-        let normalized = hashtag.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !normalized.isEmpty, !hashtags.contains(normalized) else { return }
-        guard hashtags.count < Constants.Limits.maxHashtagsPerReflection else {
-            errorMessage = "Maximum \(Constants.Limits.maxHashtagsPerReflection) hashtags allowed"
-            return
-        }
-
-        hashtags.append(normalized)
-        hasChanges = true
-        HapticManager.shared.lightImpact()
-    }
-
-    func removeHashtag(_ hashtag: String) {
-        hashtags.removeAll { $0 == hashtag }
-        hasChanges = true
-        HapticManager.shared.lightImpact()
-    }
-
     // MARK: - Save Action
 
     @MainActor
@@ -255,8 +228,7 @@ final class ReflectionEditorViewModel {
                     content: content.trimmingCharacters(in: .whitespaces),
                     learningId: selectedLearning?.id,
                     images: images,
-                    voiceRecordings: voiceRecordings,
-                    hashtags: hashtags
+                    voiceRecordings: voiceRecordings
                 )
                 try await createUseCase.execute(input: input)
 
@@ -277,8 +249,7 @@ final class ReflectionEditorViewModel {
                     },
                     voiceRecordingIdsToRemove: reflection.voiceRecordings
                         .filter { existing in !voiceRecordings.contains { $0.id == existing.id } }
-                        .map { $0.id },
-                    hashtags: hashtags
+                        .map { $0.id }
                 )
                 try await updateUseCase.execute(input: input)
             }

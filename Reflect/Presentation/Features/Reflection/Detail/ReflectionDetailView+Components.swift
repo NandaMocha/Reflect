@@ -28,15 +28,6 @@ extension ReflectionDetailView {
         )
     }
 
-    var hashtagSection: some View {
-        FlowLayout(spacing: Constants.Spacing.xs) {
-            ForEach(reflection.hashtags) { hashtag in
-                HashtagChip(text: hashtag.name, isSelected: false) {
-                }
-            }
-        }
-    }
-
     var contentSection: some View {
         Text(reflection.plainTextContent)
             .font(.body)

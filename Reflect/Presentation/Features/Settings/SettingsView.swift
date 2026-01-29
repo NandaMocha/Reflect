@@ -152,7 +152,6 @@ struct SettingsView: View {
         do {
             try modelContext.delete(model: ImageAttachment.self)
             try modelContext.delete(model: VoiceRecording.self)
-            try modelContext.delete(model: Hashtag.self)
             try modelContext.delete(model: Reflection.self)
             try modelContext.delete(model: Learning.self)
             try modelContext.save()

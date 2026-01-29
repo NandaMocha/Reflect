@@ -7,18 +7,15 @@ protocol UpdateReflectionUseCaseProtocol {
 final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
     private let reflectionRepository: ReflectionRepositoryProtocol
     private let learningRepository: LearningRepositoryProtocol
-    private let hashtagRepository: HashtagRepositoryProtocol
     private let imageService: ImageProcessingServiceProtocol
 
     init(
         reflectionRepository: ReflectionRepositoryProtocol,
         learningRepository: LearningRepositoryProtocol,
-        hashtagRepository: HashtagRepositoryProtocol,
         imageService: ImageProcessingServiceProtocol
     ) {
         self.reflectionRepository = reflectionRepository
         self.learningRepository = learningRepository
-        self.hashtagRepository = hashtagRepository
         self.imageService = imageService
     }
 
@@ -74,17 +71,7 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
             reflection.voiceRecordings.append(recording)
         }
 
-        // Update hashtags
-        reflection.hashtags.removeAll()
-        for hashtagName in input.hashtags {
-            let hashtag = try await hashtagRepository.fetchOrCreate(name: hashtagName)
-            reflection.hashtags.append(hashtag)
-        }
-
         try await reflectionRepository.update(reflection)
-
-        // Cleanup unused hashtags
-        try await hashtagRepository.cleanupUnused()
 
         return reflection
     }

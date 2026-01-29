@@ -228,7 +228,6 @@ final class CloudSyncService: CloudSyncServiceProtocol {
         record["isFavorite"] = reflection.isFavorite
         record["createdAt"] = reflection.createdAt
         record["updatedAt"] = reflection.updatedAt
-        record["hashtagNames"] = reflection.hashtags.map { $0.name }
 
         if let contentData = reflection.contentData {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

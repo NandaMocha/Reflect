@@ -14,20 +14,10 @@ extension ReflectionListViewModel {
             let filters = buildFilters()
             reflections = try await searchUseCase.execute(filters: filters)
             groupReflectionsByDate()
-            await loadPopularHashtags()
             isLoading = false
         } catch {
             isLoading = false
             errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    func loadPopularHashtags() async {
-        do {
-            popularHashtags = try await hashtagRepository.fetchPopular(limit: 10)
-        } catch {
-            popularHashtags = []
         }
     }
 

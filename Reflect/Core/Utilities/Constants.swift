@@ -19,10 +19,8 @@ enum Constants {
         static let learningTitleMaxLength = 30
         static let learningDescriptionMaxLength = 500
         static let reflectionTitleMaxLength = 200
-        static let hashtagMaxLength = 50
         static let maxImagesPerReflection = 10
         static let maxVoiceNotesPerReflection = 5
-        static let maxHashtagsPerReflection = 20
         static let maxImageSizeMB = 10
         static let maxVoiceDurationMinutes = 5
     }

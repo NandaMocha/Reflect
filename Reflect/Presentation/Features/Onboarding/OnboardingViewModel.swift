@@ -33,7 +33,7 @@ final class OnboardingViewModel {
         OnboardingPage(
             icon: "folder.fill",
             title: "Organize Your Learnings",
-            subtitle: "Create categories, add hashtags, and find insights instantly"
+            subtitle: "Create categories and find insights instantly"
         ),
         OnboardingPage(
             icon: "mic.fill",

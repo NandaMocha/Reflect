@@ -4,10 +4,8 @@ import SwiftData
 struct ReflectionListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Reflection.createdAt, order: .reverse) private var reflections: [Reflection]
-    @Query(sort: \Hashtag.name) private var hashtags: [Hashtag]
 
     @State private var searchText = ""
-    @State private var selectedHashtags: Set<String> = []
     @State private var showFilters = false
     @State private var sortOption: Constants.SortOption = .newestFirst
 
@@ -19,16 +17,7 @@ struct ReflectionListView: View {
             let query = searchText.lowercased()
             result = result.filter { reflection in
                 reflection.title.lowercased().contains(query) ||
-                reflection.plainTextContent.lowercased().contains(query) ||
-                reflection.hashtags.contains { $0.name.lowercased().contains(query) }
-            }
-        }
-
-        // Filter by selected hashtags
-        if !selectedHashtags.isEmpty {
-            result = result.filter { reflection in
-                let reflectionHashtags = Set(reflection.hashtags.map { $0.name.lowercased() })
-                return !reflectionHashtags.isDisjoint(with: selectedHashtags.map { $0.lowercased() })
+                reflection.plainTextContent.lowercased().contains(query)
             }
         }
 
@@ -116,21 +105,16 @@ struct ReflectionListView: View {
         EmptyStateView(
             icon: "magnifyingglass",
             title: "No Results Found",
-            subtitle: "Try different keywords or clear filters",
-            buttonTitle: "Clear Filters",
+            subtitle: "Try different keywords",
+            buttonTitle: "Clear Search",
             buttonAction: {
                 searchText = ""
-                selectedHashtags.removeAll()
             }
         )
     }
 
     private var reflectionList: some View {
         List {
-            if !hashtags.isEmpty {
-                hashtagChips
-            }
-            
             ForEach(groupedReflections, id: \.0) { section, sectionReflections in
                 Section {
                     ForEach(sectionReflections) { reflection in
@@ -144,43 +128,10 @@ struct ReflectionListView: View {
                         .background(Color(.systemBackground).opacity(0.95))
                 }
             }
-            
+
             .padding(.horizontal, Constants.Spacing.md)
             .padding(.bottom, 50) // Space for FAB
 
-        }
-    }
-
-    private var hashtagChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Constants.Spacing.xs) {
-                // All chip
-                HashtagChip(
-                    text: "All",
-                    isSelected: selectedHashtags.isEmpty,
-                    showHashSymbol: false
-                ) {
-                    selectedHashtags.removeAll()
-                    HapticManager.shared.selection()
-                }
-
-                // Hashtag chips
-                ForEach(hashtags.sorted(by: { $0.usageCount > $1.usageCount }).prefix(10)) { hashtag in
-                    HashtagChip(
-                        text: hashtag.name,
-                        isSelected: selectedHashtags.contains(hashtag.name)
-                    ) {
-                        if selectedHashtags.contains(hashtag.name) {
-                            selectedHashtags.remove(hashtag.name)
-                        } else {
-                            selectedHashtags.insert(hashtag.name)
-                        }
-                        HapticManager.shared.selection()
-                    }
-                }
-            }
-            .padding(.horizontal, Constants.Spacing.md)
-            .padding(.vertical, Constants.Spacing.sm)
         }
     }
 
@@ -225,5 +176,5 @@ private extension Date {
 
 #Preview {
     ReflectionListView()
-        .modelContainer(for: [Learning.self, Reflection.self, Hashtag.self], inMemory: true)
+        .modelContainer(for: [Learning.self, Reflection.self], inMemory: true)
 }
