@@ -184,69 +184,6 @@ struct UniversalMediaGridItem<T: MediaGridItem>: View {
     }
 }
 
-// MARK: - Convenience Type Aliases
-
-typealias SavedMediaGridView = UniversalMediaGridView<any Hashable>
-typealias EditorMediaGridView = UniversalMediaGridView<any Hashable>
-
-// MARK: - Detail View Helpers (removed, using universal component)
-
-struct MediaAttachmentGridView: View {
-    let images: [ImageAttachment]
-    let videos: [VideoAttachment]
-    let editable: Bool
-    var onRemoveImage: ((ImageAttachment) -> Void)?
-    var onRemoveVideo: ((VideoAttachment) -> Void)?
-    var onImageTap: ((ImageAttachment) -> Void)?
-    var onVideoTap: ((VideoAttachment) -> Void)?
-
-    var body: some View {
-        let allItems: [any MediaGridItem] = images + videos
-        return UniversalMediaGridView(
-            items: allItems,
-            editable: editable,
-            onTap: { index in
-                if index < images.count {
-                    onImageTap?(images[index])
-                } else {
-                    onVideoTap?(videos[index - images.count])
-                }
-            },
-            onRemove: { index in
-                if index < images.count {
-                    onRemoveImage?(images[index])
-                } else {
-                    onRemoveVideo?(videos[index - images.count])
-                }
-            }
-        )
-    }
-}
-
-// MARK: - Editor View Helpers
-
-struct EditorMediaAttachmentGridView: View {
-    let images: [ImageInput]
-    let videos: [VideoInput]
-    var onRemoveImage: ((Int) -> Void)?
-    var onRemoveVideo: ((Int) -> Void)?
-
-    var body: some View {
-        let allItems: [any MediaGridItem] = images + videos
-        return UniversalMediaGridView(
-            items: allItems,
-            editable: true,
-            onRemove: { index in
-                if index < images.count {
-                    onRemoveImage?(index)
-                } else {
-                    onRemoveVideo?(index - images.count)
-                }
-            }
-        )
-    }
-}
-
 // MARK: - Previews
 
 #Preview("Universal Media Grid") {
