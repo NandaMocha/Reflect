@@ -31,9 +31,22 @@
 		626F7E64307E4CD5A4634D6E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		048F4DBD2F2CD90F005443FA /* Exceptions for "Reflect" folder in "Reflect" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 042635EF2F288EA100BB939D /* Reflect */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		042635F22F288EA100BB939D /* Reflect */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				048F4DBD2F2CD90F005443FA /* Exceptions for "Reflect" folder in "Reflect" target */,
+			);
 			path = Reflect;
 			sourceTree = "<group>";
 		};
@@ -283,6 +296,7 @@
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Reflect/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Need camera access to attach image which represent your day";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need microphone access to record today reflection";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Need speech Recognition access to transcribe your recorder";
@@ -320,6 +334,7 @@
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Reflect/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Need camera access to attach image which represent your day";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need microphone access to record today reflection";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Need speech Recognition access to transcribe your recorder";
