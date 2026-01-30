@@ -14,15 +14,29 @@ final class SearchReflectionsUseCase: SearchReflectionsUseCaseProtocol {
     func execute(filters: SearchFilters) async throws -> [Reflection] {
         var results: [Reflection]
 
-        // Start with base query
+        // Start with base query (with pagination)
         if !filters.query.isEmpty {
-            results = try await repository.search(query: filters.query)
+            results = try await repository.search(
+                query: filters.query,
+                limit: filters.limit,
+                offset: filters.offset
+            )
         } else if let learningId = filters.learningId {
-            results = try await repository.fetchByLearning(learningId)
+            results = try await repository.fetchByLearning(
+                learningId,
+                limit: filters.limit,
+                offset: filters.offset
+            )
         } else if filters.favoritesOnly {
-            results = try await repository.fetchFavorites()
+            results = try await repository.fetchFavorites(
+                limit: filters.limit,
+                offset: filters.offset
+            )
         } else {
-            results = try await repository.fetchAll()
+            results = try await repository.fetchAll(
+                limit: filters.limit,
+                offset: filters.offset
+            )
         }
 
         // Apply favorites filter (if not already applied)

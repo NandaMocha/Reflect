@@ -8,10 +8,11 @@ final class ReflectionRepository: ReflectionRepositoryProtocol {
         self.modelContext = modelContext
     }
 
-    func fetchAll() async throws -> [Reflection] {
-        let descriptor = FetchDescriptor<Reflection>(
+    func fetchAll(limit: Int? = nil, offset: Int? = nil) async throws -> [Reflection] {
+        var descriptor = FetchDescriptor<Reflection>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
+        applyPagination(to: &descriptor, limit: limit, offset: offset)
         return try modelContext.fetch(descriptor)
     }
 
@@ -22,36 +23,49 @@ final class ReflectionRepository: ReflectionRepositoryProtocol {
         return try modelContext.fetch(descriptor).first
     }
 
-    func fetchByLearning(_ learningId: UUID) async throws -> [Reflection] {
-        let descriptor = FetchDescriptor<Reflection>(
+    func fetchByLearning(_ learningId: UUID, limit: Int? = nil, offset: Int? = nil) async throws -> [Reflection] {
+        var descriptor = FetchDescriptor<Reflection>(
             predicate: #Predicate { $0.learning?.id == learningId },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
+        applyPagination(to: &descriptor, limit: limit, offset: offset)
         return try modelContext.fetch(descriptor)
     }
 
-    func fetchFavorites() async throws -> [Reflection] {
-        let descriptor = FetchDescriptor<Reflection>(
+    func fetchFavorites(limit: Int? = nil, offset: Int? = nil) async throws -> [Reflection] {
+        var descriptor = FetchDescriptor<Reflection>(
             predicate: #Predicate { $0.isFavorite == true },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
+        applyPagination(to: &descriptor, limit: limit, offset: offset)
         return try modelContext.fetch(descriptor)
     }
 
-    func search(query: String) async throws -> [Reflection] {
+    func search(query: String, limit: Int? = nil, offset: Int? = nil) async throws -> [Reflection] {
         // Use SwiftData predicate for server-side filtering instead of in-memory filtering
         // This significantly improves performance for large datasets
         let lowercasedQuery = query.lowercased()
 
-        let descriptor = FetchDescriptor<Reflection>(
+        var descriptor = FetchDescriptor<Reflection>(
             predicate: #Predicate<Reflection> { reflection in
                 reflection.title.contains(lowercasedQuery) ||
                 reflection.plainTextContent.contains(lowercasedQuery)
             },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-
+        applyPagination(to: &descriptor, limit: limit, offset: offset)
         return try modelContext.fetch(descriptor)
+    }
+
+    // MARK: - Private Helper
+
+    private func applyPagination<T>(to descriptor: inout FetchDescriptor<T>, limit: Int?, offset: Int?) {
+        if let limit = limit {
+            descriptor.fetchLimit = limit
+        }
+        if let offset = offset {
+            descriptor.fetchOffset = offset
+        }
     }
 
     func create(_ reflection: Reflection) async throws {

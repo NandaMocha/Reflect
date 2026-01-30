@@ -6,6 +6,8 @@ struct SearchFilters {
     var favoritesOnly: Bool = false
     var dateRange: DateRange?
     var sortOption: Constants.SortOption = .newestFirst
+    var limit: Int = 50
+    var offset: Int = 0
 
     struct DateRange {
         let startDate: Date
@@ -25,5 +27,7 @@ struct SearchFilters {
         favoritesOnly = false
         dateRange = nil
         sortOption = .newestFirst
+        limit = 50
+        offset = 0
     }
 }
