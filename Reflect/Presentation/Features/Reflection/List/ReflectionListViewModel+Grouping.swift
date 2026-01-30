@@ -3,7 +3,19 @@ import Foundation
 // MARK: - Grouping Extension
 
 extension ReflectionListViewModel {
-    func groupReflectionsByDate() {
+    func groupReflectionsByDate() async {
+        // Perform date grouping on background thread to avoid blocking UI
+        let grouped = await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return [:] }
+            return self.groupReflections(self.reflections)
+        }.value
+
+        await MainActor.run {
+            self.groupedReflections = grouped
+        }
+    }
+
+    private func groupReflections(_ reflections: [Reflection]) -> [ReflectionDateGroup: [Reflection]] {
         var groups: [ReflectionDateGroup: [Reflection]] = [:]
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -29,7 +41,7 @@ extension ReflectionListViewModel {
             groups[group, default: []].append(reflection)
         }
 
-        groupedReflections = groups
+        return groups
     }
 
     var sortedDateGroups: [ReflectionDateGroup] {

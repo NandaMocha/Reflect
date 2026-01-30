@@ -13,7 +13,7 @@ extension ReflectionListViewModel {
         do {
             let filters = buildFilters()
             reflections = try await searchUseCase.execute(filters: filters)
-            groupReflectionsByDate()
+            await groupReflectionsByDate()  // Now async
             isLoading = false
         } catch {
             isLoading = false
