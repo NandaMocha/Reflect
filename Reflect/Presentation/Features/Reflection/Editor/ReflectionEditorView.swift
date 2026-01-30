@@ -73,26 +73,8 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
-                .sheet(isPresented: $showMediaPicker) {
-                    MediaSourcePicker(
-                        selectedImage: Binding(
-                            get: { nil },
-                            set: { newImage in
-                                if let image = newImage {
-                                    processCapturedImage(image)
-                                }
-                            }
-                        ),
-                        selectedVideoURL: Binding(
-                            get: { nil },
-                            set: { newVideoURL in
-                                if let videoURL = newVideoURL {
-                                    processCapturedVideo(videoURL)
-                                }
-                            }
-                        ),
-                        isPresented: $showMediaPicker
-                    )
+                .fullScreenCover(isPresented: $showMediaPicker) {
+                    mediaPickerSheet
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }

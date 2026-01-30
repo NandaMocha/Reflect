@@ -13,7 +13,7 @@ struct VideoAttachmentItemView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.md))
+                    .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.large))
 
                 // Play button overlay
                 Circle()
@@ -49,7 +49,7 @@ struct VideoAttachmentItemView: View {
         }
         .padding(Constants.Spacing.sm)
         .background(Color.secondary.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.md))
+        .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.large))
     }
 
     private var durationText: String {

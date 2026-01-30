@@ -88,8 +88,8 @@ extension ReflectionEditorView {
                 let attachment = VideoAttachment(
                     videoData: videoData,
                     thumbnailData: thumbnailData,
-                    duration: result.duration,
-                    caption: result.caption
+                    caption: result.caption,
+                    duration: result.duration
                 )
                 attachment.sortOrder = result.index
                 reflection.videos.append(attachment)
@@ -195,8 +195,8 @@ extension ReflectionEditorView {
                 let newVideo = VideoAttachment(
                     videoData: videoData,
                     thumbnailData: thumbnailData,
-                    duration: result.duration,
-                    caption: result.caption
+                    caption: result.caption,
+                    duration: result.duration
                 )
                 newVideo.sortOrder = result.index
                 reflection.videos.append(newVideo)
