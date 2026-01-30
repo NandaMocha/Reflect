@@ -35,10 +35,10 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
         )
         reflection.learning = learning
 
-        // Process images
+        // Process images (async)
         for (index, imageInput) in input.images.enumerated() {
-            let imageData = imageService.compressImage(imageInput.image, quality: .high)
-            let thumbnailData = imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
+            let imageData = await imageService.compressImage(imageInput.image, quality: .high)
+            let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
 
             let attachment = ImageAttachment(
                 imageData: imageData,

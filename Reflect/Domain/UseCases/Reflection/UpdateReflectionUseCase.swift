@@ -40,11 +40,11 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
         // Remove images
         reflection.images.removeAll { input.imageIdsToRemove.contains($0.id) }
 
-        // Add new images
+        // Add new images (async)
         let startIndex = reflection.images.count
         for (index, imageInput) in input.imagesToAdd.enumerated() {
-            let imageData = imageService.compressImage(imageInput.image, quality: .high)
-            let thumbnailData = imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
+            let imageData = await imageService.compressImage(imageInput.image, quality: .high)
+            let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
 
             let attachment = ImageAttachment(
                 imageData: imageData,

@@ -38,9 +38,12 @@ extension ReflectionEditorView {
         reflection.createdAt = selectedDate
 
         let imageService = ImageProcessingService.shared
+        // Process images with async compression
         for (index, imageInput) in images.enumerated() {
-            if let imageData = imageService.compressImage(imageInput.image, quality: CompressionQuality.high),
-               let thumbnailData = imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200)) {
+            let imageData = await imageService.compressImage(imageInput.image, quality: CompressionQuality.high)
+            let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
+
+            if let imageData = imageData, let thumbnailData = thumbnailData {
                 let attachment = ImageAttachment(
                     imageData: imageData,
                     thumbnailData: thumbnailData,
@@ -94,8 +97,11 @@ extension ReflectionEditorView {
                 existingImage.sortOrder = index
                 existingImage.caption = imageInput.caption
             } else {
-                if let imageData = imageService.compressImage(imageInput.image, quality: .high),
-                   let thumbnailData = imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200)) {
+                // Process new images with async compression
+                let imageData = await imageService.compressImage(imageInput.image, quality: CompressionQuality.high)
+                let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
+
+                if let imageData = imageData, let thumbnailData = thumbnailData {
                     let newImage = ImageAttachment(
                         imageData: imageData,
                         thumbnailData: thumbnailData,

@@ -13,11 +13,19 @@ enum CompressionQuality {
         case .high: return 0.8
         }
     }
+
+    var maxDimension: CGFloat {
+        switch self {
+        case .low: return 800
+        case .medium: return 1200
+        case .high: return 1600
+        }
+    }
 }
 
 protocol ImageProcessingServiceProtocol {
-    func compressImage(_ image: UIImage, quality: CompressionQuality) -> Data?
-    func generateThumbnail(_ image: UIImage, size: CGSize) -> Data?
+    func compressImage(_ image: UIImage, quality: CompressionQuality) async -> Data?
+    func generateThumbnail(_ image: UIImage, size: CGSize) async -> Data?
     func loadImage(from data: Data) -> UIImage?
     func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage?
 }
