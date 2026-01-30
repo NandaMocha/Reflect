@@ -247,19 +247,16 @@ extension ReflectionEditorView {
     // MARK: - Concurrent Video Processing
 
     private func processVideosConcurrently(_ videos: [VideoInput]) async -> [ProcessedVideoResult] {
-        // Process videos concurrently using TaskGroup
+        // Since video data is already loaded in VideoInput, just process thumbnail
         return await withTaskGroup(of: ProcessedVideoResult.self) { group in
             for (index, videoInput) in videos.enumerated() {
                 group.addTask {
-                    // Load video data from URL
-                    let videoData = try? Data(contentsOf: videoInput.videoURL)
-
-                    // Generate thumbnail from the video input's thumbnail
+                    // Video data is already in memory, just need thumbnail as JPEG
                     let thumbnailData = videoInput.thumbnailImage.jpegData(compressionQuality: 0.8)
 
                     return ProcessedVideoResult(
                         index: index,
-                        videoData: videoData,
+                        videoData: videoInput.videoData,
                         thumbnailData: thumbnailData,
                         duration: videoInput.duration,
                         caption: videoInput.caption

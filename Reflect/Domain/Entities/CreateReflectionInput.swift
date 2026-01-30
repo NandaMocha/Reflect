@@ -66,14 +66,14 @@ struct ImageInput: Identifiable {
 
 struct VideoInput: Identifiable {
     let id: UUID
-    let videoURL: URL
+    let videoData: Data
     let thumbnailImage: UIImage
     let duration: TimeInterval
     var caption: String?
 
-    init(id: UUID = UUID(), videoURL: URL, thumbnailImage: UIImage, duration: TimeInterval, caption: String? = nil) {
+    init(id: UUID = UUID(), videoData: Data, thumbnailImage: UIImage, duration: TimeInterval, caption: String? = nil) {
         self.id = id
-        self.videoURL = videoURL
+        self.videoData = videoData
         self.thumbnailImage = thumbnailImage
         self.duration = duration
         self.caption = caption
@@ -112,6 +112,8 @@ struct UpdateReflectionInput {
     var learningId: UUID?
     var imagesToAdd: [ImageInput]
     var imageIdsToRemove: [UUID]
+    var videosToAdd: [VideoInput]
+    var videoIdsToRemove: [UUID]
     var voiceRecordingsToAdd: [VoiceRecordingInput]
     var voiceRecordingIdsToRemove: [UUID]
 

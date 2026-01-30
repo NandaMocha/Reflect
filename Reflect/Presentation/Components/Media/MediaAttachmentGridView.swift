@@ -422,33 +422,6 @@ struct EditorMediaVideoGridItem: View {
 }
 
 
-#Preview("Media Attachment Grid - Detail View") {
-    let container = try? ModelContainer(for: ImageAttachment.self, VideoAttachment.self, inMemory: true)
-
-    let image = ImageAttachment(
-        imageData: UIImage(systemName: "photo")?.jpegData(compressionQuality: 1),
-        thumbnailData: nil
-    )
-
-    let video = VideoAttachment(
-        videoData: nil,
-        thumbnailData: UIImage(systemName: "video.fill")?.jpegData(compressionQuality: 1),
-        duration: 45
-    )
-
-    return ScrollView {
-        MediaAttachmentGridView(
-            images: [image].compactMap { $0 },
-            videos: [video].compactMap { $0 },
-            editable: false,
-            onImageTap: { _ in },
-            onVideoTap: { _ in }
-        )
-        .padding()
-    }
-    .modelContainer(container ?? ModelContainer())
-}
-
 #Preview("Editor Media Grid - Editor View") {
     EditorMediaAttachmentGridView(
         images: [
@@ -457,7 +430,7 @@ struct EditorMediaVideoGridItem: View {
         ],
         videos: [
             VideoInput(
-                videoURL: URL(fileURLWithPath: "/"),
+                videoData: Data(),
                 thumbnailImage: UIImage(systemName: "video.fill")!,
                 duration: 60
             )

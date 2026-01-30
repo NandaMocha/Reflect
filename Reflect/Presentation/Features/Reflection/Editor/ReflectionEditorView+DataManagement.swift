@@ -48,12 +48,13 @@ extension ReflectionEditorView {
             videos = reflection.videos
                 .sorted(by: { $0.sortOrder < $1.sortOrder })
                 .compactMap { videoAttachment in
-                    guard let thumbnailData = videoAttachment.thumbnailData,
+                    guard let videoData = videoAttachment.videoData,
+                          let thumbnailData = videoAttachment.thumbnailData,
                           let thumbnail = UIImage(data: thumbnailData) else { return nil }
                     existingVideoIds.insert(videoAttachment.id)
                     return VideoInput(
                         id: videoAttachment.id,
-                        videoURL: URL(fileURLWithPath: ""), // Placeholder, actual data is in videoData
+                        videoData: videoData,
                         thumbnailImage: thumbnail,
                         duration: videoAttachment.duration,
                         caption: videoAttachment.caption
@@ -87,12 +88,17 @@ extension ReflectionEditorView {
     }
 
     func processCapturedVideo(_ videoURL: URL) {
+        // Load video data immediately from the temporary file
+        guard let videoData = try? Data(contentsOf: videoURL) else {
+            return
+        }
+
         // Generate thumbnail from video
         let thumbnail = generateThumbnail(from: videoURL)
         let duration = getVideoDuration(from: videoURL)
 
         let input = VideoInput(
-            videoURL: videoURL,
+            videoData: videoData,
             thumbnailImage: thumbnail,
             duration: duration
         )
