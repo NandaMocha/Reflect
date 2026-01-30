@@ -38,21 +38,23 @@ extension ReflectionEditorView {
         @State var selectedVideoThumbnail: UIImage? = nil
         @State var selectedVideoDuration: TimeInterval? = nil
 
-        ImageSourcePicker(
+        ImagePickerView(
+            sourceType: .camera,
             selectedImage: $selectedImage,
             selectedVideoURL: $selectedVideoURL,
             selectedVideoThumbnail: $selectedVideoThumbnail,
-            selectedVideoDuration: $selectedVideoDuration,
-            isPresented: $showMediaPicker
+            selectedVideoDuration: $selectedVideoDuration
         )
         .onChange(of: selectedImage) { _, newImage in
             if let image = newImage {
                 processCapturedImage(image)
+                showMediaPicker = false
             }
         }
         .onChange(of: selectedVideoURL) { _, newURL in
             if let url = newURL {
                 processCapturedVideo(url)
+                showMediaPicker = false
             }
         }
     }
