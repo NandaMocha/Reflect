@@ -88,14 +88,22 @@ extension ReflectionEditorView {
     }
 
     func processCapturedVideo(_ videoURL: URL) {
+        print("[DataManagement] processCapturedVideo called with URL: \(videoURL)")
+        print("[DataManagement] File exists: \(FileManager.default.fileExists(atPath: videoURL.path))")
+
         // Load video data immediately from the temporary file
         guard let videoData = try? Data(contentsOf: videoURL) else {
+            print("[DataManagement] FAILED to load video data from URL")
             return
         }
+
+        print("[DataManagement] Video data loaded: \(videoData.count) bytes")
 
         // Generate thumbnail from video
         let thumbnail = generateThumbnail(from: videoURL)
         let duration = getVideoDuration(from: videoURL)
+
+        print("[DataManagement] Thumbnail: \(thumbnail.size), Duration: \(duration)")
 
         let input = VideoInput(
             videoData: videoData,
@@ -103,6 +111,7 @@ extension ReflectionEditorView {
             duration: duration
         )
         videos.append(input)
+        print("[DataManagement] Video appended. Total videos count: \(videos.count)")
         hasChanges = true
     }
 

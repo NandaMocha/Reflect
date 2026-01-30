@@ -62,7 +62,8 @@ struct ReflectionEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let _ = print("[ReflectionEditorView] body rendering - videos.count: \(videos.count)")
+        return NavigationStack {
             contentView
                 .navigationTitle(navigationTitle)
                 .navigationBarTitleDisplayMode(.inline)
@@ -86,6 +87,9 @@ struct ReflectionEditorView: View {
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
                 .onChange(of: selectedPhotoItems) { _, newItems in
                     Task { await loadImages(from: newItems) }
+                }
+                .onChange(of: videos.count) { _, newCount in
+                    print("[ReflectionEditorView] videos.count changed to: \(newCount)")
                 }
                 .onAppear { loadExistingData() }
         }

@@ -278,6 +278,7 @@ struct EditorMediaAttachmentGridView: View {
     var onRemoveVideo: ((Int) -> Void)?
 
     var body: some View {
+        let _ = print("[EditorMediaAttachmentGridView] Received - images: \(images.count), videos: \(videos.count)")
         if images.isEmpty && videos.isEmpty {
             EmptyView()
         } else {
@@ -307,6 +308,7 @@ struct EditorMediaAttachmentGridView: View {
 
                     // Videos
                     ForEach(Array(videos.enumerated()), id: \.element.id) { index, input in
+                        let _ = print("[EditorMediaAttachmentGridView] Rendering video at index \(index), id: \(input.id)")
                         EditorMediaVideoGridItem(
                             input: input,
                             size: CGSize(width: itemSize, height: itemSize),
@@ -364,7 +366,8 @@ struct EditorMediaVideoGridItem: View {
     let onRemove: () -> Void
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        let _ = print("[EditorMediaVideoGridItem] Rendering video - thumbnailImage.size: \(input.thumbnailImage.size), duration: \(input.duration)")
+        return ZStack(alignment: .topTrailing) {
             Image(uiImage: input.thumbnailImage)
                 .resizable()
                 .scaledToFill()

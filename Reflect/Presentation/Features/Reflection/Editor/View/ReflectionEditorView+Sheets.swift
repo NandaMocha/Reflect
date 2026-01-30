@@ -41,6 +41,7 @@ extension ReflectionEditorView {
             selectedVideoDuration: $cameraSelectedVideoDuration
         )
         .onChange(of: cameraSelectedImage) { _, newImage in
+            print("[Sheets] cameraSelectedImage changed: \(newImage != nil ? "has image" : "nil")")
             if let image = newImage {
                 processCapturedImage(image)
                 showMediaPicker = false
@@ -48,11 +49,16 @@ extension ReflectionEditorView {
             }
         }
         .onChange(of: cameraSelectedVideoURL) { _, newURL in
+            print("[Sheets] cameraSelectedVideoURL changed: \(newURL?.path ?? "nil")")
             if let url = newURL {
+                print("[Sheets] Calling processCapturedVideo with URL: \(url)")
                 processCapturedVideo(url)
                 showMediaPicker = false
                 cameraSelectedVideoURL = nil
             }
+        }
+        .onAppear {
+            print("[Sheets] mediaPickerSheet appeared")
         }
     }
 }

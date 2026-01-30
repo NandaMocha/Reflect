@@ -64,29 +64,41 @@ struct ImagePickerView: UIViewControllerRepresentable {
         }
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            print("[ImagePicker] didFinishPickingMediaWithInfo called")
             if let mediaType = info[.mediaType] as? String {
+                print("[ImagePicker] mediaType: \(mediaType)")
                 if mediaType == "public.image", let image = info[.originalImage] as? UIImage {
+                    print("[ImagePicker] Processing image")
                     // Mirror the image if taken with front camera
                     let mirroredImage = picker.cameraDevice == .front ? mirrorImage(image) : image
                     parent.selectedImage = mirroredImage
                     parent.selectedVideoURL = nil
                 } else if mediaType == "public.movie", let url = info[.mediaURL] as? URL {
+                    print("[ImagePicker] Processing video from URL: \(url)")
                     // Copy video data to a new temp file that won't be deleted
                     // The original temp file from picker gets deleted when picker dismisses
                     if let videoData = try? Data(contentsOf: url) {
+                        print("[ImagePicker] Video data loaded: \(videoData.count) bytes")
                         let permanentTempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mov")
+                        print("[ImagePicker] Writing to permanent temp URL: \(permanentTempURL)")
                         try? videoData.write(to: permanentTempURL)
 
                         // Generate thumbnail and get duration for video
                         let thumbnail = generateVideoThumbnail(from: permanentTempURL)
                         let duration = getVideoDuration(from: permanentTempURL)
+                        print("[ImagePicker] Thumbnail: \(thumbnail), Duration: \(duration)")
+
                         parent.selectedVideoURL = permanentTempURL
                         parent.selectedVideoThumbnail = thumbnail
                         parent.selectedVideoDuration = duration
                         parent.selectedImage = nil
+                        print("[ImagePicker] Video bindings set successfully")
+                    } else {
+                        print("[ImagePicker] FAILED to load video data from URL")
                     }
                 }
             }
+            print("[ImagePicker] Calling dismiss()")
             parent.dismiss()
         }
 
