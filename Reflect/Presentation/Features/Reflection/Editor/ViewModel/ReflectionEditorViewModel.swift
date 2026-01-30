@@ -30,14 +30,14 @@ final class ReflectionEditorViewModel {
 
     let mode: Mode
     private var existingReflection: Reflection?
-    private var existingImageIds: Set<UUID> = []
-    private var existingVideoIds: Set<UUID> = []
+    var existingImageIds: Set<UUID> = []
+    var existingVideoIds: Set<UUID> = []
 
     // MARK: - Dependencies
     private let modelContext: ModelContext
-    private let createUseCase: CreateReflectionUseCaseProtocol
-    private let updateUseCase: UpdateReflectionUseCaseProtocol
-    private let imageService: ImageProcessingServiceProtocol
+    let createUseCase: CreateReflectionUseCaseProtocol
+    let updateUseCase: UpdateReflectionUseCaseProtocol
+    let imageService: ImageProcessingServiceProtocol
 
     // MARK: - Initialization
 
