@@ -4,6 +4,15 @@ import SwiftData
 // MARK: - Save Logic Extension
 
 extension ReflectionEditorView {
+    // MARK: - Types for Concurrent Image Processing
+
+    private struct ProcessedImageResult {
+        let index: Int
+        let imageData: Data?
+        let thumbnailData: Data?
+        let caption: String?
+    }
+
     @MainActor
     func save() async {
         guard isValid else { return }
@@ -37,19 +46,17 @@ extension ReflectionEditorView {
         reflection.learning = selectedLearning
         reflection.createdAt = selectedDate
 
-        let imageService = ImageProcessingService.shared
-        // Process images with async compression
-        for (index, imageInput) in images.enumerated() {
-            let imageData = await imageService.compressImage(imageInput.image, quality: CompressionQuality.high)
-            let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
+        // Process images concurrently for better performance
+        let imageResults = await processImagesConcurrently(images)
 
-            if let imageData = imageData, let thumbnailData = thumbnailData {
+        for result in imageResults {
+            if let imageData = result.imageData, let thumbnailData = result.thumbnailData {
                 let attachment = ImageAttachment(
                     imageData: imageData,
                     thumbnailData: thumbnailData,
-                    caption: imageInput.caption
+                    caption: result.caption
                 )
-                attachment.sortOrder = index
+                attachment.sortOrder = result.index
                 reflection.images.append(attachment)
             }
         }
@@ -79,8 +86,6 @@ extension ReflectionEditorView {
         reflection.createdAt = selectedDate
         reflection.updatedAt = Date()
 
-        let imageService = ImageProcessingService.shared
-
         let currentImageIds = Set(images.map { $0.id })
 
         let imagesToRemove = reflection.images.filter { !currentImageIds.contains($0.id) }
@@ -91,25 +96,30 @@ extension ReflectionEditorView {
             }
         }
 
+        // Collect new images that need processing
+        let newImages = images.filter { !existingImageIds.contains($0.id) }
+
+        // Process new images concurrently
+        let imageResults = await processImagesConcurrently(newImages)
+
+        for result in imageResults {
+            if let imageData = result.imageData, let thumbnailData = result.thumbnailData {
+                let newImage = ImageAttachment(
+                    imageData: imageData,
+                    thumbnailData: thumbnailData,
+                    caption: result.caption
+                )
+                newImage.sortOrder = result.index
+                reflection.images.append(newImage)
+            }
+        }
+
+        // Update existing images (no processing needed)
         for (index, imageInput) in images.enumerated() {
             if existingImageIds.contains(imageInput.id),
                let existingImage = reflection.images.first(where: { $0.id == imageInput.id }) {
                 existingImage.sortOrder = index
                 existingImage.caption = imageInput.caption
-            } else {
-                // Process new images with async compression
-                let imageData = await imageService.compressImage(imageInput.image, quality: CompressionQuality.high)
-                let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
-
-                if let imageData = imageData, let thumbnailData = thumbnailData {
-                    let newImage = ImageAttachment(
-                        imageData: imageData,
-                        thumbnailData: thumbnailData,
-                        caption: imageInput.caption
-                    )
-                    newImage.sortOrder = index
-                    reflection.images.append(newImage)
-                }
             }
         }
 
@@ -140,5 +150,34 @@ extension ReflectionEditorView {
         }
 
         try modelContext.save()
+    }
+
+    // MARK: - Concurrent Image Processing
+
+    private func processImagesConcurrently(_ images: [ImageInput]) async -> [ProcessedImageResult] {
+        let imageService = ImageProcessingService.shared
+
+        // Process images concurrently using TaskGroup
+        return await withThrowingTaskGroup(of: ProcessedImageResult.self) { group in
+            for (index, imageInput) in images.enumerated() {
+                group.addTask {
+                    let imageData = await imageService.compressImage(imageInput.image, quality: CompressionQuality.high)
+                    let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
+
+                    return ProcessedImageResult(
+                        index: index,
+                        imageData: imageData,
+                        thumbnailData: thumbnailData,
+                        caption: imageInput.caption
+                    )
+                }
+            }
+
+            var results: [ProcessedImageResult] = []
+            for try await result in group {
+                results.append(result)
+            }
+            return results.sorted { $0.index < $1.index }
+        }
     }
 }
