@@ -13,10 +13,15 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
     private var recordingURL: URL?
     private var audioFile: AVAudioFile?
     private var recordingStartTime: Date?
+    private var lastUIUpdateTime: Date?
 
     private let transcribedTextSubject = CurrentValueSubject<String, Never>("")
     private let recordingStateSubject = CurrentValueSubject<RecordingState, Never>(.idle)
     private let audioLevelSubject = PassthroughSubject<Float, Never>()
+
+    // MARK: - UI Update Throttling
+
+    private let uiUpdateInterval: TimeInterval = 0.5  // Update UI every 500ms
 
     var isRecording: Bool {
         audioEngine?.isRunning ?? false
@@ -121,15 +126,15 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
 
         recordingStateSubject.send(.processing)
 
-        // Wait a moment for final transcription
-        try await Task.sleep(nanoseconds: 500_000_000)
+        // Wait for final transcription with timeout instead of fixed delay
+        let finalTranscription = await waitForFinalTranscription(timeout: 2.0)
 
         guard let url = recordingURL else {
             throw TranscriptionError.recognitionFailed
         }
 
         let audioData = try Data(contentsOf: url)
-        let transcription = transcribedTextSubject.value
+        let transcription = finalTranscription ?? transcribedTextSubject.value
 
         let result = VoiceRecordingResult(
             audioData: audioData,
@@ -227,9 +232,15 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
     private func startDurationTimer() {
         Task {
             while isRecording {
+                let now = Date()
                 let duration = Date().timeIntervalSince(recordingStartTime ?? Date())
-                await MainActor.run {
-                    recordingStateSubject.send(.recording(duration: duration))
+
+                // Throttle UI updates - only update every 500ms instead of every 100ms
+                if lastUpdateTime == nil || now.timeIntervalSince(lastUpdateTime!) >= uiUpdateInterval {
+                    await MainActor.run {
+                        recordingStateSubject.send(.recording(duration: duration))
+                    }
+                    lastUpdateTime = now
                 }
 
                 // Check max duration
@@ -238,8 +249,65 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
                     break
                 }
 
-                try? await Task.sleep(nanoseconds: 100_000_000)
+                try? await Task.sleep(nanoseconds: 100_000_000)  // Check every 100ms
             }
+        }
+    }
+
+    // MARK: - Timeout-based Final Transcription Wait
+
+    private func waitForFinalTranscription(timeout: TimeInterval) async -> String? {
+        await withTaskGroup(of: String?.self) { group in
+            // Wait for final transcription
+            group.addTask {
+                // Monitor for changes in transcription
+                let initialText = self.transcribedTextSubject.value
+                var lastText = initialText
+                let startTime = Date()
+
+                while Date().timeIntervalSince(startTime) < timeout {
+                    try? await Task.sleep(nanoseconds: 100_000_000)  // Check every 100ms
+
+                    let currentText = self.transcribedTextSubject.value
+                    if currentText != initialText, currentText.count > initialText.count {
+                        lastText = currentText
+                    }
+
+                    // If we haven't received updates in 500ms, consider transcription complete
+                    if Date().timeIntervalSince(startTime) >= 0.5 {
+                        let checkTime = Date()
+                        var stableCount = 0
+                        while Date().timeIntervalSince(checkTime) < 0.5 && stableCount < 5 {
+                            try? await Task.sleep(nanoseconds: 100_000_000)
+                            if self.transcribedTextSubject.value == lastText {
+                                stableCount += 1
+                            } else {
+                                lastText = self.transcribedTextSubject.value
+                            }
+                        }
+                        if stableCount >= 5 {
+                            break
+                        }
+                    }
+                }
+
+                return lastText.isEmpty ? nil : lastText
+            }
+
+            // Timeout task
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                return nil  // Timeout - return nil
+            }
+
+            // Return first non-nil result
+            for await result in group {
+                if let result = result {
+                    group.cancelAll()
+                    return result
+                }
+            }
+            return nil
         }
     }
 
