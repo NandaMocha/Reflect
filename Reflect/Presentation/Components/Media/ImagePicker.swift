@@ -71,13 +71,20 @@ struct ImagePickerView: UIViewControllerRepresentable {
                     parent.selectedImage = mirroredImage
                     parent.selectedVideoURL = nil
                 } else if mediaType == "public.movie", let url = info[.mediaURL] as? URL {
-                    // Generate thumbnail and get duration for video
-                    let thumbnail = generateVideoThumbnail(from: url)
-                    let duration = getVideoDuration(from: url)
-                    parent.selectedVideoURL = url
-                    parent.selectedVideoThumbnail = thumbnail
-                    parent.selectedVideoDuration = duration
-                    parent.selectedImage = nil
+                    // Copy video data to a new temp file that won't be deleted
+                    // The original temp file from picker gets deleted when picker dismisses
+                    if let videoData = try? Data(contentsOf: url) {
+                        let permanentTempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mov")
+                        try? videoData.write(to: permanentTempURL)
+
+                        // Generate thumbnail and get duration for video
+                        let thumbnail = generateVideoThumbnail(from: permanentTempURL)
+                        let duration = getVideoDuration(from: permanentTempURL)
+                        parent.selectedVideoURL = permanentTempURL
+                        parent.selectedVideoThumbnail = thumbnail
+                        parent.selectedVideoDuration = duration
+                        parent.selectedImage = nil
+                    }
                 }
             }
             parent.dismiss()
