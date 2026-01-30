@@ -33,24 +33,27 @@ extension ReflectionEditorView {
 
     @ViewBuilder
     var mediaPickerSheet: some View {
-        CustomCameraView(
-            mediaResult: Binding(
-                get: { nil },
-                set: { result in
-                    if let result = result {
-                        handleCameraResult(result)
-                    }
-                }
-            ),
+        @State var selectedImage: UIImage? = nil
+        @State var selectedVideoURL: URL? = nil
+        @State var selectedVideoThumbnail: UIImage? = nil
+        @State var selectedVideoDuration: TimeInterval? = nil
+
+        ImageSourcePicker(
+            selectedImage: $selectedImage,
+            selectedVideoURL: $selectedVideoURL,
+            selectedVideoThumbnail: $selectedVideoThumbnail,
+            selectedVideoDuration: $selectedVideoDuration,
             isPresented: $showMediaPicker
         )
-    }
-
-    private func handleCameraResult(_ result: CameraMediaResult) {
-        if result.isPhoto, let image = result.image {
-            processCapturedImage(image)
-        } else if result.isVideo, let url = result.videoURL {
-            processCapturedVideo(url)
+        .onChange(of: selectedImage) { _, newImage in
+            if let image = newImage {
+                processCapturedImage(image)
+            }
+        }
+        .onChange(of: selectedVideoURL) { _, newURL in
+            if let url = newURL {
+                processCapturedVideo(url)
+            }
         }
     }
 }
