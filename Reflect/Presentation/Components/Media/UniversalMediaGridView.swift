@@ -2,17 +2,18 @@ import SwiftUI
 import SwiftData
 import AVKit
 
-// MARK: - Universal Media Grid Item
+// MARK: - Media Grid Item Protocol
 
 /// Protocol to unify different media types
-protocol MediaGridItem: Identifiable {
+protocol MediaGridItemProtocol: Identifiable {
     var thumbnailImage: UIImage? { get }
     var duration: TimeInterval? { get }
+    var id: UUID { get }
 }
 
 // MARK: - Extensions for conformance
 
-extension ImageAttachment: MediaGridItem {
+extension ImageAttachment: MediaGridItemProtocol {
     var thumbnailImage: UIImage? {
         if let thumbnailData = thumbnailData {
             return UIImage(data: thumbnailData)
@@ -22,40 +23,56 @@ extension ImageAttachment: MediaGridItem {
         return nil
     }
     var duration: TimeInterval? { nil }
+    var id: UUID { self.id }
 }
 
-extension VideoAttachment: MediaGridItem {
+extension VideoAttachment: MediaGridItemProtocol {
     var thumbnailImage: UIImage? {
         guard let thumbnailData = thumbnailData else { return nil }
         return UIImage(data: thumbnailData)
     }
     var duration: TimeInterval? { self.duration }
+    var id: UUID { self.id }
 }
 
-extension ImageInput: MediaGridItem {
+extension ImageInput: MediaGridItemProtocol {
     var thumbnailImage: UIImage? { image }
     var duration: TimeInterval? { nil }
+    var id: UUID { self.id }
 }
 
-extension VideoInput: MediaGridItem {
+extension VideoInput: MediaGridItemProtocol {
     var thumbnailImage: UIImage? { thumbnailImage }
     var duration: TimeInterval? { duration }
+    var id: UUID { self.id }
 }
 
-// MARK: - Universal Media Attachment Grid
+// MARK: - Type Erased Wrapper
+
+struct AnyMediaGridItem: Identifiable, MediaGridItemProtocol {
+    let _id: UUID
+    let _thumbnailImage: UIImage?
+    let _duration: TimeInterval?
+
+    var id: UUID { _id }
+    var thumbnailImage: UIImage? { _thumbnailImage }
+    var duration: TimeInterval? { _duration }
+
+    init<T: MediaGridItemProtocol>(_ item: T) {
+        self._id = item.id
+        self._thumbnailImage = item.thumbnailImage
+        self._duration = item.duration
+    }
+}
+
+// MARK: - Universal Media Grid
 
 /// A unified grid view for displaying media attachments
-/// Works with both saved attachments (ImageAttachment/VideoAttachment)
-/// and temporary inputs (ImageInput/VideoInput)
-struct UniversalMediaGridView<T: MediaGridItem>: View {
-    let items: [T]
+struct UniversalMediaGridView: View {
+    let items: [AnyMediaGridItem]
     let editable: Bool
     var onRemove: ((Int) -> Void)?
     var onTap: ((Int) -> Void)?
-
-    var videos: [T] {
-        items.compactMap { $0.duration != nil ? $0 : nil }
-    }
 
     var body: some View {
         if items.isEmpty {
@@ -97,8 +114,8 @@ struct UniversalMediaGridView<T: MediaGridItem>: View {
 
 // MARK: - Universal Media Grid Item
 
-struct UniversalMediaGridItem<T: MediaGridItem>: View {
-    let item: T
+struct UniversalMediaGridItem: View {
+    let item: AnyMediaGridItem
     let size: CGSize
     let showRemoveButton: Bool
     let isVideo: Bool
@@ -182,32 +199,4 @@ struct UniversalMediaGridItem<T: MediaGridItem>: View {
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
-}
-
-// MARK: - Previews
-
-#Preview("Universal Media Grid") {
-    let container = try? ModelContainer(for: ImageAttachment.self, VideoAttachment.self, inMemory: true)
-
-    let image = ImageAttachment(
-        imageData: UIImage(systemName: "photo")?.jpegData(compressionQuality: 1),
-        thumbnailData: nil
-    )
-
-    let video = VideoAttachment(
-        videoData: nil,
-        thumbnailData: UIImage(systemName: "video.fill")?.jpegData(compressionQuality: 1),
-        duration: 45
-    )
-
-    return ScrollView {
-        UniversalMediaGridView(
-            items: [image, video].compactMap { $0 as? (any MediaGridItem) },
-            editable: false,
-            onTap: { _ in },
-            onRemove: { _ in }
-        )
-    }
-    .modelContainer(container ?? ModelContainer())
-    .padding()
 }

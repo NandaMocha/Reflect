@@ -15,7 +15,7 @@ struct MediaAttachmentGridView: View {
     var onVideoTap: ((VideoAttachment) -> Void)?
 
     var body: some View {
-        let allItems: [any MediaGridItem] = images + videos
+        let allItems: [AnyMediaGridItem] = (images + videos).map { AnyMediaGridItem($0) }
         return UniversalMediaGridView(
             items: allItems,
             editable: editable,
@@ -47,7 +47,7 @@ struct EditorMediaAttachmentGridView: View {
     var onRemoveVideo: ((Int) -> Void)?
 
     var body: some View {
-        let allItems: [any MediaGridItem] = images + videos
+        let allItems: [AnyMediaGridItem] = (images + videos).map { AnyMediaGridItem($0) }
         return UniversalMediaGridView(
             items: allItems,
             editable: true,
