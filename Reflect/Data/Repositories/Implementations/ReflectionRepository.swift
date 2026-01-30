@@ -39,16 +39,19 @@ final class ReflectionRepository: ReflectionRepositoryProtocol {
     }
 
     func search(query: String) async throws -> [Reflection] {
+        // Use SwiftData predicate for server-side filtering instead of in-memory filtering
+        // This significantly improves performance for large datasets
         let lowercasedQuery = query.lowercased()
+
         let descriptor = FetchDescriptor<Reflection>(
+            predicate: #Predicate<Reflection> { reflection in
+                reflection.title.contains(lowercasedQuery) ||
+                reflection.plainTextContent.contains(lowercasedQuery)
+            },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        let allReflections = try modelContext.fetch(descriptor)
 
-        return allReflections.filter { reflection in
-            reflection.title.lowercased().contains(lowercasedQuery) ||
-            reflection.plainTextContent.lowercased().contains(lowercasedQuery)
-        }
+        return try modelContext.fetch(descriptor)
     }
 
     func create(_ reflection: Reflection) async throws {

@@ -12,10 +12,6 @@ extension ReflectionEditorView {
                 titleField
                     .padding(.bottom, Constants.Spacing.xs)
 
-                Divider()
-                    .opacity(0.7)
-                    .padding(.bottom, Constants.Spacing.md)
-
                 contentEditorSection
                     .padding(.bottom, Constants.Spacing.md)
 
