@@ -8,7 +8,7 @@ final class CloudSyncService: CloudSyncServiceProtocol {
         // Custom container identifier requires proper entitlements setup
         return CKContainer.default()
     }()
-    
+
     private lazy var database: CKDatabase = {
         return container.privateCloudDatabase
     }()
@@ -106,22 +106,30 @@ final class CloudSyncService: CloudSyncServiceProtocol {
             // Delete existing data first
             try await deleteAllCloudData()
 
-            // Upload learnings
-            for (index, learning) in learnings.enumerated() {
-                do {
-                    try await uploadLearning(learning)
-                    itemsSynced += 1
-                    let progress = Double(itemsSynced) / Double(totalItems)
-                    syncStatusSubject.send(.syncing(progress: progress))
-                } catch {
-                    errors.append(.uploadFailed("Learning: \(learning.title)"))
+            // Upload learnings concurrently in batches
+            let batchSize = 5
+            for batchStart in stride(from: 0, to: learnings.count, by: batchSize) {
+                let batch = Array(learnings[batchStart..<min(batchStart + batchSize, learnings.count)])
+
+                let batchResults = await uploadLearningsConcurrently(batch)
+                for result in batchResults {
+                    if result.success {
+                        itemsSynced += 1
+                    } else {
+                        errors.append(result.error)
+                    }
                 }
+
+                let progress = Double(itemsSynced) / Double(totalItems)
+                syncStatusSubject.send(.syncing(progress: progress))
             }
 
             // Upload reflections with attachments
             for reflection in reflections {
                 do {
-                    try await uploadReflection(reflection)
+                    try await uploadWithRetry(maxRetries: 3) {
+                        try await uploadReflection(reflection)
+                    }
                     itemsSynced += 1
                     let progress = Double(itemsSynced) / Double(totalItems)
                     syncStatusSubject.send(.syncing(progress: progress))
@@ -186,24 +194,86 @@ final class CloudSyncService: CloudSyncServiceProtocol {
     // MARK: - Private Methods
 
     private func fetchRecordCount(recordType: String) async throws -> Int {
-        let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
-        let results = try await database.records(matching: query)
-        return results.matchResults.count
+        return try await uploadWithRetry(maxRetries: 2) {
+            let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+            let results = try await self.database.records(matching: query)
+            return results.matchResults.count
+        }
     }
 
     private func fetchLastBackupDate() async throws -> Date? {
-        let query = CKQuery(recordType: "CKLearning", predicate: NSPredicate(value: true))
-        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
+        return try await uploadWithRetry(maxRetries: 2) {
+            let query = CKQuery(recordType: "CKLearning", predicate: NSPredicate(value: true))
+            query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
 
-        let results = try await database.records(matching: query, desiredKeys: nil, resultsLimit: 1)
+            let results = try await self.database.records(matching: query, desiredKeys: nil, resultsLimit: 1)
 
-        if let firstResult = results.matchResults.first,
-           case .success(let record) = firstResult.1 {
-            return record.modificationDate
+            if let firstResult = results.matchResults.first,
+               case .success(let record) = firstResult.1 {
+                return record.modificationDate
+            }
+
+            return nil
+        }
+    }
+
+    // MARK: - Concurrent Upload Methods
+
+    private struct UploadResult {
+        let success: Bool
+        let error: SyncError
+    }
+
+    private func uploadLearningsConcurrently(_ learnings: [Learning]) async -> [UploadResult] {
+        return await withTaskGroup(of: UploadResult.self) { group in
+            for learning in learnings {
+                group.addTask {
+                    do {
+                        try await self.uploadWithRetry(maxRetries: 3) {
+                            try await self.uploadLearning(learning)
+                        }
+                        return UploadResult(success: true, error: .uploadFailed(""))
+                    } catch {
+                        return UploadResult(success: false, error: .uploadFailed("Learning: \(learning.title)"))
+                    }
+                }
+            }
+
+            var results: [UploadResult] = []
+            for await result in group {
+                results.append(result)
+            }
+            return results
+        }
+    }
+
+    // MARK: - Retry Logic with Exponential Backoff
+
+    private func uploadWithRetry<T>(
+        maxRetries: Int = 3,
+        baseDelay: TimeInterval = 1.0,
+        operation: @escaping () async throws -> T
+    ) async throws -> T {
+        var lastError: Error?
+
+        for attempt in 0..<maxRetries {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                // Don't delay after the last attempt
+                if attempt < maxRetries - 1 {
+                    // Exponential backoff: 1s, 2s, 4s...
+                    let delay = baseDelay * pow(2.0, Double(attempt))
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
+            }
         }
 
-        return nil
+        throw lastError ?? URLError(.unknown)
     }
+
+    // MARK: - Individual Upload Methods
 
     private func uploadLearning(_ learning: Learning) async throws {
         let record = CKRecord(recordType: "CKLearning")
@@ -239,12 +309,16 @@ final class CloudSyncService: CloudSyncServiceProtocol {
 
         // Upload images
         for image in reflection.images {
-            try await uploadImageAttachment(image, reflectionID: reflection.id)
+            try await uploadWithRetry(maxRetries: 2) {
+                try await self.uploadImageAttachment(image, reflectionID: reflection.id)
+            }
         }
 
         // Upload voice recordings
         for voice in reflection.voiceRecordings {
-            try await uploadVoiceRecording(voice, reflectionID: reflection.id)
+            try await uploadWithRetry(maxRetries: 2) {
+                try await self.uploadVoiceRecording(voice, reflectionID: reflection.id)
+            }
         }
     }
 
