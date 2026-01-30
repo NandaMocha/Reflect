@@ -356,7 +356,7 @@ extension Button {
 
         NativeLoadingSpinner(tint: .blue)
 
-        NativeActivityIndicator(tint: .green, size: .init(width: 60, height: 60))
+        NativeActivityIndicator(size: .init(width: 60, height: 60), tint: .green)
     }
     .padding()
 }

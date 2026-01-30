@@ -128,7 +128,7 @@ final class CloudSyncService: CloudSyncServiceProtocol {
             for reflection in reflections {
                 do {
                     try await uploadWithRetry(maxRetries: 3) {
-                        try await uploadReflection(reflection)
+                        try await self.uploadReflection(reflection)
                     }
                     itemsSynced += 1
                     let progress = Double(itemsSynced) / Double(totalItems)

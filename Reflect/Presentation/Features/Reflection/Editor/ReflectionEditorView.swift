@@ -15,14 +15,16 @@ struct ReflectionEditorView: View {
     @State var content = ""
     @State var selectedLearning: Learning?
     @State var images: [ImageInput] = []
+    @State var videos: [VideoInput] = []
     @State var existingImageIds: Set<UUID> = []
+    @State var existingVideoIds: Set<UUID> = []
     @State var voiceRecordings: [VoiceRecordingInput] = []
     @State var selectedDate = Date()
 
     // UI State
     @State var showDiscardAlert = false
     @State var showImagePicker = false
-    @State var showCameraPicker = false
+    @State var showMediaPicker = false
     @State var showVoiceRecorder = false
     @State var showLearningPicker = false
     @State var showDatePicker = false
@@ -71,16 +73,26 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
-                .sheet(isPresented: $showCameraPicker) {
-                    ImagePickerView(sourceType: .camera, selectedImage: Binding(
-                        get: { nil },
-                        set: { newImage in
-                            if let image = newImage {
-                                processCapturedImage(image)
+                .sheet(isPresented: $showMediaPicker) {
+                    MediaSourcePicker(
+                        selectedImage: Binding(
+                            get: { nil },
+                            set: { newImage in
+                                if let image = newImage {
+                                    processCapturedImage(image)
+                                }
                             }
-                        }
-                    ))
-                    .ignoresSafeArea()
+                        ),
+                        selectedVideoURL: Binding(
+                            get: { nil },
+                            set: { newVideoURL in
+                                if let videoURL = newVideoURL {
+                                    processCapturedVideo(videoURL)
+                                }
+                            }
+                        ),
+                        isPresented: $showMediaPicker
+                    )
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
@@ -94,5 +106,5 @@ struct ReflectionEditorView: View {
 
 #Preview {
     ReflectionEditorView(mode: .create)
-        .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self], inMemory: true)
+        .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self, VideoAttachment.self], inMemory: true)
 }

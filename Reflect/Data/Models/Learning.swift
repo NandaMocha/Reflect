@@ -12,7 +12,7 @@ final class Learning {
     var createdAt: Date
     var updatedAt: Date
 
-    @Relationship(deleteRule: .cascade, inverse: \Reflection.learning)
+    @Relationship(deleteRule: .nullify, inverse: \Reflection.learning)
     var reflections: [Reflection] = []
 
     init(

@@ -19,6 +19,9 @@ final class Reflection {
     @Relationship(deleteRule: .cascade, inverse: \VoiceRecording.reflection)
     var voiceRecordings: [VoiceRecording] = []
 
+    @Relationship(deleteRule: .cascade, inverse: \VideoAttachment.reflection)
+    var videos: [VideoAttachment] = []
+
     init(
         id: UUID = UUID(),
         title: String,
@@ -59,5 +62,9 @@ final class Reflection {
 
     var hasVoiceRecordings: Bool {
         !voiceRecordings.isEmpty
+    }
+
+    var hasVideos: Bool {
+        !videos.isEmpty
     }
 }

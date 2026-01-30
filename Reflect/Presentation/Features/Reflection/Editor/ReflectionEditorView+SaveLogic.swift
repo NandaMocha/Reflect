@@ -13,6 +13,14 @@ extension ReflectionEditorView {
         let caption: String?
     }
 
+    private struct ProcessedVideoResult {
+        let index: Int
+        let videoData: Data?
+        let thumbnailData: Data?
+        let duration: TimeInterval
+        let caption: String?
+    }
+
     @MainActor
     func save() async {
         guard isValid else { return }
@@ -70,6 +78,22 @@ extension ReflectionEditorView {
             )
             recording.sortOrder = index
             reflection.voiceRecordings.append(recording)
+        }
+
+        // Process videos
+        let videoResults = await processVideosConcurrently(videos)
+
+        for result in videoResults {
+            if let videoData = result.videoData, let thumbnailData = result.thumbnailData {
+                let attachment = VideoAttachment(
+                    videoData: videoData,
+                    thumbnailData: thumbnailData,
+                    duration: result.duration,
+                    caption: result.caption
+                )
+                attachment.sortOrder = result.index
+                reflection.videos.append(attachment)
+            }
         }
 
         modelContext.insert(reflection)
@@ -149,6 +173,45 @@ extension ReflectionEditorView {
             }
         }
 
+        // Handle videos
+        let currentVideoIds = Set(videos.map { $0.id })
+
+        let videosToRemove = reflection.videos.filter { !currentVideoIds.contains($0.id) }
+        for video in videosToRemove {
+            modelContext.delete(video)
+            if let index = reflection.videos.firstIndex(where: { $0.id == video.id }) {
+                reflection.videos.remove(at: index)
+            }
+        }
+
+        // Collect new videos that need processing
+        let newVideos = videos.filter { !existingVideoIds.contains($0.id) }
+
+        // Process new videos concurrently
+        let videoResults = await processVideosConcurrently(newVideos)
+
+        for result in videoResults {
+            if let videoData = result.videoData, let thumbnailData = result.thumbnailData {
+                let newVideo = VideoAttachment(
+                    videoData: videoData,
+                    thumbnailData: thumbnailData,
+                    duration: result.duration,
+                    caption: result.caption
+                )
+                newVideo.sortOrder = result.index
+                reflection.videos.append(newVideo)
+            }
+        }
+
+        // Update existing videos (no processing needed)
+        for (index, videoInput) in videos.enumerated() {
+            if existingVideoIds.contains(videoInput.id),
+               let existingVideo = reflection.videos.first(where: { $0.id == videoInput.id }) {
+                existingVideo.sortOrder = index
+                existingVideo.caption = videoInput.caption
+            }
+        }
+
         try modelContext.save()
     }
 
@@ -158,7 +221,7 @@ extension ReflectionEditorView {
         let imageService = ImageProcessingService.shared
 
         // Process images concurrently using TaskGroup
-        return await withThrowingTaskGroup(of: ProcessedImageResult.self) { group in
+        return await withTaskGroup(of: ProcessedImageResult.self) { group in
             for (index, imageInput) in images.enumerated() {
                 group.addTask {
                     let imageData = await imageService.compressImage(imageInput.image, quality: CompressionQuality.high)
@@ -174,7 +237,38 @@ extension ReflectionEditorView {
             }
 
             var results: [ProcessedImageResult] = []
-            for try await result in group {
+            for await result in group {
+                results.append(result)
+            }
+            return results.sorted { $0.index < $1.index }
+        }
+    }
+
+    // MARK: - Concurrent Video Processing
+
+    private func processVideosConcurrently(_ videos: [VideoInput]) async -> [ProcessedVideoResult] {
+        // Process videos concurrently using TaskGroup
+        return await withTaskGroup(of: ProcessedVideoResult.self) { group in
+            for (index, videoInput) in videos.enumerated() {
+                group.addTask {
+                    // Load video data from URL
+                    let videoData = try? Data(contentsOf: videoInput.videoURL)
+
+                    // Generate thumbnail from the video input's thumbnail
+                    let thumbnailData = videoInput.thumbnailImage.jpegData(compressionQuality: 0.8)
+
+                    return ProcessedVideoResult(
+                        index: index,
+                        videoData: videoData,
+                        thumbnailData: thumbnailData,
+                        duration: videoInput.duration,
+                        caption: videoInput.caption
+                    )
+                }
+            }
+
+            var results: [ProcessedVideoResult] = []
+            for await result in group {
                 results.append(result)
             }
             return results.sorted { $0.index < $1.index }

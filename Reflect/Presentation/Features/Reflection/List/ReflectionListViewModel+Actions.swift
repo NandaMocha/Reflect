@@ -9,7 +9,7 @@ extension ReflectionListViewModel {
         do {
             try await deleteUseCase.execute(reflection: reflection)
             reflections.removeAll { $0.id == reflection.id }
-            groupReflectionsByDate()
+            await groupReflectionsByDate()
             HapticManager.shared.success()
         } catch {
             errorMessage = error.localizedDescription

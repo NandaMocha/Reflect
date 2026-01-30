@@ -64,6 +64,22 @@ struct ImageInput: Identifiable {
     }
 }
 
+struct VideoInput: Identifiable {
+    let id: UUID
+    let videoURL: URL
+    let thumbnailImage: UIImage
+    let duration: TimeInterval
+    var caption: String?
+
+    init(id: UUID = UUID(), videoURL: URL, thumbnailImage: UIImage, duration: TimeInterval, caption: String? = nil) {
+        self.id = id
+        self.videoURL = videoURL
+        self.thumbnailImage = thumbnailImage
+        self.duration = duration
+        self.caption = caption
+    }
+}
+
 struct VoiceRecordingInput: Identifiable {
     let id: UUID
     let existingId: UUID?

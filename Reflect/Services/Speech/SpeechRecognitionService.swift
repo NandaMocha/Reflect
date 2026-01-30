@@ -236,11 +236,11 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
                 let duration = Date().timeIntervalSince(recordingStartTime ?? Date())
 
                 // Throttle UI updates - only update every 500ms instead of every 100ms
-                if lastUpdateTime == nil || now.timeIntervalSince(lastUpdateTime!) >= uiUpdateInterval {
+                if lastUIUpdateTime == nil || now.timeIntervalSince(lastUIUpdateTime!) >= uiUpdateInterval {
                     await MainActor.run {
                         recordingStateSubject.send(.recording(duration: duration))
                     }
-                    lastUpdateTime = now
+                    lastUIUpdateTime = now
                 }
 
                 // Check max duration

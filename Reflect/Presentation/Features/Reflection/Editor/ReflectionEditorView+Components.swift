@@ -32,6 +32,14 @@ extension ReflectionEditorView {
 
                         imageAttachmentsGallery
                     }
+
+                    if !videos.isEmpty {
+                        Divider()
+                            .opacity(0.7)
+                            .padding(.bottom, Constants.Spacing.md)
+
+                        videoAttachmentsGallery
+                    }
                 }
                 .padding()
             }
@@ -64,8 +72,8 @@ extension ReflectionEditorView {
                     .font(.headline)
                     .foregroundColor(.primary)
 
-                if !images.isEmpty {
-                    Text("Processing images...")
+                if !images.isEmpty || !videos.isEmpty {
+                    Text("Processing media...")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -164,6 +172,21 @@ extension ReflectionEditorView {
                     }
                 }
             )
+        }
+    }
+
+    var videoAttachmentsGallery: some View {
+        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
+            ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
+                VideoAttachmentItemView(
+                    thumbnail: video.thumbnailImage,
+                    duration: video.duration,
+                    onRemove: {
+                        videos.remove(at: index)
+                        hasChanges = true
+                    }
+                )
+            }
         }
     }
 }

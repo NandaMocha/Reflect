@@ -48,7 +48,7 @@ extension ReflectionEditorView {
                 Image(systemName: "photo").font(.callout)
             }
 
-            Button { showCameraPicker = true } label: {
+            Button { showMediaPicker = true } label: {
                 Image(systemName: "camera").font(.callout)
             }
 

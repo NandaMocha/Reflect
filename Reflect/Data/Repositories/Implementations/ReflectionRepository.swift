@@ -88,4 +88,18 @@ final class ReflectionRepository: ReflectionRepositoryProtocol {
         reflection.updatedAt = Date()
         try modelContext.save()
     }
+
+    // MARK: - Convenience Methods without pagination
+
+    func fetchAll() async throws -> [Reflection] {
+        try await fetchAll(limit: nil, offset: nil)
+    }
+
+    func fetchByLearning(_ learningId: UUID) async throws -> [Reflection] {
+        try await fetchByLearning(learningId, limit: nil, offset: nil)
+    }
+
+    func fetchFavorites() async throws -> [Reflection] {
+        try await fetchFavorites(limit: nil, offset: nil)
+    }
 }
