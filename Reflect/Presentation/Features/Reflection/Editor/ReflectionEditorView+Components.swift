@@ -4,42 +4,77 @@ import SwiftUI
 
 extension ReflectionEditorView {
     var contentView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                headerView
-                    .padding(.bottom, Constants.Spacing.md)
-
-                titleField
-                    .padding(.bottom, Constants.Spacing.xs)
-
-                contentEditorSection
-                    .padding(.bottom, Constants.Spacing.md)
-
-                if !voiceRecordings.isEmpty {
-                    Divider()
-                        .opacity(0.7)
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    headerView
                         .padding(.bottom, Constants.Spacing.md)
 
-                    voiceRecordingsSection
+                    titleField
+                        .padding(.bottom, Constants.Spacing.xs)
+
+                    contentEditorSection
                         .padding(.bottom, Constants.Spacing.md)
+
+                    if !voiceRecordings.isEmpty {
+                        Divider()
+                            .opacity(0.7)
+                            .padding(.bottom, Constants.Spacing.md)
+
+                        voiceRecordingsSection
+                            .padding(.bottom, Constants.Spacing.md)
+                    }
+
+                    if !images.isEmpty {
+                        Divider()
+                            .opacity(0.7)
+                            .padding(.bottom, Constants.Spacing.md)
+
+                        imageAttachmentsGallery
+                    }
                 }
+                .padding()
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusedField = nil
+            }
+            .opacity(isSaving ? 0.6 : 1.0)
+            .disabled(isSaving)
+
+            if isSaving {
+                savingOverlay
+            }
+        }
+    }
+
+    // MARK: - Saving Overlay
+
+    private var savingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.2)
+                .ignoresSafeArea()
+
+            VStack(spacing: Constants.Spacing.md) {
+                NativeLoadingSpinner()
+
+                Text(isEditing ? "Saving Changes" : "Creating Reflection")
+                    .font(.headline)
+                    .foregroundColor(.primary)
 
                 if !images.isEmpty {
-                    Divider()
-                        .opacity(0.7)
-                        .padding(.bottom, Constants.Spacing.md)
-
-                    imageAttachmentsGallery
+                    Text("Processing images...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
             }
-            .padding()
+            .padding(Constants.Spacing.xl)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.large))
         }
-        .scrollDismissesKeyboard(.interactively)
-        .background(Color.clear)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            focusedField = nil
-        }
+        .transition(.opacity)
     }
 
     var headerView: some View {

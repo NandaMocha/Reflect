@@ -7,6 +7,7 @@ final class OnboardingViewModel {
     // MARK: - State
     var currentPage: Int = 0
     var isCheckingCloud: Bool = false
+    var isRestoring: Bool = false
     var cloudDataSummary: CloudDataSummary?
     var showRestoreOption: Bool = false
     var errorMessage: String?
@@ -111,13 +112,13 @@ final class OnboardingViewModel {
 
     @MainActor
     func restoreFromCloud() async -> Bool {
-        isCheckingCloud = true
+        isRestoring = true
         errorMessage = nil
 
         do {
             let result = try await cloudSyncService.restore()
 
-            isCheckingCloud = false
+            isRestoring = false
 
             if result.success {
                 HapticManager.shared.success()
@@ -128,7 +129,7 @@ final class OnboardingViewModel {
                 return false
             }
         } catch {
-            isCheckingCloud = false
+            isRestoring = false
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
             return false

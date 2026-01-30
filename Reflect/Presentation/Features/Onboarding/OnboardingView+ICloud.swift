@@ -8,12 +8,24 @@ extension OnboardingView {
             Spacer()
 
             if viewModel?.isCheckingCloud == true {
-                ProgressView()
-                    .scaleEffect(1.5)
+                NativeLoadingSpinner()
 
                 Text("Checking iCloud...")
                     .font(.headline)
                     .foregroundColor(.secondary)
+            } else if viewModel?.isRestoring == true {
+                VStack(spacing: Constants.Spacing.md) {
+                    NativeLoadingSpinner()
+
+                    Text("Restoring Data...")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text("Please wait while we restore your reflections")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             } else if let summary = viewModel?.cloudDataSummary {
                 Image(systemName: "icloud.fill")
                     .font(.system(size: 80))

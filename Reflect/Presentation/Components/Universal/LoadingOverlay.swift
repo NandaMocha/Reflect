@@ -67,6 +67,110 @@ struct UniversalLoadingOverlay: ViewModifier {
     }
 }
 
+// MARK: - Native iOS Activity Indicator
+
+/// A native iOS-style activity indicator with smooth animation
+struct NativeActivityIndicator: View {
+    var size: CGSize = .init(width: 40, height: 40)
+    var tint: Color? = nil
+
+    @State private var isRotating = false
+    @State private var isPulsing = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [
+                            (tint ?? Color.primaryDefault).opacity(0),
+                            (tint ?? Color.primaryDefault).opacity(0.3),
+                            (tint ?? Color.primaryDefault).opacity(0.6),
+                            (tint ?? Color.primaryDefault)
+                        ]),
+                        center: .center,
+                        startAngle: .degrees(0),
+                        endAngle: .degrees(360)
+                    )
+                )
+                .frame(width: size.width, height: size.height)
+                .rotationEffect(.degrees(isRotating ? 360 : 0))
+                .animation(
+                    .linear(duration: 1)
+                        .repeatForever(autoreverses: false),
+                    value: isRotating
+                )
+                .onAppear { isRotating = true }
+        }
+    }
+}
+
+// MARK: - Native iOS Loading Spinner
+
+/// A smooth, native iOS-style loading spinner
+struct NativeLoadingSpinner: View {
+    var strokeStyle: StrokeStyle = StrokeStyle(
+        lineWidth: 3,
+        lineCap: .round
+    )
+    var tint: Color? = nil
+
+    @State private var isAnimating = false
+
+    var body: some View {
+        Circle()
+            .trim(from: 0, to: 0.7)
+            .stroke(
+                (tint ?? Color.primaryDefault),
+                style: strokeStyle
+            )
+            .frame(width: 30, height: 30)
+            .rotationEffect(.degrees(isAnimating ? 360 : 0))
+            .animation(
+                .linear(duration: 0.8)
+                    .repeatForever(autoreverses: false),
+                value: isAnimating
+            )
+            .onAppear { isAnimating = true }
+    }
+}
+
+// MARK: - Loading State with Message
+
+/// A native iOS loading state with optional title and message
+struct NativeLoadingState: View {
+    var title: String? = nil
+    var message: String? = nil
+    var style: DisplayStyle = .centered
+
+    enum DisplayStyle {
+        case centered
+        case fullScreen
+        case inline
+    }
+
+    var body: some View {
+        VStack(spacing: Constants.Spacing.md) {
+            NativeLoadingSpinner()
+
+            if let title = title {
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+
+            if let message = message {
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(style == .fullScreen ? Constants.Spacing.xl : Constants.Spacing.lg)
+    }
+}
+
 // MARK: - Loading State View
 
 /// A standalone view that displays a loading state
@@ -173,6 +277,43 @@ extension View {
             .disabled(isLoading)
             .animation(.easeInOut(duration: 0.2), value: isLoading)
     }
+
+    /// Shows a native loading overlay with title and message
+    func nativeLoadingOverlay(
+        isLoading: Bool,
+        title: String? = nil,
+        message: String? = nil
+    ) -> some View {
+        self.overlay {
+            if isLoading {
+                ZStack {
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+
+                    NativeLoadingState(title: title, message: message)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.large))
+                        .padding()
+                }
+            }
+        }
+        .disabled(isLoading)
+        .animation(.easeInOut(duration: 0.2), value: isLoading)
+    }
+
+    /// Shows a small inline loading indicator
+    func inlineLoadingIndicator(
+        isLoading: Bool,
+        tint: Color? = nil
+    ) -> some View {
+        self.overlay(alignment: .trailing) {
+            if isLoading {
+                NativeLoadingSpinner(tint: tint)
+                    .frame(width: 20, height: 20)
+            }
+        }
+    }
 }
 
 // MARK: - Loading Button Modifier
@@ -203,4 +344,40 @@ extension Button {
     func loadingStyle(isLoading: Bool) -> some View {
         self.buttonStyle(LoadingButtonStyle(isLoading: isLoading))
     }
+}
+
+// MARK: - Previews
+
+#Preview("Native Loading Spinner") {
+    VStack(spacing: 40) {
+        NativeLoadingSpinner()
+
+        NativeActivityIndicator()
+
+        NativeLoadingSpinner(tint: .blue)
+
+        NativeActivityIndicator(tint: .green, size: .init(width: 60, height: 60))
+    }
+    .padding()
+}
+
+#Preview("Native Loading State") {
+    VStack(spacing: 40) {
+        NativeLoadingState(title: "Loading", message: "Please wait...")
+
+        NativeLoadingState(message: "Syncing data...")
+    }
+    .padding()
+}
+
+#Preview("Loading Overlay") {
+    VStack {
+        Text("Content under overlay")
+            .padding()
+    }
+    .nativeLoadingOverlay(
+        isLoading: true,
+        title: "Saving",
+        message: "Please wait while we save..."
+    )
 }

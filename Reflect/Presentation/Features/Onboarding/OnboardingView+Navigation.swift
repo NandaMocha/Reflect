@@ -22,17 +22,22 @@ extension OnboardingView {
             } else {
                 if viewModel?.cloudDataSummary != nil {
                     VStack(spacing: Constants.Spacing.md) {
-                        PrimaryButton("Yes, Restore Data", icon: "icloud.and.arrow.down") {
+                        PrimaryButton(
+                            viewModel?.isRestoring == true ? "Restoring..." : "Yes, Restore Data",
+                            icon: "icloud.and.arrow.down"
+                        ) {
                             Task {
                                 await viewModel?.restoreFromCloud()
                                 completeOnboarding()
                             }
                         }
+                        .disabled(viewModel?.isRestoring == true)
 
                         Button("Start Fresh") {
                             completeOnboarding()
                         }
                         .foregroundColor(.secondary)
+                        .disabled(viewModel?.isRestoring == true)
                     }
                 } else {
                     PrimaryButton("Get Started", icon: "arrow.right") {
