@@ -6,7 +6,7 @@ extension ReflectionListViewModel {
     func groupReflectionsByDate() async {
         // Perform date grouping on background thread to avoid blocking UI
         let grouped = await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return [:] }
+            guard let self = self else { return [ReflectionDateGroup: [Reflection]]() }
             return self.groupReflections(self.reflections)
         }.value
 

