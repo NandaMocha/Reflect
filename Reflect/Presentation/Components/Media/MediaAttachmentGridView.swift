@@ -15,22 +15,23 @@ struct MediaAttachmentGridView: View {
     var onVideoTap: ((VideoAttachment) -> Void)?
 
     var body: some View {
-        let allItems: [AnyMediaGridItem] = (images + videos).map { AnyMediaGridItem($0) }
+        let imageItems: [AnyMediaGridItem] = images.map { AnyMediaGridItem($0) }
+        let videoItems: [AnyMediaGridItem] = videos.map { AnyMediaGridItem($0) }
+        let allItems = imageItems + videoItems
         return UniversalMediaGridView(
             items: allItems,
             editable: editable,
-            onTap: { index in
-                if index < images.count {
-                    onImageTap?(images[index])
-                } else {
-                    onVideoTap?(videos[index - images.count])
-                }
-            },
             onRemove: { index in
                 if index < images.count {
                     onRemoveImage?(images[index])
                 } else {
                     onRemoveVideo?(videos[index - images.count])
+                }
+            }, onTap: { index in
+                if index < images.count {
+                    onImageTap?(images[index])
+                } else {
+                    onVideoTap?(videos[index - images.count])
                 }
             }
         )
@@ -47,7 +48,9 @@ struct EditorMediaAttachmentGridView: View {
     var onRemoveVideo: ((Int) -> Void)?
 
     var body: some View {
-        let allItems: [AnyMediaGridItem] = (images + videos).map { AnyMediaGridItem($0) }
+        let imageItems: [AnyMediaGridItem] = images.map { AnyMediaGridItem($0) }
+        let videoItems: [AnyMediaGridItem] = videos.map { AnyMediaGridItem($0) }
+        let allItems = imageItems + videoItems
         return UniversalMediaGridView(
             items: allItems,
             editable: true,
