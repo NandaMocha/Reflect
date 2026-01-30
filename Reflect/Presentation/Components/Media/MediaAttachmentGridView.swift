@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import AVKit
 
 // MARK: - Universal Media Attachment Grid
@@ -33,9 +34,8 @@ struct MediaAttachmentGridView: View {
                 ) {
                     // Images
                     ForEach(images) { attachment in
-                        MediaGridItem(
-                            image: attachment.image,
-                            video: nil,
+                        MediaImageGridItem(
+                            attachment: attachment,
                             size: CGSize(width: itemSize, height: itemSize),
                             showRemoveButton: editable,
                             onTap: {
@@ -49,9 +49,8 @@ struct MediaAttachmentGridView: View {
 
                     // Videos
                     ForEach(videos) { attachment in
-                        MediaGridItem(
-                            image: nil,
-                            video: attachment,
+                        MediaVideoGridItem(
+                            attachment: attachment,
                             size: CGSize(width: itemSize, height: itemSize),
                             showRemoveButton: editable,
                             onTap: {
@@ -69,11 +68,10 @@ struct MediaAttachmentGridView: View {
     }
 }
 
-// MARK: - Media Grid Item Component
+// MARK: - Media Image Grid Item
 
-struct MediaGridItem: View {
-    let image: UIImage?
-    let video: VideoAttachment?
+struct MediaImageGridItem: View {
+    let attachment: ImageAttachment
     let size: CGSize
     let showRemoveButton: Bool
     var onTap: () -> Void
@@ -85,30 +83,29 @@ struct MediaGridItem: View {
         } label: {
             ZStack(alignment: .topTrailing) {
                 // Content
-                if let image = image {
+                if let imageData = attachment.imageData,
+                   let image = UIImage(data: imageData) {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
                         .frame(width: size.width, height: size.height)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                } else if let video = video {
-                    VideoThumbnailView(
-                        thumbnail: video.thumbnail,
-                        duration: video.duration,
-                        size: size
-                    )
-                }
-
-                // Play button overlay for videos
-                if video != nil {
-                    Circle()
-                        .fill(Color.black.opacity(0.3))
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(.white)
-                        )
+                } else if let thumbnailData = attachment.thumbnailData,
+                          let thumbnail = UIImage(data: thumbnailData) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.2))
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay {
+                            Image(systemName: "photo")
+                                .foregroundColor(.secondary)
+                        }
                 }
 
                 // Remove button (only in edit mode)
@@ -132,6 +129,94 @@ struct MediaGridItem: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Media Video Grid Item
+
+struct MediaVideoGridItem: View {
+    let attachment: VideoAttachment
+    let size: CGSize
+    let showRemoveButton: Bool
+    var onTap: () -> Void
+    var onRemove: () -> Void
+
+    var body: some View {
+        Button {
+            onTap()
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                // Thumbnail
+                if let thumbnailData = attachment.thumbnailData,
+                   let thumbnail = UIImage(data: thumbnailData) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.2))
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay {
+                            Image(systemName: "video.fill")
+                                .foregroundColor(.secondary)
+                        }
+                }
+
+                // Play button overlay
+                Circle()
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white)
+                    )
+
+                // Duration badge
+                VStack {
+                    Spacer()
+                    HStack {
+                        Text(durationText)
+                            .font(.caption.bold())
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.black.opacity(0.6)))
+                        Spacer()
+                    }
+                }
+                .padding(6)
+
+                // Remove button (only in edit mode)
+                if showRemoveButton {
+                    Button {
+                        onRemove()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.6))
+                                .frame(width: 24, height: 24)
+
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .offset(x: 5, y: -5)
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private var durationText: String {
+        let minutes = Int(attachment.duration) / 60
+        let seconds = Int(attachment.duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
@@ -211,9 +296,8 @@ struct EditorMediaAttachmentGridView: View {
                 ) {
                     // Images
                     ForEach(Array(images.enumerated()), id: \.element.id) { index, input in
-                        EditorMediaGridItem(
-                            image: input.image,
-                            video: nil,
+                        EditorMediaImageGridItem(
+                            input: input,
                             size: CGSize(width: itemSize, height: itemSize),
                             onRemove: {
                                 onRemoveImage?(index)
@@ -223,9 +307,8 @@ struct EditorMediaAttachmentGridView: View {
 
                     // Videos
                     ForEach(Array(videos.enumerated()), id: \.element.id) { index, input in
-                        EditorMediaGridItem(
-                            image: nil,
-                            video: input,
+                        EditorMediaVideoGridItem(
+                            input: input,
                             size: CGSize(width: itemSize, height: itemSize),
                             onRemove: {
                                 onRemoveVideo?(index)
@@ -239,27 +322,20 @@ struct EditorMediaAttachmentGridView: View {
     }
 }
 
-struct EditorMediaGridItem: View {
-    let image: UIImage?
-    let video: VideoInput?
+// MARK: - Editor Media Image Grid Item
+
+struct EditorMediaImageGridItem: View {
+    let input: ImageInput
     let size: CGSize
     let onRemove: () -> Void
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: size.width, height: size.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else if let video = video {
-                EditorVideoThumbnailView(
-                    thumbnail: video.thumbnailImage,
-                    duration: video.duration,
-                    size: size
-                )
-            }
+            Image(uiImage: input.image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size.width, height: size.height)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Remove button
             Button {
@@ -280,16 +356,20 @@ struct EditorMediaGridItem: View {
     }
 }
 
-struct EditorVideoThumbnailView: View {
-    let thumbnail: UIImage
-    let duration: TimeInterval
+// MARK: - Editor Media Video Grid Item
+
+struct EditorMediaVideoGridItem: View {
+    let input: VideoInput
     let size: CGSize
+    let onRemove: () -> Void
 
     var body: some View {
-        ZStack {
-            Image(uiImage: thumbnail)
+        ZStack(alignment: .topTrailing) {
+            Image(uiImage: input.thumbnailImage)
                 .resizable()
                 .scaledToFill()
+                .frame(width: size.width, height: size.height)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Play button overlay
             Circle()
@@ -300,10 +380,8 @@ struct EditorVideoThumbnailView: View {
                         .font(.system(size: 12))
                         .foregroundColor(.white)
                 )
-        }
-        .frame(width: size.width, height: size.height)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
+
+            // Duration badge
             VStack {
                 Spacer()
                 HStack {
@@ -317,15 +395,32 @@ struct EditorVideoThumbnailView: View {
                 }
             }
             .padding(6)
-        )
+
+            // Remove button
+            Button {
+                onRemove()
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color.black.opacity(0.6))
+                        .frame(width: 24, height: 24)
+
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            }
+            .offset(x: 5, y: -5)
+        }
     }
 
     private var durationText: String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
+        let minutes = Int(input.duration) / 60
+        let seconds = Int(input.duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
 }
+
 
 #Preview("Media Attachment Grid - Detail View") {
     let container = try? ModelContainer(for: ImageAttachment.self, VideoAttachment.self, inMemory: true)
