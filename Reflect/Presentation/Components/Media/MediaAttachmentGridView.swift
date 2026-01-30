@@ -278,7 +278,6 @@ struct EditorMediaAttachmentGridView: View {
     var onRemoveVideo: ((Int) -> Void)?
 
     var body: some View {
-        let _ = print("[EditorMediaAttachmentGridView] Received - images: \(images.count), videos: \(videos.count)")
         if images.isEmpty && videos.isEmpty {
             EmptyView()
         } else {
@@ -308,7 +307,6 @@ struct EditorMediaAttachmentGridView: View {
 
                     // Videos
                     ForEach(Array(videos.enumerated()), id: \.element.id) { index, input in
-                        let _ = print("[EditorMediaAttachmentGridView] Rendering video at index \(index), id: \(input.id)")
                         EditorMediaVideoGridItem(
                             input: input,
                             size: CGSize(width: itemSize, height: itemSize),
@@ -366,25 +364,24 @@ struct EditorMediaVideoGridItem: View {
     let onRemove: () -> Void
 
     var body: some View {
-        let _ = print("[EditorMediaVideoGridItem] Rendering video - thumbnailImage.size: \(input.thumbnailImage.size), duration: \(input.duration)")
-        return ZStack(alignment: .topTrailing) {
+        ZStack {
             Image(uiImage: input.thumbnailImage)
                 .resizable()
                 .scaledToFill()
                 .frame(width: size.width, height: size.height)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            // Play button overlay
+            // Play button overlay - centered
             Circle()
                 .fill(Color.black.opacity(0.3))
-                .frame(width: 32, height: 32)
+                .frame(width: 44, height: 44)
                 .overlay(
                     Image(systemName: "play.fill")
-                        .font(.system(size: 12))
+                        .font(.system(size: 16))
                         .foregroundColor(.white)
                 )
 
-            // Duration badge
+            // Duration badge - bottom left
             VStack {
                 Spacer()
                 HStack {
@@ -399,22 +396,24 @@ struct EditorMediaVideoGridItem: View {
             }
             .padding(6)
 
-            // Remove button
+            // Remove button - top right
             Button {
                 onRemove()
             } label: {
                 ZStack {
                     Circle()
                         .fill(Color.black.opacity(0.6))
-                        .frame(width: 24, height: 24)
+                        .frame(width: 28, height: 28)
 
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white)
                 }
             }
-            .offset(x: 5, y: -5)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .padding(4)
         }
+        .frame(width: size.width, height: size.height)
     }
 
     private var durationText: String {

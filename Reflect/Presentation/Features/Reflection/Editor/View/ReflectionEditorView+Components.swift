@@ -155,8 +155,7 @@ extension ReflectionEditorView {
     }
 
     var mediaGallery: some View {
-        let _ = print("[Components] mediaGallery rendering - images: \(images.count), videos: \(videos.count)")
-        return EditorMediaAttachmentGridView(
+        EditorMediaAttachmentGridView(
             images: images,
             videos: videos,
             onRemoveImage: { index in

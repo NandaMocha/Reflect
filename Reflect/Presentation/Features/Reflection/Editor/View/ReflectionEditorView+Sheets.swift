@@ -36,18 +36,13 @@ extension ReflectionEditorView {
         ImagePickerView(
             sourceType: .camera,
             onPhotoPicked: { image in
-                print("[Sheets] onPhotoPicked called")
                 processCapturedImage(image)
                 showMediaPicker = false
             },
             onVideoPicked: { url, thumbnail, duration in
-                print("[Sheets] onVideoPicked called - URL: \(url), duration: \(duration)")
                 processCapturedVideo(url)
                 showMediaPicker = false
             }
         )
-        .onAppear {
-            print("[Sheets] mediaPickerSheet appeared")
-        }
     }
 }
