@@ -35,28 +35,17 @@ extension ReflectionEditorView {
     var mediaPickerSheet: some View {
         ImagePickerView(
             sourceType: .camera,
-            selectedImage: $cameraSelectedImage,
-            selectedVideoURL: $cameraSelectedVideoURL,
-            selectedVideoThumbnail: $cameraSelectedVideoThumbnail,
-            selectedVideoDuration: $cameraSelectedVideoDuration
-        )
-        .onChange(of: cameraSelectedImage) { _, newImage in
-            print("[Sheets] cameraSelectedImage changed: \(newImage != nil ? "has image" : "nil")")
-            if let image = newImage {
+            onPhotoPicked: { image in
+                print("[Sheets] onPhotoPicked called")
                 processCapturedImage(image)
                 showMediaPicker = false
-                cameraSelectedImage = nil
-            }
-        }
-        .onChange(of: cameraSelectedVideoURL) { _, newURL in
-            print("[Sheets] cameraSelectedVideoURL changed: \(newURL?.path ?? "nil")")
-            if let url = newURL {
-                print("[Sheets] Calling processCapturedVideo with URL: \(url)")
+            },
+            onVideoPicked: { url, thumbnail, duration in
+                print("[Sheets] onVideoPicked called - URL: \(url), duration: \(duration)")
                 processCapturedVideo(url)
                 showMediaPicker = false
-                cameraSelectedVideoURL = nil
             }
-        }
+        )
         .onAppear {
             print("[Sheets] mediaPickerSheet appeared")
         }

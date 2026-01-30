@@ -13,10 +13,8 @@ enum MediaPickerResult {
 
 struct ImagePickerView: UIViewControllerRepresentable {
     let sourceType: UIImagePickerController.SourceType
-    @Binding var selectedImage: UIImage?
-    @Binding var selectedVideoURL: URL?
-    @Binding var selectedVideoThumbnail: UIImage?
-    @Binding var selectedVideoDuration: TimeInterval?
+    var onPhotoPicked: ((UIImage) -> Void)?
+    var onVideoPicked: ((URL, UIImage, TimeInterval) -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -71,12 +69,11 @@ struct ImagePickerView: UIViewControllerRepresentable {
                     print("[ImagePicker] Processing image")
                     // Mirror the image if taken with front camera
                     let mirroredImage = picker.cameraDevice == .front ? mirrorImage(image) : image
-                    parent.selectedImage = mirroredImage
-                    parent.selectedVideoURL = nil
+                    // Call callback synchronously before dismiss
+                    parent.onPhotoPicked?(mirroredImage)
                 } else if mediaType == "public.movie", let url = info[.mediaURL] as? URL {
                     print("[ImagePicker] Processing video from URL: \(url)")
                     // Copy video data to a new temp file that won't be deleted
-                    // The original temp file from picker gets deleted when picker dismisses
                     if let videoData = try? Data(contentsOf: url) {
                         print("[ImagePicker] Video data loaded: \(videoData.count) bytes")
                         let permanentTempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mov")
@@ -88,11 +85,9 @@ struct ImagePickerView: UIViewControllerRepresentable {
                         let duration = getVideoDuration(from: permanentTempURL)
                         print("[ImagePicker] Thumbnail: \(thumbnail), Duration: \(duration)")
 
-                        parent.selectedVideoURL = permanentTempURL
-                        parent.selectedVideoThumbnail = thumbnail
-                        parent.selectedVideoDuration = duration
-                        parent.selectedImage = nil
-                        print("[ImagePicker] Video bindings set successfully")
+                        // Call callback synchronously before dismiss
+                        parent.onVideoPicked?(permanentTempURL, thumbnail, duration)
+                        print("[ImagePicker] Video callback called successfully")
                     } else {
                         print("[ImagePicker] FAILED to load video data from URL")
                     }
@@ -202,10 +197,18 @@ struct ImageSourcePicker: View {
             .fullScreenCover(isPresented: $showCamera) {
                 ImagePickerView(
                     sourceType: .camera,
-                    selectedImage: $selectedImage,
-                    selectedVideoURL: $selectedVideoURL,
-                    selectedVideoThumbnail: $selectedVideoThumbnail,
-                    selectedVideoDuration: $selectedVideoDuration
+                    onPhotoPicked: { image in
+                        selectedImage = image
+                        selectedVideoURL = nil
+                        isPresented = false
+                    },
+                    onVideoPicked: { url, thumbnail, duration in
+                        selectedVideoURL = url
+                        selectedVideoThumbnail = thumbnail
+                        selectedVideoDuration = duration
+                        selectedImage = nil
+                        isPresented = false
+                    }
                 )
                 .ignoresSafeArea()
             }
@@ -241,16 +244,6 @@ struct ImageSourcePicker: View {
                             isPresented = false
                         }
                     }
-                }
-            }
-            .onChange(of: selectedImage) { _, newImage in
-                if newImage != nil {
-                    isPresented = false
-                }
-            }
-            .onChange(of: selectedVideoURL) { _, newURL in
-                if newURL != nil {
-                    isPresented = false
                 }
             }
         }

@@ -32,12 +32,6 @@ struct ReflectionEditorView: View {
     @State var hasChanges = false
     @State var isSaving = false
 
-    // Camera picker state
-    @State var cameraSelectedImage: UIImage? = nil
-    @State var cameraSelectedVideoURL: URL? = nil
-    @State var cameraSelectedVideoThumbnail: UIImage? = nil
-    @State var cameraSelectedVideoDuration: TimeInterval? = nil
-
     @FocusState var focusedField: ReflectionEditorField?
 
     var isEditing: Bool {
