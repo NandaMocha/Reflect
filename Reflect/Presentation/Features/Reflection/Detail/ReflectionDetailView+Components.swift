@@ -35,12 +35,19 @@ extension ReflectionDetailView {
             .textSelection(.enabled)
     }
 
-    var imagesGallery: some View {
-        ImageAttachmentGridView(
-            attachments: reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder })
-        ) { image in
-            showFullscreenImage = image
-        }
+    var mediaGallery: some View {
+        MediaAttachmentGridView(
+            images: reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder }),
+            videos: reflection.videos.sorted(by: { $0.sortOrder < $1.sortOrder }),
+            editable: false,
+            onImageTap: { image in
+                showFullscreenImage = image
+            },
+            onVideoTap: { video in
+                // Handle video tap - play video
+                showFullscreenVideo = video
+            }
+        )
     }
 
     var voiceNotesSection: some View {

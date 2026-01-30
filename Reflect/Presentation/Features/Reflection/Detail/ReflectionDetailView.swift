@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import AVKit
 
 struct ReflectionDetailView: View {
     let reflection: Reflection
@@ -11,6 +12,7 @@ struct ReflectionDetailView: View {
     @State var showShareSheet = false
     @State var showEditSheet = false
     @State var showFullscreenImage: ImageAttachment?
+    @State var showFullscreenVideo: VideoAttachment?
 
     var body: some View {
         ScrollView {
@@ -39,12 +41,13 @@ struct ReflectionDetailView: View {
                         .padding(.bottom, Constants.Spacing.md)
                 }
 
-                if !reflection.images.isEmpty {
+                // Show media gallery if there are images or videos
+                if !reflection.images.isEmpty || !reflection.videos.isEmpty {
                     Divider()
                         .opacity(0.3)
                         .padding(.bottom, Constants.Spacing.md)
 
-                    imagesGallery
+                    mediaGallery
                 }
             }
             .padding(Constants.Spacing.md)
@@ -83,6 +86,11 @@ struct ReflectionDetailView: View {
                 images: reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder }),
                 startingImage: image
             )
+        }
+        .fullScreenCover(item: $showFullscreenVideo) { video in
+            if let videoData = video.videoData {
+                VideoPlayerView(videoData: videoData)
+            }
         }
         .fullScreenCover(isPresented: $showEditSheet) {
             ReflectionEditorView(mode: .edit(reflection))

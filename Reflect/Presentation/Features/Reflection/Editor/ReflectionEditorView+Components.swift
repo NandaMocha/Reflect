@@ -25,20 +25,13 @@ extension ReflectionEditorView {
                             .padding(.bottom, Constants.Spacing.md)
                     }
 
-                    if !images.isEmpty {
+                    // Show media gallery if there are images or videos
+                    if !images.isEmpty || !videos.isEmpty {
                         Divider()
                             .opacity(0.7)
                             .padding(.bottom, Constants.Spacing.md)
 
-                        imageAttachmentsGallery
-                    }
-
-                    if !videos.isEmpty {
-                        Divider()
-                            .opacity(0.7)
-                            .padding(.bottom, Constants.Spacing.md)
-
-                        videoAttachmentsGallery
+                        mediaGallery
                     }
                 }
                 .padding()
@@ -161,32 +154,18 @@ extension ReflectionEditorView {
         }
     }
 
-    var imageAttachmentsGallery: some View {
-        ImageGridView(items: images) { item, size in
-            ImageAttachmentItemView(
-                image: item.image,
-                onRemove: {
-                    if let index = images.firstIndex(where: { $0.id == item.id }) {
-                        images.remove(at: index)
-                        hasChanges = true
-                    }
-                }
-            )
-        }
-    }
-
-    var videoAttachmentsGallery: some View {
-        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
-            ForEach(Array(videos.enumerated()), id: \.offset) { index, video in
-                VideoAttachmentItemView(
-                    thumbnail: video.thumbnailImage,
-                    duration: video.duration,
-                    onRemove: {
-                        videos.remove(at: index)
-                        hasChanges = true
-                    }
-                )
+    var mediaGallery: some View {
+        EditorMediaAttachmentGridView(
+            images: images,
+            videos: videos,
+            onRemoveImage: { index in
+                images.remove(at: index)
+                hasChanges = true
+            },
+            onRemoveVideo: { index in
+                videos.remove(at: index)
+                hasChanges = true
             }
-        }
+        )
     }
 }
