@@ -1,13 +1,25 @@
 import SwiftUI
 import SwiftData
+import AVFoundation
 
 struct ReflectionListView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Learning.sortOrder) private var learnings: [Learning]
     @Query(sort: \Reflection.createdAt, order: .reverse) private var reflections: [Reflection]
 
     @State private var searchText = ""
     @State private var showFilters = false
     @State private var sortOption: Constants.SortOption = .newestFirst
+
+    // Quick action states
+    @State private var showActionMenu = false
+    @State private var showCameraPicker = false
+    @State private var showVoiceRecorder = false
+    @State private var showNoLearningAlert = false
+    @State private var quickReflectionError: String?
+    @State private var showEditor = false
+
+    @Namespace private var menuNamespace
 
     private var filteredReflections: [Reflection] {
         var result = reflections
@@ -58,12 +70,10 @@ struct ReflectionListView: View {
                     }
                 }
 
-                // FAB
+                // FAB with quick actions
                 if !reflections.isEmpty {
-                    NavigationLink(destination: ReflectionEditorView(mode: .create)) {
-                        FloatingActionButton(icon: "plus") {}
-                    }
-                    .padding(Constants.Spacing.lg)
+                    quickActionMenu
+                        .padding(Constants.Spacing.lg)
                 }
             }
             .navigationTitle("Reflections")
@@ -78,6 +88,250 @@ struct ReflectionListView: View {
             }
             .searchable(text: $searchText, prompt: "Search reflections...")
         }
+        .fullScreenCover(isPresented: $showCameraPicker) {
+            cameraPickerView
+        }
+        .fullScreenCover(isPresented: $showEditor) {
+            ReflectionEditorView(mode: .create)
+        }
+        .sheet(isPresented: $showVoiceRecorder) {
+            voiceRecorderSheet
+        }
+        .alert("No Learning", isPresented: $showNoLearningAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Please create a Learning first before adding reflections")
+        }
+        .alert("Error", isPresented: .constant(quickReflectionError != nil)) {
+            Button("OK", role: .cancel) {
+                quickReflectionError = nil
+            }
+        } message: {
+            if let error = quickReflectionError {
+                Text(error)
+            }
+        }
+    }
+
+    // MARK: - Quick Action Menu
+
+    private var quickActionMenu: some View {
+        FloatingActionMenu(
+            isExpanded: $showActionMenu,
+            onTap: {
+                // Regular tap - navigate to editor
+                showEditor = true
+            },
+            onCameraTap: {
+                // Validate Learning exists before opening camera
+                guard let learning = getLearningForQuickReflection() else {
+                    showNoLearningAlert = true
+                    return
+                }
+                showCameraPicker = true
+            },
+            onVoiceTap: {
+                // Validate Learning exists before opening voice recorder
+                guard let learning = getLearningForQuickReflection() else {
+                    showNoLearningAlert = true
+                    return
+                }
+                showVoiceRecorder = true
+            }
+        )
+        .longPressToExpand($showActionMenu) {
+            // Long press - expand menu
+        }
+    }
+
+    // MARK: - Camera Picker
+
+    private var cameraPickerView: some View {
+        ImagePickerView(
+            sourceType: .camera,
+            onPhotoPicked: { image in
+                Task {
+                    await handlePhotoPicked(image)
+                }
+                showCameraPicker = false
+            },
+            onVideoPicked: { url, thumbnail, duration in
+                Task {
+                    await handleVideoPicked(url: url, thumbnail: thumbnail, duration: duration)
+                }
+                showCameraPicker = false
+            }
+        )
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Voice Recorder Sheet
+
+    private var voiceRecorderSheet: some View {
+        VoiceRecorderView(isPresented: $showVoiceRecorder) { recording in
+            Task {
+                await handleVoiceRecording(recording)
+            }
+        }
+    }
+
+    // MARK: - Handlers
+
+    @MainActor
+    private func handlePhotoPicked(_ image: UIImage) async {
+        guard let learning = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            return
+        }
+
+        let modelContext = modelContext
+        let imageService = ImageProcessingService.shared
+
+        // Generate default title
+        let title = generateDefaultTitle()
+
+        // Create reflection
+        let reflection = Reflection(
+            title: title,
+            plainTextContent: ""
+        )
+        reflection.learning = learning
+        reflection.createdAt = Date()
+
+        // Process image
+        let imageData = await imageService.compressImage(image, quality: .high)
+        let thumbnailData = await imageService.generateThumbnail(image, size: CGSize(width: 200, height: 200))
+
+        guard let compressedData = imageData, let thumbData = thumbnailData else {
+            quickReflectionError = "Failed to process image"
+            return
+        }
+
+        let attachment = ImageAttachment(
+            imageData: compressedData,
+            thumbnailData: thumbData,
+            caption: nil
+        )
+        attachment.sortOrder = 0
+        reflection.images.append(attachment)
+
+        // Save
+        modelContext.insert(reflection)
+        try? modelContext.save()
+
+        // Track last used learning
+        UserDefaults.standard.setLastUsedLearningId(learning.id)
+
+        HapticManager.shared.success()
+    }
+
+    @MainActor
+    private func handleVideoPicked(url: URL, thumbnail: UIImage, duration: TimeInterval) async {
+        guard let learning = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            return
+        }
+
+        // Generate default title
+        let title = generateDefaultTitle()
+
+        // Create reflection
+        let reflection = Reflection(
+            title: title,
+            plainTextContent: ""
+        )
+        reflection.learning = learning
+        reflection.createdAt = Date()
+
+        // Load video data
+        guard let videoData = try? Data(contentsOf: url) else {
+            quickReflectionError = "Failed to load video"
+            return
+        }
+
+        // Generate thumbnail as JPEG
+        guard let thumbnailData = thumbnail.jpegData(compressionQuality: 0.8) else {
+            quickReflectionError = "Failed to process thumbnail"
+            return
+        }
+
+        let attachment = VideoAttachment(
+            videoData: videoData,
+            thumbnailData: thumbnailData,
+            caption: nil,
+            duration: duration
+        )
+        attachment.sortOrder = 0
+        reflection.videos.append(attachment)
+
+        // Save
+        modelContext.insert(reflection)
+        try? modelContext.save()
+
+        // Track last used learning
+        UserDefaults.standard.setLastUsedLearningId(learning.id)
+
+        HapticManager.shared.success()
+    }
+
+    @MainActor
+    private func handleVoiceRecording(_ recording: VoiceRecordingInput) async {
+        guard let learning = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            return
+        }
+
+        // Use transcription as content, or default text
+        let content = recording.transcription ?? "Voice note"
+
+        // Generate default title
+        let title = generateDefaultTitle()
+
+        // Create reflection
+        let reflection = Reflection(
+            title: title,
+            plainTextContent: content
+        )
+        reflection.learning = learning
+        reflection.createdAt = Date()
+
+        // Create voice recording attachment
+        let voiceRecording = VoiceRecording(
+            audioData: recording.audioData,
+            transcription: recording.transcription,
+            language: recording.language,
+            duration: recording.duration
+        )
+        voiceRecording.sortOrder = 0
+        reflection.voiceRecordings.append(voiceRecording)
+
+        // Save
+        modelContext.insert(reflection)
+        try? modelContext.save()
+
+        // Track last used learning
+        UserDefaults.standard.setLastUsedLearningId(learning.id)
+
+        HapticManager.shared.success()
+    }
+
+    // MARK: - Helper Methods
+
+    private func getLearningForQuickReflection() -> Learning? {
+        // Try last used first
+        if let lastUsedId = UserDefaults.standard.lastUsedLearningId(),
+           let lastUsed = learnings.first(where: { $0.id == lastUsedId }) {
+            return lastUsed
+        }
+
+        // Fall back to first Learning by sortOrder
+        return learnings.first
+    }
+
+    private func generateDefaultTitle() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, d"
+        return "Reflection on \(formatter.string(from: Date()))"
     }
 
     // MARK: - Views
