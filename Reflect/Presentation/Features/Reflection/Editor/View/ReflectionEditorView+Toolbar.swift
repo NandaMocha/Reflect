@@ -39,21 +39,40 @@ extension ReflectionEditorView {
     }
 
     var bottomToolbar: some View {
-        HStack(spacing: Constants.Spacing.lg) {
+        HStack(spacing: Constants.Spacing.xl) {
             Button { showImagePicker = true } label: {
-                Image(systemName: "photo").font(.callout)
+                VStack(spacing: 4) {
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 20))
+                    Text("Photo")
+                        .font(.caption2)
+                }
+                .foregroundColor(.secondary)
             }
 
             Button { showMediaPicker = true } label: {
-                Image(systemName: "camera").font(.callout)
+                VStack(spacing: 4) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 20))
+                    Text("Video")
+                        .font(.caption2)
+                }
+                .foregroundColor(.secondary)
             }
 
             Button { showVoiceRecorder = true } label: {
-                Image(systemName: "waveform").font(.callout)
+                VStack(spacing: 4) {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 20))
+                    Text("Voice")
+                        .font(.caption2)
+                }
+                .foregroundColor(.secondary)
             }
         }
-        .padding(Constants.Spacing.xxs)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
+        .padding(.horizontal, Constants.Spacing.lg)
+        .padding(.vertical, Constants.Spacing.sm)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
