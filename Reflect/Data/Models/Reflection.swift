@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import SwiftData
 
 @preconcurrency @Model
@@ -56,6 +57,10 @@ final class Reflection {
         images.sorted { $0.sortOrder < $1.sortOrder }.first
     }
 
+    var firstVideo: VideoAttachment? {
+        videos.sorted { $0.sortOrder < $1.sortOrder }.first
+    }
+
     var hasImages: Bool {
         !images.isEmpty
     }
@@ -66,5 +71,12 @@ final class Reflection {
 
     var hasVideos: Bool {
         !videos.isEmpty
+    }
+
+    var firstThumbnailImage: UIImage? {
+        if let thumbnail = firstImage?.thumbnail {
+            return thumbnail
+        }
+        return firstVideo?.thumbnail
     }
 }

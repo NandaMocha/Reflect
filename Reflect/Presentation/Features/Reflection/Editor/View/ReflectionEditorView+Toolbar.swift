@@ -12,10 +12,6 @@ extension ReflectionEditorView {
         ToolbarItem(placement: .confirmationAction) {
             saveButton
         }
-
-        ToolbarItem(placement: .bottomBar) {
-            bottomToolbar
-        }
     }
 
     var cancelButton: some View {
@@ -57,5 +53,7 @@ extension ReflectionEditorView {
             }
         }
         .padding(Constants.Spacing.xxs)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
     }
 }

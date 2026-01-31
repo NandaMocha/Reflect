@@ -1,20 +1,19 @@
 import SwiftUI
 import SwiftData
-import AVKit
+import UIKit
 
 // MARK: - Media Grid Item Protocol
 
 /// Protocol to unify different media types
 protocol MediaGridItemProtocol: Identifiable {
-    var thumbnailImage: UIImage? { get }
-    var duration: TimeInterval? { get }
-    var id: UUID { get }
+    var gridThumbnailImage: UIImage? { get }
+    var gridDuration: TimeInterval? { get }
 }
 
 // MARK: - Extensions for conformance
 
 extension ImageAttachment: MediaGridItemProtocol {
-    var thumbnailImage: UIImage? {
+    var gridThumbnailImage: UIImage? {
         if let thumbnailData = thumbnailData {
             return UIImage(data: thumbnailData)
         } else if let imageData = imageData {
@@ -22,46 +21,41 @@ extension ImageAttachment: MediaGridItemProtocol {
         }
         return nil
     }
-    var duration: TimeInterval? { nil }
-    var id: UUID { self.id }
+    var gridDuration: TimeInterval? { nil }
 }
 
 extension VideoAttachment: MediaGridItemProtocol {
-    var thumbnailImage: UIImage? {
+    var gridThumbnailImage: UIImage? {
         guard let thumbnailData = thumbnailData else { return nil }
         return UIImage(data: thumbnailData)
     }
-    var duration: TimeInterval? { self.duration }
-    var id: UUID { self.id }
+    var gridDuration: TimeInterval? { duration }
 }
 
 extension ImageInput: MediaGridItemProtocol {
-    var thumbnailImage: UIImage? { image }
-    var duration: TimeInterval? { nil }
-    var id: UUID { self.id }
+    var gridThumbnailImage: UIImage? { image }
+    var gridDuration: TimeInterval? { nil }
 }
 
 extension VideoInput: MediaGridItemProtocol {
-    var thumbnailImage: UIImage? { thumbnailImage }
-    var duration: TimeInterval? { duration }
-    var id: UUID { self.id }
+    var gridThumbnailImage: UIImage? { thumbnailImage }
+    var gridDuration: TimeInterval? { duration }
 }
 
 // MARK: - Type Erased Wrapper
 
 struct AnyMediaGridItem: Identifiable, MediaGridItemProtocol {
-    let _id: UUID
+    let id: UUID
     let _thumbnailImage: UIImage?
     let _duration: TimeInterval?
 
-    var id: UUID { _id }
-    var thumbnailImage: UIImage? { _thumbnailImage }
-    var duration: TimeInterval? { _duration }
+    var gridThumbnailImage: UIImage? { _thumbnailImage }
+    var gridDuration: TimeInterval? { _duration }
 
     init<T: MediaGridItemProtocol>(_ item: T) {
-        self._id = item.id
-        self._thumbnailImage = item.thumbnailImage
-        self._duration = item.duration
+        self.id = item.id as? UUID ?? UUID()
+        self._thumbnailImage = item.gridThumbnailImage
+        self._duration = item.gridDuration
     }
 }
 
@@ -96,7 +90,7 @@ struct UniversalMediaGridView: View {
                             item: item,
                             size: CGSize(width: itemSize, height: itemSize),
                             showRemoveButton: editable,
-                            isVideo: item.duration != nil,
+                            isVideo: item.gridDuration != nil,
                             onTap: {
                                 onTap?(index)
                             },
@@ -127,7 +121,7 @@ struct UniversalMediaGridItem: View {
             onTap()
         } label: {
             ZStack {
-                if let thumbnail = item.thumbnailImage {
+                if let thumbnail = item.gridThumbnailImage {
                     Image(uiImage: thumbnail)
                         .resizable()
                         .scaledToFill()
@@ -139,40 +133,41 @@ struct UniversalMediaGridItem: View {
                                 .foregroundColor(.secondary)
                         }
                 }
-            }
-            .frame(width: size.width, height: size.height)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            // Play button overlay for videos
-            if isVideo {
-                Circle()
-                    .fill(Color.black.opacity(0.3))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.white)
-                    )
-
-                // Duration badge
-                if let duration = item.duration {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Text(durationText(from: duration))
-                                .font(.caption.bold())
+                // Play button overlay for videos
+                if isVideo {
+                    Circle()
+                        .fill(Color.black.opacity(0.3))
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 16))
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.black.opacity(0.6)))
+                        )
+
+                    // Duration badge
+                    if let duration = item.gridDuration {
+                        VStack {
                             Spacer()
+                            HStack {
+                                Text(durationText(from: duration))
+                                    .font(.caption.bold())
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.black.opacity(0.6)))
+                                Spacer()
+                            }
                         }
+                        .padding(6)
                     }
-                    .padding(6)
                 }
             }
-
-            // Remove button
+        }
+        .buttonStyle(PlainButtonStyle())
+        .frame(width: size.width, height: size.height)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(alignment: .topTrailing) {
             if showRemoveButton {
                 Button {
                     onRemove()
@@ -187,11 +182,10 @@ struct UniversalMediaGridItem: View {
                             .foregroundColor(.white)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .buttonStyle(PlainButtonStyle())
                 .padding(4)
             }
         }
-        .buttonStyle(PlainButtonStyle())
     }
 
     private func durationText(from duration: TimeInterval) -> String {

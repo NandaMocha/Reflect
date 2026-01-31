@@ -24,16 +24,22 @@ struct ReflectionCard: View {
                     
                     HStack(spacing: Constants.Spacing.xs) {
                         // Media indicators
-                        if reflection.hasImages || reflection.hasVoiceRecordings {
+                        if reflection.hasImages || reflection.hasVoiceRecordings || reflection.hasVideos {
                             HStack(spacing: Constants.Spacing.xxs) {
                                 if reflection.hasImages {
                                     Image(systemName: "photo")
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
-                                
+
                                 if reflection.hasVoiceRecordings {
                                     Image(systemName: "mic")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                if reflection.hasVideos {
+                                    Image(systemName: "video")
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
@@ -50,16 +56,32 @@ struct ReflectionCard: View {
                 Spacer(minLength: 16)
 
                 VStack(alignment: .trailing, spacing: Constants.Spacing.xs) {
-                    if let thumbnail = reflection.firstImage?.thumbnail {
-                        Image(uiImage: thumbnail)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 50, height: 50)
-                            .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.medium))
+                    if let thumbnail = reflection.firstThumbnailImage {
+                        ZStack {
+                            Image(uiImage: thumbnail)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 50, height: 50)
+                                .clipShape(RoundedRectangle(cornerRadius: Constants.CornerRadius.medium))
+
+                            // Play icon overlay for videos (when video is the primary media)
+                            if reflection.hasVideos && !reflection.hasImages {
+                                Circle()
+                                    .fill(Color.black.opacity(0.3))
+                                    .frame(width: 24, height: 24)
+                                    .overlay(
+                                        Image(systemName: "play.fill")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.white)
+                                    )
+                            }
+                        }
                     }
-                    
-                    if reflection.images.count > 1 {
-                        Text("+ \(reflection.images.count - 1)")
+
+                    // Show count badge if multiple media items
+                    let mediaCount = reflection.hasImages ? reflection.images.count : reflection.videos.count
+                    if mediaCount > 1 {
+                        Text("+ \(mediaCount - 1)")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: 50, alignment: .center)

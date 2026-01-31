@@ -4,7 +4,7 @@ import SwiftUI
 
 extension ReflectionEditorView {
     var contentView: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     headerView
@@ -33,6 +33,10 @@ extension ReflectionEditorView {
 
                         mediaGallery
                     }
+
+                    // Spacer for bottom toolbar
+                    Color.clear
+                        .frame(height: 60)
                 }
                 .padding()
             }
@@ -47,6 +51,13 @@ extension ReflectionEditorView {
 
             if isSaving {
                 savingOverlay
+            }
+
+            // Bottom toolbar (inline, not using .bottomBar placement)
+            VStack {
+                Spacer()
+                bottomToolbar
+                    .padding(.bottom, Constants.Spacing.md)
             }
         }
     }
@@ -165,6 +176,12 @@ extension ReflectionEditorView {
             onRemoveVideo: { index in
                 videos.remove(at: index)
                 hasChanges = true
+            },
+            onImageTap: { index in
+                selectedImageIndex = index
+            },
+            onVideoTap: { index in
+                selectedVideoIndex = index
             }
         )
     }

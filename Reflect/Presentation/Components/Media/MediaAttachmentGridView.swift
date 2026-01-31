@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import AVKit
 
 // MARK: - Media Attachment Grid (Detail View)
 
@@ -46,6 +45,8 @@ struct EditorMediaAttachmentGridView: View {
     let videos: [VideoInput]
     var onRemoveImage: ((Int) -> Void)?
     var onRemoveVideo: ((Int) -> Void)?
+    var onImageTap: ((Int) -> Void)?
+    var onVideoTap: ((Int) -> Void)?
 
     var body: some View {
         let imageItems: [AnyMediaGridItem] = images.map { AnyMediaGridItem($0) }
@@ -59,6 +60,13 @@ struct EditorMediaAttachmentGridView: View {
                     onRemoveImage?(index)
                 } else {
                     onRemoveVideo?(index - images.count)
+                }
+            },
+            onTap: { index in
+                if index < images.count {
+                    onImageTap?(index)
+                } else {
+                    onVideoTap?(index - images.count)
                 }
             }
         )

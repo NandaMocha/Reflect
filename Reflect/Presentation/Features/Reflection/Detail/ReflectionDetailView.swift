@@ -29,24 +29,26 @@ struct ReflectionDetailView: View {
                     .opacity(0.3)
                     .padding(.bottom, Constants.Spacing.md)
 
-                contentSection
-                    .padding(.bottom, Constants.Spacing.md)
-
-                if !reflection.voiceRecordings.isEmpty {
+                if !reflection.plainTextContent.isEmpty {
+                    contentSection
+                        .padding(.bottom, Constants.Spacing.md)
+                    
                     Divider()
                         .opacity(0.3)
                         .padding(.bottom, Constants.Spacing.md)
+                }
 
+                if !reflection.voiceRecordings.isEmpty {
                     voiceNotesSection
+                        .padding(.bottom, Constants.Spacing.md)
+                    
+                    Divider()
+                        .opacity(0.3)
                         .padding(.bottom, Constants.Spacing.md)
                 }
 
                 // Show media gallery if there are images or videos
                 if !reflection.images.isEmpty || !reflection.videos.isEmpty {
-                    Divider()
-                        .opacity(0.3)
-                        .padding(.bottom, Constants.Spacing.md)
-
                     mediaGallery
                 }
             }

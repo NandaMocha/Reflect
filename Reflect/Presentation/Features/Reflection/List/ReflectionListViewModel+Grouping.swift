@@ -1,9 +1,12 @@
 import Foundation
+import OSLog
 
 // MARK: - Grouping Extension
 
 extension ReflectionListViewModel {
     func groupReflectionsByDate() async {
+        let startTime = CFAbsoluteTimeGetCurrent()
+
         // Perform date grouping on background thread to avoid blocking UI
         let grouped = await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return [ReflectionDateGroup: [Reflection]]() }
@@ -13,9 +16,12 @@ extension ReflectionListViewModel {
         await MainActor.run {
             self.groupedReflections = grouped
         }
+
+        os_log("📅 [PERF] groupReflectionsByDate took %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - startTime) * 1000)
     }
 
     private func groupReflections(_ reflections: [Reflection]) -> [ReflectionDateGroup: [Reflection]] {
+        let startTime = CFAbsoluteTimeGetCurrent()
         var groups: [ReflectionDateGroup: [Reflection]] = [:]
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -41,6 +47,7 @@ extension ReflectionListViewModel {
             groups[group, default: []].append(reflection)
         }
 
+        os_log("📊 [PERF] Grouped %d reflections in %.3fms", log: .default, type: .info, reflections.count, (CFAbsoluteTimeGetCurrent() - startTime) * 1000)
         return groups
     }
 

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import OSLog
 
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
@@ -31,6 +32,8 @@ struct ReflectionEditorView: View {
     @State var selectedPhotoItems: [PhotosPickerItem] = []
     @State var hasChanges = false
     @State var isSaving = false
+    @State var selectedVideoIndex: Int?
+    @State var selectedImageIndex: Int?
 
     @FocusState var focusedField: ReflectionEditorField?
 
@@ -51,7 +54,7 @@ struct ReflectionEditorView: View {
 
     var isValid: Bool {
         // Title is not mandatory - uses default value if empty
-        !content.trimmingCharacters(in: .whitespaces).isEmpty &&
+        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) &&
         selectedLearning != nil
     }
 
@@ -78,10 +81,29 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
+                .sheet(isPresented: Binding(
+                    get: { selectedVideoIndex != nil },
+                    set: { if !$0 { selectedVideoIndex = nil } }
+                )) {
+                    videoPlayerSheet
+                }
+                .fullScreenCover(isPresented: Binding(
+                    get: { selectedImageIndex != nil },
+                    set: { if !$0 { selectedImageIndex = nil } }
+                )) {
+                    if let index = selectedImageIndex {
+                        EditorImageFullscreenView(images: images, startingIndex: index)
+                    }
+                }
                 .onChange(of: selectedPhotoItems) { _, newItems in
                     Task { await loadImages(from: newItems) }
                 }
-                .onAppear { loadExistingData() }
+                .onAppear {
+                    let viewStartTime = CFAbsoluteTimeGetCurrent()
+                    os_log("📱 [PERF] ReflectionEditorView onAppear started", log: .default, type: .info)
+                    loadExistingData()
+                    os_log("📱 [PERF] ReflectionEditorView onAppear completed in %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - viewStartTime) * 1000)
+                }
         }
     }
 }

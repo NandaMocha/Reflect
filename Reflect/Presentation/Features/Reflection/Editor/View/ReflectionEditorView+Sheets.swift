@@ -45,4 +45,13 @@ extension ReflectionEditorView {
             }
         )
     }
+
+    @ViewBuilder
+    var videoPlayerSheet: some View {
+        if let index = selectedVideoIndex, index < videos.count {
+            VideoPlayerView(videoData: videos[index].videoData)
+        } else {
+            EmptyView()
+        }
+    }
 }
