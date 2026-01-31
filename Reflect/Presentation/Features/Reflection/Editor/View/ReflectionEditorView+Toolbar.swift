@@ -39,40 +39,37 @@ extension ReflectionEditorView {
     }
 
     var bottomToolbar: some View {
-        HStack(spacing: Constants.Spacing.xl) {
+        HStack(spacing: 32) {
             Button { showImagePicker = true } label: {
-                VStack(spacing: 4) {
-                    Image(systemName: "photo.fill")
-                        .font(.system(size: 20))
-                    Text("Photo")
-                        .font(.caption2)
-                }
-                .foregroundColor(.secondary)
+                Image(systemName: "photo.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.2))
+                    .clipShape(Circle())
             }
 
             Button { showMediaPicker = true } label: {
-                VStack(spacing: 4) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 20))
-                    Text("Video")
-                        .font(.caption2)
-                }
-                .foregroundColor(.secondary)
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.2))
+                    .clipShape(Circle())
             }
 
             Button { showVoiceRecorder = true } label: {
-                VStack(spacing: 4) {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 20))
-                    Text("Voice")
-                        .font(.caption2)
-                }
-                .foregroundColor(.secondary)
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.2))
+                    .clipShape(Circle())
             }
         }
-        .padding(.horizontal, Constants.Spacing.lg)
-        .padding(.vertical, Constants.Spacing.sm)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(18)
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
     }
 }
