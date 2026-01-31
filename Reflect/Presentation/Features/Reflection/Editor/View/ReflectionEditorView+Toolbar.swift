@@ -8,12 +8,16 @@ extension ReflectionEditorView {
         ToolbarItem(placement: .cancellationAction) {
             cancelButton
         }
-
+        
         ToolbarItem(placement: .confirmationAction) {
             saveButton
         }
+        
+        ToolbarItem(placement: .bottomBar) {
+            bottomToolbar
+        }
     }
-
+    
     var cancelButton: some View {
         Button("Cancel") {
             if hasChanges {
@@ -23,7 +27,7 @@ extension ReflectionEditorView {
             }
         }
     }
-
+    
     var saveButton: some View {
         Button {
             Task { await save() }
@@ -37,39 +41,21 @@ extension ReflectionEditorView {
         }
         .opacity(isValid && !isSaving ? 1.0 : 0.5)
     }
-
+ 
     var bottomToolbar: some View {
-        HStack(spacing: 32) {
+        HStack(spacing: Constants.Spacing.lg) {
             Button { showImagePicker = true } label: {
-                Image(systemName: "photo.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.white.opacity(0.2))
-                    .clipShape(Circle())
+                Image(systemName: "photo").font(.callout)
             }
-
+            
             Button { showMediaPicker = true } label: {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.white.opacity(0.2))
-                    .clipShape(Circle())
+                Image(systemName: "camera").font(.callout)
             }
-
+            
             Button { showVoiceRecorder = true } label: {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.white.opacity(0.2))
-                    .clipShape(Circle())
+                Image(systemName: "waveform").font(.callout)
             }
         }
-        .padding(18)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .padding(Constants.Spacing.xxs)
     }
 }

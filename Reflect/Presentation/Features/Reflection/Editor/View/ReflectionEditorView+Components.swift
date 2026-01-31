@@ -4,39 +4,35 @@ import SwiftUI
 
 extension ReflectionEditorView {
     var contentView: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     headerView
                         .padding(.bottom, Constants.Spacing.md)
-
+                    
                     titleField
                         .padding(.bottom, Constants.Spacing.xs)
-
+                    
                     contentEditorSection
                         .padding(.bottom, Constants.Spacing.md)
-
+                    
                     if !voiceRecordings.isEmpty {
                         Divider()
                             .opacity(0.7)
                             .padding(.bottom, Constants.Spacing.md)
-
+                        
                         voiceRecordingsSection
                             .padding(.bottom, Constants.Spacing.md)
                     }
-
+                    
                     // Show media gallery if there are images or videos
                     if !images.isEmpty || !videos.isEmpty {
                         Divider()
                             .opacity(0.7)
                             .padding(.bottom, Constants.Spacing.md)
-
+                        
                         mediaGallery
                     }
-
-                    // Spacer for bottom toolbar
-                    Color.clear
-                        .frame(height: 60)
                 }
                 .padding()
             }
@@ -48,16 +44,9 @@ extension ReflectionEditorView {
             }
             .opacity(isSaving ? 0.6 : 1.0)
             .disabled(isSaving)
-
+            
             if isSaving {
                 savingOverlay
-            }
-
-            // Bottom toolbar (inline, not using .bottomBar placement)
-            VStack {
-                Spacer()
-                bottomToolbar
-                    .padding(.bottom, Constants.Spacing.md)
             }
         }
     }
