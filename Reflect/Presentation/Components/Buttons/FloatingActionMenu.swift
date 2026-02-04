@@ -9,12 +9,12 @@ struct FloatingActionMenu: View {
     var onVoiceTap: () -> Void
 
     @Namespace private var namespace
+    @State private var isPressing = false
 
     // Button sizes
     private let mainButtonSize: CGFloat = 56
     private let actionButtonSize: CGFloat = 44
     private let buttonSpacing: CGFloat = 12
-    private let bottomOffset: CGFloat = 16
 
     var body: some View {
         GlassEffectContainer(spacing: 20) {
@@ -29,7 +29,9 @@ struct FloatingActionMenu: View {
                         insertion: .scale(scale: 0.5).combined(with: .opacity),
                         removal: .scale(scale: 0.5).combined(with: .opacity)
                     ))
+                    .padding(.bottom, 16)
                 }
+                
 
                 // Main FAB button
                 mainButton
@@ -40,29 +42,69 @@ struct FloatingActionMenu: View {
     // MARK: - Main Button
 
     private var mainButton: some View {
-        Button(action: {
-            HapticManager.shared.mediumImpact()
-            onTap()
-        }) {
-            Image(systemName: isExpanded ? "xmark" : "plus")
-                .font(.title2.weight(.semibold))
-                .foregroundColor(.white)
-                .frame(width: mainButtonSize, height: mainButtonSize)
-                .rotationEffect(.degrees(isExpanded ? 45 : 0))
-                .background(
-                    Circle()
-                        .fill(Color.primaryDefault)
-                        .shadow(
-                            color: Color.primaryDefault.opacity(0.4),
-                            radius: 8,
-                            x: 0,
-                            y: 4
-                        )
+        ZStack {
+            // Morphing glass backdrop effect
+            MorphingGlassBackdrop(
+                isPressing: $isPressing,
+                size: mainButtonSize,
+                color: .primaryDefault
+            )
+
+            Circle()
+                .fill(Color.primaryDefault)
+                .shadow(
+                    color: Color.primaryDefault.opacity(0.4),
+                    radius: 8,
+                    x: 0,
+                    y: 4
                 )
+
+            Image(systemName: isExpanded ? "xmark" : "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundColor(.white)
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                .animation(.spring(response: 0.35, dampingFraction: 0.6), value: isExpanded)
         }
-        .buttonStyle(FABButtonStyle())
+        .frame(width: mainButtonSize, height: mainButtonSize)
+        .contentShape(Circle())
+        .scaleEffect(isPressing ? 0.92 : 1.0)
         .glassEffect()
         .glassEffectID("fab", in: namespace)
+        .onTapGesture {
+            handleTap()
+        }
+        .onLongPressGesture(minimumDuration: 0.3) {
+            // Long press completed
+            handleLongPress()
+        } onPressingChanged: { pressing in
+            // Visual feedback during press
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                isPressing = pressing
+            }
+        }
+    }
+
+    // MARK: - Handlers
+
+    private func handleLongPress() {
+        guard !isExpanded else { return }
+        HapticManager.shared.lightImpact()
+        // Reset pressing state after long press completes
+        isPressing = false
+        withAnimation(.bouncy(duration: 0.4)) {
+            isExpanded = true
+        }
+    }
+
+    private func handleTap() {
+        HapticManager.shared.mediumImpact()
+        if isExpanded {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isExpanded = false
+            }
+        } else {
+            onTap()
+        }
     }
 
     // MARK: - Camera Button
@@ -129,41 +171,6 @@ struct FloatingActionMenu: View {
         .buttonStyle(FABButtonStyle())
         .glassEffect()
         .glassEffectID("voice", in: namespace)
-    }
-}
-
-// MARK: - Long Press Gesture Modifier
-
-struct LongPressGestureModifier: ViewModifier {
-    @Binding var isExpanded: Bool
-    var onLongPress: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .onLongPressGesture(
-                minimumDuration: 0.3,
-                pressing: { isPressing in
-                    // Optional visual feedback during press
-                },
-                perform: {
-                    if !isExpanded {
-                        HapticManager.shared.lightImpact()
-                        withAnimation(.bouncy(duration: 0.4)) {
-                            isExpanded = true
-                        }
-                        onLongPress()
-                    }
-                }
-            )
-    }
-}
-
-extension View {
-    func longPressToExpand(
-        _ isExpanded: Binding<Bool>,
-        onLongPress: @escaping () -> Void
-    ) -> some View {
-        self.modifier(LongPressGestureModifier(isExpanded: isExpanded, onLongPress: onLongPress))
     }
 }
 

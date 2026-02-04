@@ -14,11 +14,6 @@ extension ReflectionListViewModel {
         let thumbnailData: Data?
     }
 
-    // MARK: - Public Properties
-
-    var isCreatingQuickReflection: Bool = false
-    var quickReflectionError: String?
-
     // MARK: - Helper Methods
 
     /// Get the Learning to use for quick reflections

@@ -41,7 +41,7 @@ struct LearningListView: View {
             }
             .navigationTitle("Learnings")
             .navigationDestination(for: Learning.self) { learning in
-                FilteredReflectionListView(learning: learning)
+                ReflectionListView(learning: learning)
                     .onAppear {
                         lastOpenedLearningId = learning.id.uuidString
                     }

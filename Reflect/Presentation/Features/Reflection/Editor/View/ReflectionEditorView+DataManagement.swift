@@ -15,6 +15,14 @@ extension ReflectionEditorView {
         case .create:
             if let learning = preselectedLearning {
                 selectedLearning = learning
+            } else if !learnings.isEmpty {
+                // Auto-fill with last used learning, or first by sortOrder
+                if let lastUsedId = UserDefaults.standard.lastUsedLearningId(),
+                   let lastUsed = learnings.first(where: { $0.id == lastUsedId }) {
+                    selectedLearning = lastUsed
+                } else {
+                    selectedLearning = learnings.first
+                }
             }
             os_log("✅ [PERF] loadExistingData (create) took %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - startTime) * 1000)
 
