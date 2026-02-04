@@ -382,19 +382,24 @@ struct ReflectionListView: View {
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
                         ForEach(reflections) { reflection in
-                            NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
+                            ZStack {
+                                NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
+                                    
+                                }
+                                
                                 ReflectionCard(reflection: reflection) {}
-                            }
-                            .buttonStyle(.plain)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    Task {
-                                        await viewModel?.deleteReflection(reflection)
+                                .buttonStyle(.plain)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await viewModel?.deleteReflection(reflection)
+                                        }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
                                     }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
                                 }
                             }
+                            .listRowSeparator(.hidden)
                         }
                     } header: {
                         Text(group.title)
@@ -402,6 +407,7 @@ struct ReflectionListView: View {
                             .fontWeight(.semibold)
                             .padding(.leading, 4)
                     }
+                    .listRowBackground(Color.clear)
                 }
             }
         }
