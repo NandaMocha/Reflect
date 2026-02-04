@@ -20,6 +20,16 @@ struct LearningListView: View {
     @State var showSettings = false
     @State var isRestoringState = true
 
+    // Widget action handling
+    @Binding var widgetAction: WidgetAction?
+
+    // Navigation to specific learning for widget
+    @State private var navigateToLearningId: UUID?
+
+    init(widgetAction: Binding<WidgetAction?> = .constant(nil)) {
+        self._widgetAction = widgetAction
+    }
+
     var filteredLearnings: [Learning] {
         if searchText.isEmpty {
             return learnings
@@ -41,7 +51,7 @@ struct LearningListView: View {
             }
             .navigationTitle("Learnings")
             .navigationDestination(for: Learning.self) { learning in
-                ReflectionListView(learning: learning)
+                ReflectionListView(learning: learning, widgetAction: $widgetAction)
                     .onAppear {
                         lastOpenedLearningId = learning.id.uuidString
                     }
@@ -90,6 +100,45 @@ struct LearningListView: View {
         .onAppear {
             restoreState()
         }
+        .onChange(of: widgetAction) { _, action in
+            handleWidgetAction(action)
+        }
+    }
+
+    // MARK: - Widget Action Handling
+
+    private func handleWidgetAction(_ action: WidgetAction?) {
+        guard let action = action else { return }
+
+        // Get the target learning
+        let targetLearning = getTargetLearning()
+
+        guard let learning = targetLearning else {
+            // No learning exists, show onboarding/create learning
+            showAddLearning = true
+            widgetAction = nil
+            return
+        }
+
+        // Navigate to the learning's reflection list
+        navigationPath.append(learning)
+
+        // Small delay to ensure navigation completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // The action will be handled by ReflectionListView
+            widgetAction = nil
+        }
+    }
+
+    private func getTargetLearning() -> Learning? {
+        // Try last used learning first
+        if let lastUsedId = UserDefaults.standard.lastUsedLearningId(),
+           let lastUsed = learnings.first(where: { $0.id == lastUsedId }) {
+            return lastUsed
+        }
+
+        // Fall back to first learning by sort order
+        return learnings.first
     }
 
     func restoreState() {
@@ -157,6 +206,7 @@ struct LearningListView: View {
 }
 
 #Preview {
-    LearningListView()
+    @Previewable @State var action: WidgetAction? = nil
+    LearningListView(widgetAction: $action)
         .modelContainer(for: [Learning.self, Reflection.self], inMemory: true)
 }
