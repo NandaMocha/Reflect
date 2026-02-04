@@ -5,8 +5,15 @@ struct MainTabView: View {
     @State private var showOnboarding: Bool = false
     @Environment(\.modelContext) private var modelContext
 
+    // Widget action binding
+    @Binding var widgetAction: WidgetAction?
+
+    init(widgetAction: Binding<WidgetAction?> = .constant(nil)) {
+        self._widgetAction = widgetAction
+    }
+
     var body: some View {
-        LearningListView()
+        LearningListView(widgetAction: $widgetAction)
             .onAppear {
                 checkOnboardingStatus()
             }
@@ -24,6 +31,7 @@ struct MainTabView: View {
 }
 
 #Preview {
-    MainTabView()
+    @Previewable @State var action: WidgetAction? = nil
+    MainTabView(widgetAction: $action)
         .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self, VideoAttachment.self], inMemory: true)
 }

@@ -8,10 +8,21 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Widget Action Enum
+
+enum WidgetAction {
+    case write
+    case camera
+    case voice
+}
+
 @main
 struct ReflectApp: App {
     let modelContainer: ModelContainer
     @AppStorage(Constants.UserDefaults.selectedTheme) private var selectedTheme: String = "system"
+
+    // Widget action handling
+    @State private var widgetAction: WidgetAction?
 
     init() {
         do {
@@ -40,10 +51,30 @@ struct ReflectApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            MainTabView(widgetAction: $widgetAction)
                 .preferredColorScheme(colorScheme)
+                .onOpenURL { url in
+                    handleWidgetURL(url)
+                }
         }
         .modelContainer(modelContainer)
+    }
+
+    // MARK: - Widget URL Handling
+
+    private func handleWidgetURL(_ url: URL) {
+        guard url.scheme == "reflect" else { return }
+
+        switch url.host {
+        case "write":
+            widgetAction = .write
+        case "camera":
+            widgetAction = .camera
+        case "voice":
+            widgetAction = .voice
+        default:
+            break
+        }
     }
 
     private var colorScheme: ColorScheme? {

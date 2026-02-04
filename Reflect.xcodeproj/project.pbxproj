@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04F260712F33602B00BF5E99 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260702F33602B00BF5E99 /* WidgetKit.framework */; };
+		04F260732F33602B00BF5E99 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260722F33602B00BF5E99 /* SwiftUI.framework */; };
+		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		25335C7E2B9B49A4A9C62C0C /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = FD2C558910A2432587C62C0C /* README.md */; };
 /* End PBXBuildFile section */
 
@@ -26,8 +29,35 @@
 		};
 /* End PBXBuildRule section */
 
+/* Begin PBXContainerItemProxy section */
+		04F2607C2F33602C00BF5E99 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 042635E82F288EA100BB939D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 04F2606D2F33602B00BF5E99;
+			remoteInfo = "Quick ActionsExtension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		04F2607F2F33602C00BF5E99 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		042635F02F288EA100BB939D /* Reflect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Reflect.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Quick ActionsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		04F260702F33602B00BF5E99 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		04F260722F33602B00BF5E99 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		FD2C558910A2432587C62C0C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -38,6 +68,13 @@
 				Info.plist,
 			);
 			target = 042635EF2F288EA100BB939D /* Reflect */;
+		};
+		04F260832F33602C00BF5E99 /* Exceptions for "Quick Actions" folder in "Quick ActionsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 04F2606D2F33602B00BF5E99 /* Quick ActionsExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -50,6 +87,14 @@
 			path = Reflect;
 			sourceTree = "<group>";
 		};
+		04F260742F33602B00BF5E99 /* Quick Actions */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				04F260832F33602C00BF5E99 /* Exceptions for "Quick Actions" folder in "Quick ActionsExtension" target */,
+			);
+			path = "Quick Actions";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,6 +105,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		04F2606B2F33602B00BF5E99 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				04F260732F33602B00BF5E99 /* SwiftUI.framework in Frameworks */,
+				04F260712F33602B00BF5E99 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -67,6 +121,8 @@
 			isa = PBXGroup;
 			children = (
 				042635F22F288EA100BB939D /* Reflect */,
+				04F260742F33602B00BF5E99 /* Quick Actions */,
+				04F2606F2F33602B00BF5E99 /* Frameworks */,
 				042635F12F288EA100BB939D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -76,8 +132,18 @@
 			children = (
 				FD2C558910A2432587C62C0C /* README.md */,
 				042635F02F288EA100BB939D /* Reflect.app */,
+				04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		04F2606F2F33602B00BF5E99 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				04F260702F33602B00BF5E99 /* WidgetKit.framework */,
+				04F260722F33602B00BF5E99 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -90,11 +156,13 @@
 				042635EC2F288EA100BB939D /* Sources */,
 				042635ED2F288EA100BB939D /* Frameworks */,
 				042635EE2F288EA100BB939D /* Resources */,
+				04F2607F2F33602C00BF5E99 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 				28C8513DBC1B4B93A9C62C0C /* PBXBuildRule */,
 			);
 			dependencies = (
+				04F2607D2F33602C00BF5E99 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				042635F22F288EA100BB939D /* Reflect */,
@@ -105,6 +173,28 @@
 			productName = Reflect;
 			productReference = 042635F02F288EA100BB939D /* Reflect.app */;
 			productType = "com.apple.product-type.application";
+		};
+		04F2606D2F33602B00BF5E99 /* Quick ActionsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 04F260822F33602C00BF5E99 /* Build configuration list for PBXNativeTarget "Quick ActionsExtension" */;
+			buildPhases = (
+				04F2606A2F33602B00BF5E99 /* Sources */,
+				04F2606B2F33602B00BF5E99 /* Frameworks */,
+				04F2606C2F33602B00BF5E99 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				04F260742F33602B00BF5E99 /* Quick Actions */,
+			);
+			name = "Quick ActionsExtension";
+			packageProductDependencies = (
+			);
+			productName = "Quick ActionsExtension";
+			productReference = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -117,6 +207,9 @@
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					042635EF2F288EA100BB939D = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					04F2606D2F33602B00BF5E99 = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
@@ -136,6 +229,7 @@
 			projectRoot = "";
 			targets = (
 				042635EF2F288EA100BB939D /* Reflect */,
+				04F2606D2F33602B00BF5E99 /* Quick ActionsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -149,6 +243,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		04F2606C2F33602B00BF5E99 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -159,7 +260,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		04F2606A2F33602B00BF5E99 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		04F2607D2F33602C00BF5E99 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 04F2606D2F33602B00BF5E99 /* Quick ActionsExtension */;
+			targetProxy = 04F2607C2F33602C00BF5E99 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		042635F92F288EA300BB939D /* Debug */ = {
@@ -363,6 +479,68 @@
 			};
 			name = Release;
 		};
+		04F260802F33602C00BF5E99 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9NAU7R3577;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Quick Actions/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Quick Actions";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "xyz.nandamochammad.Reflect.Quick-Actions";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		04F260812F33602C00BF5E99 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9NAU7R3577;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Quick Actions/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Quick Actions";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "xyz.nandamochammad.Reflect.Quick-Actions";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -380,6 +558,15 @@
 			buildConfigurations = (
 				042635FC2F288EA300BB939D /* Debug */,
 				042635FD2F288EA300BB939D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		04F260822F33602C00BF5E99 /* Build configuration list for PBXNativeTarget "Quick ActionsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				04F260802F33602C00BF5E99 /* Debug */,
+				04F260812F33602C00BF5E99 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

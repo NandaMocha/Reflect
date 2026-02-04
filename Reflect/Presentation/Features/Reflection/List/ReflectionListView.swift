@@ -19,10 +19,14 @@ struct ReflectionListView: View {
     @State private var showNoLearningAlert = false
     @State private var showEditor = false
 
+    // Widget action handling
+    @Binding var widgetAction: WidgetAction?
+
     @Namespace private var menuNamespace
 
-    init(learning: Learning? = nil) {
+    init(learning: Learning? = nil, widgetAction: Binding<WidgetAction?> = .constant(nil)) {
         self.learning = learning
+        self._widgetAction = widgetAction
     }
 
     var body: some View {
@@ -103,6 +107,36 @@ struct ReflectionListView: View {
             Task {
                 await viewModel?.loadReflections()
             }
+        }
+        .onChange(of: widgetAction) { _, action in
+            handleWidgetAction(action)
+        }
+    }
+
+    // MARK: - Widget Action Handling
+
+    private func handleWidgetAction(_ action: WidgetAction?) {
+        guard let action = action else { return }
+
+        // Validate a learning exists
+        guard let _ = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            widgetAction = nil
+            return
+        }
+
+        switch action {
+        case .write:
+            showEditor = true
+        case .camera:
+            showCameraPicker = true
+        case .voice:
+            showVoiceRecorder = true
+        }
+
+        // Reset action after triggering
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            widgetAction = nil
         }
     }
 
