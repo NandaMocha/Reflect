@@ -6,6 +6,7 @@ import OSLog
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
     var preselectedLearning: Learning?
+    var onDismiss: (() -> Void)?
 
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) var modelContext
@@ -28,6 +29,7 @@ struct ReflectionEditorView: View {
     @State var showMediaPicker = false
     @State var showVoiceRecorder = false
     @State var showLearningPicker = false
+    @State var showCreateLearning = false
     @State var showDatePicker = false
     @State var selectedPhotoItems: [PhotosPickerItem] = []
     @State var hasChanges = false
@@ -54,7 +56,7 @@ struct ReflectionEditorView: View {
 
     var isValid: Bool {
         // Title is not mandatory - uses default value if empty
-        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) &&
+        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) || !voiceRecordings.isEmpty &&
         selectedLearning != nil
     }
 
@@ -75,6 +77,7 @@ struct ReflectionEditorView: View {
                     dismiss()
                 }
                 .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
+                .sheet(isPresented: $showCreateLearning) { createLearningSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
                 .fullScreenCover(isPresented: $showMediaPicker) {
                     mediaPickerSheet
@@ -109,6 +112,6 @@ struct ReflectionEditorView: View {
 }
 
 #Preview {
-    ReflectionEditorView(mode: .create)
+    ReflectionEditorView(mode: .create, onDismiss: nil)
         .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self, VideoAttachment.self], inMemory: true)
 }

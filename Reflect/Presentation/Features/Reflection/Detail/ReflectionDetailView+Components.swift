@@ -4,7 +4,7 @@ import SwiftUI
 
 extension ReflectionDetailView {
     func learningBadge(_ learning: Learning) -> some View {
-        NavigationLink(destination: FilteredReflectionListView(learning: learning)) {
+        NavigationLink(destination: ReflectionListView(learning: learning)) {
             HStack(spacing: Constants.Spacing.xs) {
                 Image(systemName: learning.iconName)
                     .font(.caption)

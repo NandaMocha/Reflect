@@ -95,7 +95,10 @@ struct ReflectionDetailView: View {
             }
         }
         .fullScreenCover(isPresented: $showEditSheet) {
-            ReflectionEditorView(mode: .edit(reflection))
+            ReflectionEditorView(mode: .edit(reflection), onDismiss: {
+                // Dismiss detail view after saving edit
+                dismiss()
+            })
         }
     }
 }

@@ -14,6 +14,10 @@ extension ReflectionEditorView {
         )
     }
 
+    var createLearningSheet: some View {
+        LearningFormView(mode: .create)
+    }
+
     var datePickerSheet: some View {
         DatePickerSheet(
             selectedDate: $selectedDate,

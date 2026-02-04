@@ -34,7 +34,13 @@ extension ReflectionEditorView {
                 try await updateReflection(reflection)
             }
 
+            // Track last used learning when saving
+            if let learning = selectedLearning {
+                UserDefaults.standard.setLastUsedLearningId(learning.id)
+            }
+
             HapticManager.shared.success()
+            onDismiss?()
             dismiss()
         } catch {
             HapticManager.shared.error()
