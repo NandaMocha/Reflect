@@ -69,7 +69,11 @@ struct ReflectionListView: View {
             cameraPickerView
         }
         .fullScreenCover(isPresented: $showEditor) {
-            ReflectionEditorView(mode: .create)
+            ReflectionEditorView(mode: .create, onDismiss: {
+                Task {
+                    await viewModel?.loadReflections()
+                }
+            })
         }
         .sheet(isPresented: $showVoiceRecorder) {
             voiceRecorderSheet

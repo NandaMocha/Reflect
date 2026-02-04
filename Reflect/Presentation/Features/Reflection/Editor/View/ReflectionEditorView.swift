@@ -6,6 +6,7 @@ import OSLog
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
     var preselectedLearning: Learning?
+    var onDismiss: (() -> Void)?
 
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) var modelContext
@@ -111,6 +112,6 @@ struct ReflectionEditorView: View {
 }
 
 #Preview {
-    ReflectionEditorView(mode: .create)
+    ReflectionEditorView(mode: .create, onDismiss: nil)
         .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self, VideoAttachment.self], inMemory: true)
 }

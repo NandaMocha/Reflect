@@ -40,6 +40,7 @@ extension ReflectionEditorView {
             }
 
             HapticManager.shared.success()
+            onDismiss?()
             dismiss()
         } catch {
             HapticManager.shared.error()
