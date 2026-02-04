@@ -382,21 +382,17 @@ struct ReflectionListView: View {
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
                         ForEach(reflections) { reflection in
-                            ZStack {
-                                NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
-                                    
-                                }
-                                
+                            NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
                                 ReflectionCard(reflection: reflection) {}
-                                .buttonStyle(.plain)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        Task {
-                                            await viewModel?.deleteReflection(reflection)
-                                        }
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    Task {
+                                        await viewModel?.deleteReflection(reflection)
                                     }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
                             }
                             .listRowSeparator(.hidden)
@@ -408,7 +404,7 @@ struct ReflectionListView: View {
                             .padding(.leading, 4)
                     }
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 16, leading: 0, bottom: 16, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
                 }
             }
         }
