@@ -18,6 +18,36 @@
             endingLineNumber = "94"
             landmarkName = "handleLongPress()"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "68D0D250-E835-4387-B189-359F47AAB093 - 3e04b14258addd8d"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Reflect.FloatingActionMenu.handleLongPress() -&gt; ()"
+                  moduleName = "Reflect.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nandamochammad/Documents/Repo&apos;s/Reflect/Reflect/Reflect/Presentation/Components/Buttons/FloatingActionMenu.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "94"
+                  endingLineNumber = "94">
+               </Location>
+               <Location
+                  uuid = "68D0D250-E835-4387-B189-359F47AAB093 - 6a11666d822050a0"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 () -&gt; () in Reflect.FloatingActionMenu.handleLongPress() -&gt; ()"
+                  moduleName = "Reflect.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nandamochammad/Documents/Repo&apos;s/Reflect/Reflect/Reflect/Presentation/Components/Buttons/FloatingActionMenu.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "95"
+                  endingLineNumber = "95">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -34,6 +64,22 @@
             endingLineNumber = "97"
             landmarkName = "handleLongPress()"
             landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "A57E4768-DA6C-49A7-9C8A-D6BA9A494A49"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Reflect/Presentation/Features/Reflection/List/ReflectionListView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "387"
+            endingLineNumber = "387"
+            landmarkName = "reflectionList"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

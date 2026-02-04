@@ -56,7 +56,7 @@ struct ReflectionEditorView: View {
 
     var isValid: Bool {
         // Title is not mandatory - uses default value if empty
-        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) &&
+        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) || !voiceRecordings.isEmpty &&
         selectedLearning != nil
     }
 
