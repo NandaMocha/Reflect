@@ -74,6 +74,7 @@ struct ReflectionListView: View {
         }
         .fullScreenCover(isPresented: $showEditor) {
             ReflectionEditorView(mode: .create, onDismiss: {
+                showEditor = false
                 Task {
                     await viewModel?.loadReflections()
                 }
@@ -104,6 +105,12 @@ struct ReflectionListView: View {
                     learning: learning
                 )
             }
+            Task {
+                await viewModel?.loadReflections()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .init("ReflectionDidSave"))) { _ in
+            // Reload reflections when a notification is received after saving
             Task {
                 await viewModel?.loadReflections()
             }

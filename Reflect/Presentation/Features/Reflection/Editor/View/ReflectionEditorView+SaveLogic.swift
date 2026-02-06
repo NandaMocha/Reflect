@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 // MARK: - Save Logic Extension
 
@@ -40,6 +41,10 @@ extension ReflectionEditorView {
             }
 
             HapticManager.shared.success()
+
+            // Post notification to refresh reflection list
+            NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
             onDismiss?()
             dismiss()
         } catch {
