@@ -44,14 +44,23 @@ extension ReflectionEditorView {
  
     var bottomToolbar: some View {
         HStack(spacing: Constants.Spacing.lg) {
+            // Journaling Suggestions button (iOS 17.2+)
+            if #available(iOS 17.2, *) {
+                Button {
+                    showJournalingPicker = true
+                } label: {
+                    Image(systemName: "sparkles").font(.callout)
+                }
+            }
+
             Button { showImagePicker = true } label: {
                 Image(systemName: "photo").font(.callout)
             }
-            
+
             Button { showMediaPicker = true } label: {
                 Image(systemName: "camera").font(.callout)
             }
-            
+
             Button { showVoiceRecorder = true } label: {
                 Image(systemName: "waveform").font(.callout)
             }

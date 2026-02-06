@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import OSLog
+import JournalingSuggestions
 
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
@@ -37,6 +38,10 @@ struct ReflectionEditorView: View {
     @State var selectedVideoIndex: Int?
     @State var selectedImageIndex: Int?
 
+    // Journaling Suggestions State
+    @State var showJournalingPicker = false
+    @State var capturedLocation: CapturedLocation?
+
     @FocusState var focusedField: ReflectionEditorField?
 
     var isEditing: Bool {
@@ -58,6 +63,14 @@ struct ReflectionEditorView: View {
         // Title is not mandatory - uses default value if empty
         (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) || !voiceRecordings.isEmpty &&
         selectedLearning != nil
+    }
+
+    var isIOS17_2OrNewer: Bool {
+        if #available(iOS 17.2, *) {
+            return true
+        } else {
+            return false
+        }
     }
 
     var body: some View {
@@ -84,6 +97,11 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
+                .if(isIOS17_2OrNewer) { view in
+                    view.journalingSuggestionsPicker(isPresented: $showJournalingPicker) { suggestion in
+                        handleJournalingSuggestion(suggestion)
+                    }
+                }
                 .sheet(isPresented: Binding(
                     get: { selectedVideoIndex != nil },
                     set: { if !$0 { selectedVideoIndex = nil } }
