@@ -260,6 +260,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
         // Reload reflections
         await viewModel?.loadReflections()
 
@@ -312,6 +315,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
         // Reload reflections
         await viewModel?.loadReflections()
 
@@ -355,6 +361,9 @@ struct ReflectionListView: View {
         // Save
         modelContext.insert(reflection)
         try? modelContext.save()
+
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
