@@ -116,9 +116,24 @@ extension ReflectionEditorView {
                     hasChanges = true
                     os_log("📷 [JOURNALING] Loaded photo", log: .default, type: .info)
                 }
+            } else {
+                await MainActor.run {
+                    showError(message: "Failed to process the selected photo.")
+                }
             }
         } catch {
             os_log("⚠️ [JOURNALING] Failed to load photo from URL: %@", log: .default, type: .error, error.localizedDescription)
+            await MainActor.run {
+                showError(message: "Failed to load photo: \(error.localizedDescription)")
+            }
         }
+    }
+
+    // MARK: - Show Error Alert
+
+    private func showError(message: String) {
+        errorMessage = message
+        showErrorAlert = true
+        HapticManager.shared.error()
     }
 }

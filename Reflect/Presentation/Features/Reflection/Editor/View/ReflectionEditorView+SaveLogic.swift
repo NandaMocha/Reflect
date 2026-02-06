@@ -48,6 +48,9 @@ extension ReflectionEditorView {
             onDismiss?()
             dismiss()
         } catch {
+            os_log("⚠️ [EDITOR] Failed to save: %@", log: .default, type: .error, error.localizedDescription)
+            errorMessage = "Failed to save reflection: \(error.localizedDescription)"
+            showErrorAlert = true
             HapticManager.shared.error()
         }
 

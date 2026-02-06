@@ -42,6 +42,10 @@ struct ReflectionEditorView: View {
     @State var showJournalingPicker = false
     @State var capturedLocation: CapturedLocation?
 
+    // Error handling
+    @State var errorMessage: String?
+    @State var showErrorAlert = false
+
     @FocusState var focusedField: ReflectionEditorField?
 
     var isEditing: Bool {
@@ -88,6 +92,15 @@ struct ReflectionEditorView: View {
                     isDestructive: true
                 ) {
                     dismiss()
+                }
+                .alert("Error", isPresented: $showErrorAlert) {
+                    Button("OK", role: .cancel) {
+                        errorMessage = nil
+                    }
+                } message: {
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                    }
                 }
                 .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
                 .sheet(isPresented: $showCreateLearning) { createLearningSheet }
