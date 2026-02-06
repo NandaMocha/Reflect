@@ -5,6 +5,7 @@ struct ReflectionImageFullscreenView: View {
     @State private var currentIndex: Int
     @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1.0
+    @State private var showShareSheet = false
 
     init(images: [ImageAttachment], startingImage: ImageAttachment) {
         self.images = images
@@ -82,8 +83,30 @@ struct ReflectionImageFullscreenView: View {
                     }
                     .foregroundColor(.white)
                 }
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showShareSheet = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(.white)
+                    }
+                }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
+            .sheet(isPresented: $showShareSheet) {
+                if let currentImage = images[safe: currentIndex],
+                   let image = currentImage.image {
+                    ShareSheet(activityItems: [image])
+                }
+            }
         }
+    }
+}
+
+// Helper for safe array access
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }

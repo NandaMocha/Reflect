@@ -81,7 +81,7 @@ struct ReflectionDetailView: View {
             deleteReflection()
         }
         .sheet(isPresented: $showShareSheet) {
-            ReflectionShareSheet(items: [shareText])
+            ReflectionShareSheet(items: shareItems)
         }
         .fullScreenCover(item: $showFullscreenImage) { image in
             ReflectionImageFullscreenView(

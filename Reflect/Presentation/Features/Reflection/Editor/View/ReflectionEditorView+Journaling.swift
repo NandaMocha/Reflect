@@ -26,7 +26,7 @@ extension ReflectionEditorView {
             if !content.isEmpty {
                 content += "\n\n"
             }
-            content += title
+            content += item.title
             hasChanges = true
         }
 
@@ -37,7 +37,7 @@ extension ReflectionEditorView {
             os_log("📅 [JOURNALING] Updated date to: %@", log: .default, type: .info, dateInterval.start.formatted())
         }
 
-        // Extract location data
+        // Extract location data and photos
         Task {
             await extractLocation(from: item)
             await extractPhotos(from: item)
