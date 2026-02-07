@@ -8,17 +8,8 @@ struct VoicePlayerPopup: View {
     @State private var isPlaying = false
     @State private var currentTime: TimeInterval = 0
     @State private var showTranscription = true
-
-    private var audioPlayer: AVAudioPlayer?
-    private var progressTimer: Timer?
-
-    init(voiceRecording: VoiceRecordingInput) {
-        self.voiceRecording = voiceRecording
-        // Initialize audio player
-        if let player = try? AVAudioPlayer(data: voiceRecording.audioData) {
-            _audioPlayer = player
-        }
-    }
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var progressTimer: Timer?
 
     var body: some View {
         NavigationStack {
@@ -42,7 +33,7 @@ struct VoicePlayerPopup: View {
 
                 // Transcription (scrollable)
                 if showTranscription, let transcription = voiceRecording.transcription, !transcription.isEmpty {
-                    transcriptionView
+                    transcriptionView(transcription)
                 }
 
                 Spacer()
@@ -64,6 +55,7 @@ struct VoicePlayerPopup: View {
         .presentationDragIndicator(.visible)
         .onAppear {
             currentTime = 0
+            setupAudioPlayer()
         }
         .onDisappear {
             stopPlayback()
@@ -186,14 +178,14 @@ struct VoicePlayerPopup: View {
         }
     }
 
-    private var transcriptionView: some View {
+    private func transcriptionView(_ text: String) -> some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
             Text("Transcription")
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(.secondary)
 
             ScrollView {
-                Text(voiceRecording.transcription ?? "")
+                Text(text)
                     .font(.body)
                     .foregroundColor(.primary)
                     .textSelection(.enabled)
@@ -212,6 +204,13 @@ struct VoicePlayerPopup: View {
     }
 
     // MARK: - Methods
+
+    private func setupAudioPlayer() {
+        if audioPlayer == nil {
+            audioPlayer = try? AVAudioPlayer(data: voiceRecording.audioData)
+            audioPlayer?.prepareToPlay()
+        }
+    }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
         let hours = Int(duration) / 3600

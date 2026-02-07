@@ -342,14 +342,12 @@ struct VoiceRecorderView: View {
             let speechResult = try await speechRecognizer.stopRecording()
 
             recordingResult = audioResult
-            transcription = speechResult.transcription
+            transcription = speechResult.transcription ?? ""
             isRecording = false
 
             // Prepare for replay
-            if let audioData = audioResult.data {
-                replayAudioPlayer = try? AVAudioPlayer(data: audioData)
-                replayAudioPlayer?.prepareToPlay()
-            }
+            replayAudioPlayer = try? AVAudioPlayer(data: audioResult.data)
+            replayAudioPlayer?.prepareToPlay()
             replayCurrentTime = 0
 
             showReplay = true
