@@ -45,14 +45,8 @@ struct VoiceRecordingItemView: View {
     }
 
     private var waveformPreview: some View {
-        HStack(spacing: 1) {
-            ForEach(0..<15, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(Color.primaryDefault.opacity(0.6))
-                    .frame(width: 2, height: CGFloat.random(in: 8...20))
-            }
-        }
-        .frame(height: 20)
+        AudioWaveform.compact()
+            .frame(height: 20)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {

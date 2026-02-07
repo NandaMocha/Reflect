@@ -24,17 +24,11 @@ struct VoiceNotePlayer: View {
 
             // Waveform Preview & Progress
             VStack(spacing: 2) {
-                // Waveform visualization
-                HStack(spacing: 1) {
-                    ForEach(0..<20, id: \.self) { index in
-                        let barProgress = CGFloat(index) / 20.0
-                        let isPast = barProgress < progress
-
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(isPast ? Color.primaryDefault : Color.primaryDefault.opacity(0.3))
-                            .frame(width: 3, height: barHeightForIndex(index))
-                    }
-                }
+                // Waveform visualization with progress
+                AudioWaveform.progress(
+                    audioLevels: generateWaveformLevels(),
+                    progress: progress
+                )
                 .frame(height: 20)
 
                 HStack {
@@ -95,13 +89,25 @@ struct VoiceNotePlayer: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    private func generateWaveformLevels() -> [CGFloat] {
+        let count = 20
+        var levels: [CGFloat] = []
+
+        // Create a natural-looking waveform pattern
+        for i in 0..<count {
+            let normalizedPos = CGFloat(i) / CGFloat(count)
+            let baseWave = sin(normalizedPos * .pi * 4) * 0.3 + 0.5
+            let variation = sin(normalizedPos * .pi * 10) * 0.2
+            let level = max(0.2, min(1.0, baseWave + variation))
+            levels.append(level)
+        }
+
+        return levels
+    }
+
     private func barHeightForIndex(_ index: Int) -> CGFloat {
-        // Generate consistent but varied heights
-        let normalizedPos = CGFloat(index) / 20.0
-        let baseWave = sin(normalizedPos * .pi * 4) * 0.3 + 0.5
-        let variation = sin(normalizedPos * .pi * 10) * 0.2
-        let level = max(0.2, min(1.0, baseWave + variation))
-        return level * 18
+        // This is now unused, but kept for any reference
+        return 8
     }
 
     private func togglePlayback() {

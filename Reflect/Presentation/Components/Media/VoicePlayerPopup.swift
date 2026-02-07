@@ -88,13 +88,9 @@ struct VoicePlayerPopup: View {
 
     private var waveformView: some View {
         // Generate static waveform for visualization
-        AudioWaveform(
-            audioLevels: generateWaveformLevels(),
-            isAnimating: false,
-            color: .primaryDefault
-        )
-        .frame(height: 80)
-        .padding(.horizontal, Constants.Spacing.md)
+        AudioWaveform.playback(audioLevels: generateWaveformLevels())
+            .frame(height: 80)
+            .padding(.horizontal, Constants.Spacing.md)
     }
 
     private var progressBar: some View {
@@ -281,11 +277,9 @@ struct VoicePlayerPopup: View {
         // Create a natural-looking waveform pattern
         for i in 0..<count {
             let normalizedPos = CGFloat(i) / CGFloat(count)
-            // Use sine waves combined with noise for natural look
             let baseWave = sin(normalizedPos * .pi * 4) * 0.3 + 0.5
             let variation = sin(normalizedPos * .pi * 10) * 0.2
-            let noise = CGFloat.random(in: -0.1...0.1)
-            let level = max(0.1, min(1.0, baseWave + variation + noise))
+            let level = max(0.1, min(1.0, baseWave + variation))
             levels.append(level)
         }
 

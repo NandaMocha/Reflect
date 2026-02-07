@@ -92,12 +92,8 @@ struct VoiceRecorderView: View {
             VStack(spacing: Constants.Spacing.md) {
                 if isRecording {
                     // Waveform visualization during recording
-                    AudioWaveform(
-                        audioLevels: audioLevels.isEmpty ? [CGFloat](repeating: 0.1, count: waveformBarCount) : audioLevels,
-                        isAnimating: true,
-                        color: .error
-                    )
-                    .frame(height: 80)
+                    AudioWaveform.live(audioLevels: $audioLevels)
+                        .frame(height: 80)
 
                     // Duration
                     Text(formatDuration(duration))
@@ -129,10 +125,8 @@ struct VoiceRecorderView: View {
     private var replayView: some View {
         VStack(spacing: Constants.Spacing.xl) {
             // Waveform visualization (static)
-            AudioWaveform(
-                audioLevels: audioLevels.isEmpty ? [CGFloat](repeating: 0.3, count: waveformBarCount) : audioLevels,
-                isAnimating: false,
-                color: .primaryDefault
+            AudioWaveform.playback(
+                audioLevels: audioLevels.isEmpty ? [CGFloat](repeating: 0.3, count: waveformBarCount) : audioLevels
             )
             .frame(height: 80)
 

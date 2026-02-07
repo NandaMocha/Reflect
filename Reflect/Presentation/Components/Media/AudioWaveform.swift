@@ -1,76 +1,306 @@
 import SwiftUI
 
-/// Audio waveform visualization that displays audio levels as animated bars
+/// Unified audio waveform visualization component
+///
+/// Supports multiple display modes:
+/// - **Live recording**: Real-time animated bars based on audio levels
+/// - **Static playback**: Fixed bars showing overall waveform
+/// - **Progress tracking**: Bars show played vs unplayed portions
+///
+/// Usage Examples:
+/// ```swift
+/// // Live recording (red accent)
+/// AudioWaveform(mode: .live(audioLevels: $audioLevels), color: .error)
+///
+/// // Static playback (primary color)
+/// AudioWaveform(mode: .static(audioLevels: levels))
+///
+/// // With progress tracking
+/// AudioWaveform(mode: .progress(audioLevels: levels, progress: 0.5))
+///
+/// // Compact inline version
+/// AudioWaveform(mode: .compact(barCount: 20), style: .minimal)
+/// ```
 struct AudioWaveform: View {
-    let audioLevels: [CGFloat]  // Normalized 0-1 values
-    let isAnimating: Bool
+    let mode: WaveformMode
+    let style: WaveformStyle
     let color: Color
-    let barCount: Int
 
-    private let minBarHeight: CGFloat = 4
-    private let maxBarHeight: CGFloat = 60
-
-    init(audioLevels: [CGFloat], isAnimating: Bool = true, color: Color = .primaryDefault, barCount: Int = 50) {
-        self.audioLevels = audioLevels
-        self.isAnimating = isAnimating
-        self.color = color
-        self.barCount = barCount
-    }
+    // For live mode - binding to audio levels
+    @Binding var liveAudioLevels: [CGFloat]
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: barSpacing) {
             ForEach(0..<barCount, id: \.self) { index in
-                let level = levelForIndex(index)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(
-                        LinearGradient(
-                            colors: [color, color.opacity(0.6)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(height: barHeight(level))
-                    .animation(isAnimating ? .spring(response: 0.3, dampingFraction: 0.6) : nil, value: audioLevels)
+                waveformBar(at: index)
             }
         }
-        .frame(height: maxBarHeight)
+        .frame(height: style.barHeight)
     }
 
-    private func levelForIndex(_ index: Int) -> CGFloat {
-        if index < audioLevels.count {
-            return audioLevels[index]
-        } else if !audioLevels.isEmpty {
-            // For bars beyond captured data, interpolate or use nearby values
-            let ratio = CGFloat(index) / CGFloat(barCount)
-            let dataCount = CGFloat(audioLevels.count)
-            let dataIndex = Int(ratio * dataCount)
-            return audioLevels[min(dataIndex, audioLevels.count - 1)]
+    // MARK: - Computed Properties
+
+    private var barCount: Int {
+        switch mode {
+        case .live:
+            return liveAudioLevels.count
+        case .static(let levels):
+            return max(minBarCount, levels.count)
+        case .progress(let levels, _):
+            return max(minBarCount, levels.count)
+        case .compact(let count):
+            return count
         }
-        return 0.1 // Default minimal height
     }
 
-    private func barHeight(_ level: CGFloat) -> CGFloat {
-        max(minBarHeight, level * maxBarHeight)
+    private var minBarCount: Int {
+        switch mode {
+        case .live, .compact:
+            return 1
+        case .static, .progress:
+            return 20
+        }
+    }
+
+    private var barSpacing: CGFloat {
+        switch style {
+        case .full: return 2
+        case .compact: return 1
+        case .minimal: return 0
+        }
+    }
+
+    // MARK: - Views
+
+    @ViewBuilder
+    private func waveformBar(at index: Int) -> some View {
+        let (height, opacity, isPlayed) = barProperties(at: index)
+
+        RoundedRectangle(cornerRadius: style.cornerRadius)
+            .fill(barFill(isPlayed: isPlayed))
+            .frame(width: style.barWidth, height: height)
+            .opacity(opacity)
+            .animation(barAnimation, value: barAnimationValue)
+    }
+
+    private func barFill(isPlayed: Bool) -> some Shape {
+        switch style {
+        case .full, .minimal:
+            return color.opacity(isPlayed ? 1.0 : 0.3)
+        case .compact:
+            return color.opacity(isPlayed ? 0.8 : 0.4)
+        }
+    }
+
+    // MARK: - Properties
+
+    private func barProperties(at index: Int) -> (height: CGFloat, opacity: CGFloat, isPlayed: Bool) {
+        let level = normalizedLevel(at: index)
+
+        let height: CGFloat
+        let opacity: CGFloat
+        let isPlayed: Bool
+
+        switch mode {
+        case .live:
+            height = style.barHeight * level
+            opacity = 1.0
+            isPlayed = false
+        case .static(let levels):
+            height = style.barHeight * level
+            opacity = 1.0
+            isPlayed = false
+        case .progress(let levels, let progress):
+            height = style.barHeight * level
+            opacity = 1.0
+            isPlayed = Double(index) / Double(barCount) < progress
+        case .compact:
+            height = style.barHeight * level
+            opacity = 1.0
+            isPlayed = false
+        }
+
+        return (height, opacity, isPlayed)
+    }
+
+    private func normalizedLevel(at index: Int) -> CGFloat {
+        switch mode {
+        case .live:
+            if index < liveAudioLevels.count {
+                return liveAudioLevels[index]
+            }
+            return 0.1
+        case .static(let levels):
+            if index < levels.count {
+                return levels[index]
+            }
+            return 0.1
+        case .progress(let levels, _):
+            if index < levels.count {
+                return levels[index]
+            }
+            return 0.1
+        case .compact:
+            // Synthetic waveform for preview
+            return syntheticLevel(at: index)
+        }
+    }
+
+    private func syntheticLevel(at index: Int) -> CGFloat {
+        let count = max(20, barCount)
+        let normalizedPos = CGFloat(index) / CGFloat(count)
+        let baseWave = sin(normalizedPos * .pi * 4) * 0.3 + 0.5
+        let variation = sin(normalizedPos * .pi * 10) * 0.2
+        return max(0.2, min(1.0, baseWave + variation))
+    }
+
+    private var barAnimation: Animation? {
+        switch mode {
+        case .live:
+            return .spring(response: 0.3, dampingFraction: 0.6)
+        default:
+            return nil
+        }
+    }
+
+    private var barAnimationValue: CGFloat {
+        switch mode {
+        case .live:
+            return CGFloat(liveAudioLevels.count)
+        default:
+            return 0
+        }
+    }
+
+    // MARK: - Mode Enum
+
+    enum WaveformMode {
+        case live(audioLevels: Binding<[CGFloat]>)
+        case static(audioLevels: [CGFloat])
+        case progress(audioLevels: [CGFloat], progress: Double)
+        case compact(barCount: Int)
+
+        var audioLevels: [CGFloat] {
+            switch self {
+            case .static(let levels), .progress(let levels, _):
+                return levels
+            default:
+                return []
+            }
+        }
+    }
+
+    // MARK: - Style Enum
+
+    enum WaveformStyle {
+        case full           // Large, for recording/playback screens
+        case compact        // Small, for inline previews
+        case minimal       // Minimal, for list items
+
+        var barHeight: CGFloat {
+            switch self {
+            case .full: return 60
+            case .compact: return 20
+            case .minimal: return 16
+            }
+        }
+
+        var barWidth: CGFloat {
+            switch self {
+            case .full: return 3
+            case .compact: return 2
+            case .minimal: return 2
+            }
+        }
+
+        var cornerRadius: CGFloat {
+            switch self {
+            case .full: return 2
+            case .compact: return 1
+            case .minimal: return 1
+            }
+        }
+    }
+
+    // MARK: - Initializers
+
+    init(mode: WaveformMode, style: WaveformStyle = .full, color: Color = .primaryDefault) {
+        self.mode = mode
+        self.style = style
+        self.color = color
+        _liveAudioLevels = Binding(
+            get: {
+                if case .live(let binding) = mode {
+                    return binding.wrappedValue
+                }
+                return []
+            },
+            set: { _ in }
+        )
+    }
+
+    // Convenience initializers
+
+    /// Live recording waveform with animated bars
+    static func live(
+        audioLevels: Binding<[CGFloat]>,
+        color: Color = .error,
+        barCount: Int = 60
+    ) -> AudioWaveform {
+        AudioWaveform(mode: .live(audioLevels: audioLevels), color: color)
+    }
+
+    /// Static waveform for playback/review
+    static func playback(
+        audioLevels: [CGFloat],
+        color: Color = .primaryDefault
+    ) -> AudioWaveform {
+        AudioWaveform(mode: .static(audioLevels: audioLevels), color: color)
+    }
+
+    /// Waveform with progress indicator
+    static func progress(
+        audioLevels: [CGFloat],
+        progress: Double,
+        color: Color = .primaryDefault
+    ) -> AudioWaveform {
+        AudioWaveform(mode: .progress(audioLevels: audioLevels, progress: progress), color: color)
+    }
+
+    /// Compact waveform for inline previews
+    static func compact(
+        barCount: Int = 15,
+        color: Color = .primaryDefault
+    ) -> AudioWaveform {
+        AudioWaveform(mode: .compact(barCount: barCount), style: .compact, color: color)
+    }
+
+    /// Minimal waveform for list items
+    static func minimal(
+        barCount: Int = 20,
+        color: Color = .primaryDefault
+    ) -> AudioWaveform {
+        AudioWaveform(mode: .compact(barCount: barCount), style: .minimal, color: color)
     }
 }
 
+// MARK: - Preview
+
 #Preview {
     VStack(spacing: 40) {
-        // Live recording simulation
+        // Live recording
         VStack(spacing: 8) {
-            Text("Recording")
+            Text("Live Recording")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            AudioWaveform(
-                audioLevels: [0.2, 0.5, 0.8, 0.6, 0.3, 0.7, 0.9, 0.4, 0.2, 0.6,
-                             0.8, 0.5, 0.3, 0.7, 0.4, 0.6, 0.8, 0.3, 0.5, 0.7,
-                             0.4, 0.6, 0.3, 0.8, 0.5, 0.7, 0.4, 0.6, 0.8, 0.3,
-                             0.5, 0.7, 0.4, 0.6, 0.8, 0.3, 0.5, 0.7, 0.4, 0.6,
-                             0.8, 0.5, 0.3, 0.7, 0.4, 0.6, 0.8, 0.3, 0.5, 0.7],
-                isAnimating: true,
-                color: .error
-            )
+            AudioWaveform.live(audioLevels: .constant([
+                0.2, 0.5, 0.8, 0.6, 0.3, 0.7, 0.9, 0.4, 0.2, 0.6,
+                0.8, 0.5, 0.3, 0.7, 0.4, 0.6, 0.8, 0.3, 0.5, 0.7,
+                0.4, 0.6, 0.3, 0.8, 0.5, 0.7, 0.4, 0.6, 0.8, 0.3,
+                0.5, 0.7, 0.4, 0.6, 0.8, 0.3, 0.5, 0.7, 0.4, 0.6,
+                0.8, 0.5, 0.3, 0.7, 0.4, 0.6, 0.8, 0.3, 0.5, 0.7
+            ]))
         }
 
         // Static playback
@@ -79,14 +309,40 @@ struct AudioWaveform: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            AudioWaveform(
-                audioLevels: [0.3, 0.6, 0.4, 0.8, 0.5, 0.7, 0.3, 0.9, 0.4, 0.6,
-                             0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8,
-                             0.3, 0.6, 0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4,
-                             0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8, 0.3, 0.6,
-                             0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8],
-                isAnimating: false
+            AudioWaveform.playback(audioLevels: [
+                0.3, 0.6, 0.4, 0.8, 0.5, 0.7, 0.3, 0.9, 0.4, 0.6,
+                0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8,
+                0.3, 0.6, 0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4,
+                0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8, 0.3, 0.6,
+                0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8
+            ])
+        }
+
+        // With progress
+        VStack(spacing: 8) {
+            Text("With 50% Progress")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            AudioWaveform.progress(
+                audioLevels: [
+                    0.3, 0.6, 0.4, 0.8, 0.5, 0.7, 0.3, 0.9, 0.4, 0.6,
+                    0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8,
+                    0.3, 0.6, 0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4,
+                    0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8, 0.3, 0.6,
+                    0.7, 0.4, 0.5, 0.8, 0.3, 0.6, 0.7, 0.4, 0.5, 0.8
+                ],
+                progress: 0.5
             )
+        }
+
+        // Compact preview
+        VStack(spacing: 8) {
+            Text("Compact Preview")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            AudioWaveform.compact()
         }
     }
     .padding()
