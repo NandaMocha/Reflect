@@ -44,7 +44,7 @@ struct AudioWaveform: View {
         switch mode {
         case .live:
             return liveAudioLevels.count
-        case .static(let levels):
+        case .statics(let levels):
             return max(minBarCount, levels.count)
         case .progress(let levels, _):
             return max(minBarCount, levels.count)
@@ -57,7 +57,7 @@ struct AudioWaveform: View {
         switch mode {
         case .live, .compact:
             return 1
-        case .static, .progress:
+        case .statics, .progress:
             return 20
         }
     }
@@ -77,13 +77,13 @@ struct AudioWaveform: View {
         let (height, opacity, isPlayed) = barProperties(at: index)
 
         RoundedRectangle(cornerRadius: style.cornerRadius)
-            .fill(barFill(isPlayed: isPlayed))
+            .fill(barFillColor(isPlayed: isPlayed))
             .frame(width: style.barWidth, height: height)
             .opacity(opacity)
             .animation(barAnimation, value: barAnimationValue)
     }
 
-    private func barFill(isPlayed: Bool) -> some Shape {
+    private func barFillColor(isPlayed: Bool) -> Color {
         switch style {
         case .full, .minimal:
             return color.opacity(isPlayed ? 1.0 : 0.3)
@@ -106,7 +106,7 @@ struct AudioWaveform: View {
             height = style.barHeight * level
             opacity = 1.0
             isPlayed = false
-        case .static(let levels):
+        case .statics(let levels):
             height = style.barHeight * level
             opacity = 1.0
             isPlayed = false
@@ -130,7 +130,7 @@ struct AudioWaveform: View {
                 return liveAudioLevels[index]
             }
             return 0.1
-        case .static(let levels):
+        case .statics(let levels):
             if index < levels.count {
                 return levels[index]
             }
@@ -176,13 +176,13 @@ struct AudioWaveform: View {
 
     enum WaveformMode {
         case live(audioLevels: Binding<[CGFloat]>)
-        case static(audioLevels: [CGFloat])
+        case statics(audioLevels: [CGFloat])
         case progress(audioLevels: [CGFloat], progress: Double)
         case compact(barCount: Int)
 
         var audioLevels: [CGFloat] {
             switch self {
-            case .static(let levels), .progress(let levels, _):
+            case .statics(let levels), .progress(let levels, _):
                 return levels
             default:
                 return []
@@ -255,7 +255,7 @@ struct AudioWaveform: View {
         audioLevels: [CGFloat],
         color: Color = .primaryDefault
     ) -> AudioWaveform {
-        AudioWaveform(mode: .static(audioLevels: audioLevels), color: color)
+        AudioWaveform(mode: .statics(audioLevels: audioLevels), color: color)
     }
 
     /// Waveform with progress indicator
