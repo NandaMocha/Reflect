@@ -6,58 +6,46 @@ struct VoiceRecorderView: View {
     @Binding var isPresented: Bool
     var onComplete: (VoiceRecordingInput) -> Void
 
+    // Recording state
     @State private var isRecording = false
     @State private var isPaused = false
     @State private var duration: TimeInterval = 0
     @State private var audioLevel: Float = 0
-    @State private var selectedLanguage: SpeechLanguage = .english
+    @State private var audioLevels: [CGFloat] = []
     @State private var transcription = ""
     @State private var recordingResult: AudioRecordingResult?
-    @State private var showConfirmation = false
+    @State private var showReplay = false
     @State private var error: Error?
     @State private var timer: Timer?
+
+    // Replay state
+    @State private var isPlayingReplay = false
+    @State private var replayCurrentTime: TimeInterval = 0
+    @State private var replayAudioPlayer: AVAudioPlayer?
+    @State private var replayTimer: Timer?
+
+    // Hardcoded to Indonesian
+    private let selectedLanguage: SpeechLanguage = .indonesian
 
     @StateObject private var audioRecorder = AudioRecorderWrapper()
     @StateObject private var speechRecognizer = SpeechRecognizerWrapper()
 
-    private let maxDuration: TimeInterval = 300 // 5 minutes
+    private let waveformBarCount = 60
+    private let sampleInterval: TimeInterval = 0.05  // Sample every 50ms
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: Constants.Spacing.xl) {
+            VStack(spacing: Constants.Spacing.lg) {
                 Spacer()
 
-                // Recording indicator
-                recordingIndicator
-
-                // Status text
-                Text(statusText)
-                    .font(.headline)
-
-                // Duration
-                if isRecording || isPaused {
-                    Text(formatDuration(duration))
-                        .font(.system(size: 48, weight: .light, design: .monospaced))
-                }
-
-                // Language picker
-                if !isRecording && !isPaused && !showConfirmation {
-                    languagePicker
-                }
-
-                // Live transcription
-                if isRecording && !transcription.isEmpty {
-                    transcriptionPreview
-                }
-
-                // Confirmation view
-                if showConfirmation {
-                    confirmationView
+                if showReplay {
+                    replayView
+                } else {
+                    recordingView
                 }
 
                 Spacer()
 
-                // Controls
                 controlButtons
             }
             .padding(Constants.Spacing.lg)
@@ -72,117 +60,191 @@ struct VoiceRecorderView: View {
                 }
             }
             .onChange(of: audioRecorder.currentTime) { _, newValue in
-                // If audioRecorder supports reporting time, sync with it.
-                // Otherwise we rely on our manual timer.
                 if newValue > 0 {
                     duration = newValue
-                }
-                if duration >= maxDuration {
-                    Task { await stopRecording() }
                 }
             }
             .onChange(of: audioRecorder.audioLevel) { _, newValue in
                 audioLevel = newValue
+                // Capture audio levels for waveform visualization
+                if isRecording && !isPaused {
+                    let level = CGFloat(newValue)
+                    if audioLevels.count >= waveformBarCount {
+                        audioLevels.removeFirst()
+                    }
+                    audioLevels.append(level)
+                }
             }
             .onChange(of: speechRecognizer.transcription) { _, newValue in
                 transcription = newValue
             }
         }
-    }
-
-    // MARK: - Components
-
-    private var recordingIndicator: some View {
-        ZStack {
-            // Background circle
-            Circle()
-                .fill(isRecording ? Color.error.opacity(0.2) : Color.secondary.opacity(0.1))
-                .frame(width: 160, height: 160)
-
-            // Audio level indicator
-            if isRecording {
-                Circle()
-                    .fill(Color.error.opacity(0.3))
-                    .frame(width: 120 + CGFloat(audioLevel) * 40, height: 120 + CGFloat(audioLevel) * 40)
-                    .animation(.easeInOut(duration: 0.1), value: audioLevel)
-            }
-
-            // Center icon
-            Image(systemName: isRecording ? "mic.fill" : (showConfirmation ? "checkmark" : "mic"))
-                .font(.system(size: 50))
-                .foregroundColor(isRecording ? .error : (showConfirmation ? .success : .secondary))
+        .onDisappear {
+            cleanupReplay()
         }
     }
 
-    private var languagePicker: some View {
-        VStack(spacing: Constants.Spacing.xs) {
-            Text("Select Language")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+    // MARK: - Recording View
 
-            Picker("Language", selection: $selectedLanguage) {
-                Text("English").tag(SpeechLanguage.english)
-                Text("Indonesian").tag(SpeechLanguage.indonesian)
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 250)
-        }
-    }
+    private var recordingView: some View {
+        VStack(spacing: Constants.Spacing.xl) {
+            // Recording indicator with waveform
+            VStack(spacing: Constants.Spacing.md) {
+                if isRecording {
+                    // Waveform visualization during recording
+                    AudioWaveform(
+                        audioLevels: audioLevels.isEmpty ? [CGFloat](repeating: 0.1, count: waveformBarCount) : audioLevels,
+                        isAnimating: true,
+                        color: .error
+                    )
+                    .frame(height: 80)
 
-    private var transcriptionPreview: some View {
-        ScrollView {
-            Text(transcription)
-                .font(.body)
-                .foregroundColor(.secondary)
-                .padding()
-        }
-        .frame(maxHeight: 100)
-        .glassCard()
-    }
+                    // Duration
+                    Text(formatDuration(duration))
+                        .font(.system(size: 48, weight: .light, design: .monospaced))
+                        .foregroundColor(.primary)
+                } else {
+                    // Microphone icon when not recording
+                    ZStack {
+                        Circle()
+                            .fill(Color.secondary.opacity(0.1))
+                            .frame(width: 120, height: 120)
 
-    private var confirmationView: some View {
-        VStack(spacing: Constants.Spacing.md) {
-            if !transcription.isEmpty {
-                VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
-                    HStack {
-                        Text("Transcription")
-                            .font(.subheadline.weight(.medium))
+                        Image(systemName: "mic")
+                            .font(.system(size: 50))
                             .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Button {
-                            UIPasteboard.general.string = transcription
-                            HapticManager.shared.success()
-                        } label: {
-                            Label("Copy", systemImage: "doc.on.doc")
-                                .font(.caption)
-                        }
                     }
+                }
+            }
 
-                    ScrollView {
-                        Text(transcription)
-                            .font(.body)
+            // Status text
+            Text(statusText)
+                .font(.headline)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Replay View
+
+    private var replayView: some View {
+        VStack(spacing: Constants.Spacing.xl) {
+            // Waveform visualization (static)
+            AudioWaveform(
+                audioLevels: audioLevels.isEmpty ? [CGFloat](repeating: 0.3, count: waveformBarCount) : audioLevels,
+                isAnimating: false,
+                color: .primaryDefault
+            )
+            .frame(height: 80)
+
+            // Duration
+            Text(formatDuration(isPlayingReplay ? replayCurrentTime : duration))
+                .font(.system(size: 48, weight: .light, design: .monospaced))
+                .foregroundColor(.primary)
+
+            // Status
+            Text(isPlayingReplay ? "Playing..." : "Review Recording")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            // Progress bar
+            VStack(spacing: Constants.Spacing.xs) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.secondary.opacity(0.2))
+                            .frame(height: 6)
+
+                        Capsule()
+                            .fill(Color.primaryDefault)
+                            .frame(width: geometry.size.width * replayProgress, height: 6)
                     }
-                    .frame(maxHeight: 150)
-                    .padding()
-                    .glassCard()
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let newTime = Double(value.location.x / geometry.size.width) * duration
+                                replayCurrentTime = max(0, min(duration, newTime))
+                                replayAudioPlayer?.currentTime = replayCurrentTime
+                            }
+                    )
+                }
+                .frame(height: 6)
+
+                HStack {
+                    Text(formatDuration(replayCurrentTime))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Text(formatDuration(duration))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, Constants.Spacing.md)
+
+            // Playback controls
+            HStack(spacing: Constants.Spacing.xl) {
+                Button {
+                    rewindPlayback()
+                } label: {
+                    Image(systemName: "gobackward.15")
+                        .font(.title3)
+                        .foregroundColor(.primaryDefault)
+                }
+
+                Button {
+                    toggleReplayPlayback()
+                } label: {
+                    Image(systemName: isPlayingReplay ? "pause.fill" : "play.fill")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Color.primaryDefault)
+                        .clipShape(Circle())
+                }
+
+                Button {
+                    forwardPlayback()
+                } label: {
+                    Image(systemName: "goforward.15")
+                        .font(.title3)
+                        .foregroundColor(.primaryDefault)
                 }
             }
         }
     }
+
+    // MARK: - Control Buttons
 
     private var controlButtons: some View {
         HStack(spacing: Constants.Spacing.xl) {
-            if showConfirmation {
+            if showReplay {
                 // Retake button
-                SecondaryButton("Retake", icon: "arrow.counterclockwise") {
+                Button {
                     retakeRecording()
+                } label: {
+                    Label("Retake", systemImage: "arrow.counterclockwise")
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, Constants.Spacing.lg)
+                        .padding(.vertical, Constants.Spacing.md)
+                        .background(Color.secondary.opacity(0.1))
+                        .cornerRadius(Constants.CornerRadius.medium)
                 }
 
-                // Done button
-                PrimaryButton("Done", icon: "checkmark") {
+                // Save button
+                Button {
                     completeRecording()
+                } label: {
+                    Label("Save", systemImage: "checkmark")
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, Constants.Spacing.lg)
+                        .padding(.vertical, Constants.Spacing.md)
+                        .background(Color.primaryDefault)
+                        .cornerRadius(Constants.CornerRadius.medium)
                 }
             } else {
                 // Main record/stop button
@@ -219,8 +281,8 @@ struct VoiceRecorderView: View {
     // MARK: - Computed Properties
 
     private var statusText: String {
-        if showConfirmation {
-            return "Recording Complete"
+        if showReplay {
+            return "Review & Save"
         } else if isRecording {
             return "Recording..."
         } else if isPaused {
@@ -230,11 +292,21 @@ struct VoiceRecorderView: View {
         }
     }
 
+    private var replayProgress: CGFloat {
+        guard duration > 0 else { return 0 }
+        return CGFloat(replayCurrentTime / duration)
+    }
+
     // MARK: - Methods
 
     private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
+        let hours = Int(duration) / 3600
+        let minutes = Int(duration) / 60 % 60
         let seconds = Int(duration) % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
         return String(format: "%d:%02d", minutes, seconds)
     }
 
@@ -243,11 +315,16 @@ struct VoiceRecorderView: View {
         do {
             try await audioRecorder.startRecording()
             try await speechRecognizer.startRecording(language: selectedLanguage)
+
             isRecording = true
+            isPaused = false
             duration = 0
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                duration += 1
+            audioLevels = []
+
+            timer = Timer.scheduledTimer(withTimeInterval: sampleInterval, repeats: true) { _ in
+                duration += sampleInterval
             }
+
             HapticManager.shared.lightImpact()
         } catch {
             self.error = error
@@ -259,14 +336,23 @@ struct VoiceRecorderView: View {
     private func stopRecording() async {
         timer?.invalidate()
         timer = nil
+
         do {
             let audioResult = try await audioRecorder.stopRecording()
             let speechResult = try await speechRecognizer.stopRecording()
 
             recordingResult = audioResult
-            transcription = speechResult.transcription ?? "-"
+            transcription = speechResult.transcription
             isRecording = false
-            showConfirmation = true
+
+            // Prepare for replay
+            if let audioData = audioResult.data {
+                replayAudioPlayer = try? AVAudioPlayer(data: audioData)
+                replayAudioPlayer?.prepareToPlay()
+            }
+            replayCurrentTime = 0
+
+            showReplay = true
             HapticManager.shared.success()
         } catch {
             self.error = error
@@ -279,13 +365,18 @@ struct VoiceRecorderView: View {
         speechRecognizer.cancelRecording()
         timer?.invalidate()
         timer = nil
+        cleanupReplay()
     }
 
     private func retakeRecording() {
         recordingResult = nil
         transcription = ""
         duration = 0
-        showConfirmation = false
+        audioLevels = []
+        showReplay = false
+        isPlayingReplay = false
+        replayCurrentTime = 0
+        cleanupReplay()
         HapticManager.shared.lightImpact()
     }
 
@@ -299,9 +390,67 @@ struct VoiceRecorderView: View {
             duration: result.duration
         )
 
+        cleanupReplay()
         onComplete(input)
         isPresented = false
         HapticManager.shared.success()
+    }
+
+    // MARK: - Replay Methods
+
+    private func toggleReplayPlayback() {
+        guard let player = replayAudioPlayer else { return }
+
+        if isPlayingReplay {
+            player.pause()
+            isPlayingReplay = false
+            replayTimer?.invalidate()
+        } else {
+            player.play()
+            isPlayingReplay = true
+            startReplayTimer()
+        }
+        HapticManager.shared.lightImpact()
+    }
+
+    private func startReplayTimer() {
+        replayTimer?.invalidate()
+        replayTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            guard let player = replayAudioPlayer else {
+                replayTimer?.invalidate()
+                return
+            }
+
+            replayCurrentTime = player.currentTime
+
+            if !player.isPlaying {
+                isPlayingReplay = false
+                replayTimer?.invalidate()
+            }
+        }
+    }
+
+    private func rewindPlayback() {
+        let newTime = max(0, replayCurrentTime - 15)
+        replayCurrentTime = newTime
+        replayAudioPlayer?.currentTime = newTime
+        HapticManager.shared.lightImpact()
+    }
+
+    private func forwardPlayback() {
+        let newTime = min(duration, replayCurrentTime + 15)
+        replayCurrentTime = newTime
+        replayAudioPlayer?.currentTime = newTime
+        HapticManager.shared.lightImpact()
+    }
+
+    private func cleanupReplay() {
+        replayAudioPlayer?.stop()
+        replayAudioPlayer = nil
+        replayTimer?.invalidate()
+        replayTimer = nil
+        isPlayingReplay = false
+        replayCurrentTime = 0
     }
 }
 

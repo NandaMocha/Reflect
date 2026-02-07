@@ -22,20 +22,20 @@ struct VoiceNotePlayer: View {
                     .clipShape(Circle())
             }
 
-            // Progress Bar & Time
+            // Waveform Preview & Progress
             VStack(spacing: 2) {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.secondary.opacity(0.2))
-                            .frame(height: 3)
+                // Waveform visualization
+                HStack(spacing: 1) {
+                    ForEach(0..<20, id: \.self) { index in
+                        let barProgress = CGFloat(index) / 20.0
+                        let isPast = barProgress < progress
 
-                        Capsule()
-                            .fill(Color.primaryDefault)
-                            .frame(width: geometry.size.width * progress, height: 3)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(isPast ? Color.primaryDefault : Color.primaryDefault.opacity(0.3))
+                            .frame(width: 3, height: barHeightForIndex(index))
                     }
                 }
-                .frame(height: 3)
+                .frame(height: 20)
 
                 HStack {
                     Text(formatDuration(currentTime))
@@ -85,9 +85,23 @@ struct VoiceNotePlayer: View {
     // MARK: - Methods
 
     private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
+        let hours = Int(duration) / 3600
+        let minutes = Int(duration) / 60 % 60
         let seconds = Int(duration) % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
         return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func barHeightForIndex(_ index: Int) -> CGFloat {
+        // Generate consistent but varied heights
+        let normalizedPos = CGFloat(index) / 20.0
+        let baseWave = sin(normalizedPos * .pi * 4) * 0.3 + 0.5
+        let variation = sin(normalizedPos * .pi * 10) * 0.2
+        let level = max(0.2, min(1.0, baseWave + variation))
+        return level * 18
     }
 
     private func togglePlayback() {
@@ -177,7 +191,7 @@ private class AudioPlayerDelegateHandler: NSObject, AVAudioPlayerDelegate {
     let recording = VoiceRecording(
         audioData: nil,
         transcription: "This is a sample transcription of the voice note. It can contain multiple sentences.",
-        language: "en-US",
+        language: "id-ID",
         duration: 45
     )
 
