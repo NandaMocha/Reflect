@@ -91,7 +91,9 @@ struct ImagePickerView: UIViewControllerRepresentable {
         }
 
         private func mirrorImage(_ image: UIImage) -> UIImage {
-            guard let cgImage = image.cgImage else { return image }
+            // First, normalize the image orientation to .up
+            guard let normalizedImage = normalizeImageOrientation(image),
+                  let cgImage = normalizedImage.cgImage else { return image }
 
             let width = cgImage.width
             let height = cgImage.height
@@ -117,7 +119,17 @@ struct ImagePickerView: UIViewControllerRepresentable {
 
             guard let mirroredCGImage = context.makeImage() else { return image }
 
-            return UIImage(cgImage: mirroredCGImage, scale: image.scale, orientation: image.imageOrientation)
+            // Use .up orientation since we've already normalized and mirrored the image
+            return UIImage(cgImage: mirroredCGImage, scale: image.scale, orientation: .up)
+        }
+
+        private func normalizeImageOrientation(_ image: UIImage) -> UIImage? {
+            // Handle image orientation by redrawing the image
+            UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+            defer { UIGraphicsEndImageContext() }
+
+            image.draw(at: .zero)
+            return UIGraphicsGetImageFromCurrentImageContext()
         }
 
         private func generateVideoThumbnail(from url: URL) -> UIImage {

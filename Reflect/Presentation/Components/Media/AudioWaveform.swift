@@ -22,12 +22,9 @@ import SwiftUI
 /// AudioWaveform(mode: .compact(barCount: 20), style: .minimal)
 /// ```
 struct AudioWaveform: View {
-    let mode: WaveformMode
+    @State private var mode: WaveformMode
     let style: WaveformStyle
     let color: Color
-
-    // For live mode - binding to audio levels
-    @Binding var liveAudioLevels: [CGFloat]
 
     var body: some View {
         HStack(spacing: barSpacing) {
@@ -36,14 +33,30 @@ struct AudioWaveform: View {
             }
         }
         .frame(height: style.barHeight)
+        .id(animationId) // Force refresh when progress changes
+    }
+
+    // MARK: - Equatable for updates
+    // Note: View identity is properly tracked through id: \.self in ForEach
+
+    // Computed property to force view updates when animating values change
+    private var animationId: String {
+        switch mode {
+        case .live(let binding):
+            return "live-\(binding.wrappedValue.count)-\(binding.wrappedValue.first ?? 0)"
+        case .progress(_, let progress):
+            return "progress-\(progress)"
+        default:
+            return "static"
+        }
     }
 
     // MARK: - Computed Properties
 
     private var barCount: Int {
         switch mode {
-        case .live:
-            return liveAudioLevels.count
+        case .live(let binding):
+            return max(1, binding.wrappedValue.count)
         case .statics(let levels):
             return max(minBarCount, levels.count)
         case .progress(let levels, _):
@@ -106,11 +119,11 @@ struct AudioWaveform: View {
             height = style.barHeight * level
             opacity = 1.0
             isPlayed = false
-        case .statics(let levels):
+        case .statics:
             height = style.barHeight * level
             opacity = 1.0
             isPlayed = false
-        case .progress(let levels, let progress):
+        case .progress(_, let progress):
             height = style.barHeight * level
             opacity = 1.0
             isPlayed = Double(index) / Double(barCount) < progress
@@ -125,9 +138,9 @@ struct AudioWaveform: View {
 
     private func normalizedLevel(at index: Int) -> CGFloat {
         switch mode {
-        case .live:
-            if index < liveAudioLevels.count {
-                return liveAudioLevels[index]
+        case .live(let binding):
+            if index < binding.wrappedValue.count {
+                return binding.wrappedValue[index]
             }
             return 0.1
         case .statics(let levels):
@@ -158,6 +171,8 @@ struct AudioWaveform: View {
         switch mode {
         case .live:
             return .spring(response: 0.3, dampingFraction: 0.6)
+        case .progress:
+            return .linear(duration: 0.1)
         default:
             return nil
         }
@@ -165,8 +180,10 @@ struct AudioWaveform: View {
 
     private var barAnimationValue: CGFloat {
         switch mode {
-        case .live:
-            return CGFloat(liveAudioLevels.count)
+        case .live(let binding):
+            return CGFloat(binding.wrappedValue.count)
+        case .progress(_, let progress):
+            return CGFloat(progress)
         default:
             return 0
         }
@@ -225,18 +242,9 @@ struct AudioWaveform: View {
     // MARK: - Initializers
 
     init(mode: WaveformMode, style: WaveformStyle = .full, color: Color = .primaryDefault) {
-        self.mode = mode
+        self._mode = State(initialValue: mode)
         self.style = style
         self.color = color
-        _liveAudioLevels = Binding(
-            get: {
-                if case .live(let binding) = mode {
-                    return binding.wrappedValue
-                }
-                return []
-            },
-            set: { _ in }
-        )
     }
 
     // Convenience initializers

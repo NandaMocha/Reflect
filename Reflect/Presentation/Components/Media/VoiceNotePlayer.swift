@@ -30,6 +30,7 @@ struct VoiceNotePlayer: View {
                     progress: progress
                 )
                 .frame(height: 20)
+                .animation(.linear(duration: 0.1), value: progress)
 
                 HStack {
                     Text(formatDuration(currentTime))

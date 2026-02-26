@@ -7,9 +7,16 @@ struct VoicePlayerPopup: View {
 
     @State private var isPlaying = false
     @State private var currentTime: TimeInterval = 0
-    @State private var showTranscription = true
+    @State private var showTranscription: Bool
     @State private var audioPlayer: AVAudioPlayer?
     @State private var progressTimer: Timer?
+
+    // Initialize showTranscription based on fromWidget flag
+    init(voiceRecording: VoiceRecordingInput) {
+        self.voiceRecording = voiceRecording
+        // Default to hidden for widget recordings, visible otherwise
+        self._showTranscription = State(initialValue: !voiceRecording.fromWidget)
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,13 +38,14 @@ struct VoicePlayerPopup: View {
                 // Playback controls
                 playbackControls
 
-                // Transcription (scrollable)
+                // Transcription (scrollable) - full width with padding
                 if showTranscription, let transcription = voiceRecording.transcription, !transcription.isEmpty {
                     transcriptionView(transcription)
                 }
 
                 Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Constants.Spacing.lg)
             .navigationTitle("Voice Note")
             .navigationBarTitleDisplayMode(.inline)
@@ -72,6 +80,7 @@ struct VoicePlayerPopup: View {
 
             Spacer()
 
+            // Only show toggle if transcription exists
             if voiceRecording.transcription != nil {
                 Button {
                     withAnimation {
@@ -87,10 +96,14 @@ struct VoicePlayerPopup: View {
     }
 
     private var waveformView: some View {
-        // Generate static waveform for visualization
-        AudioWaveform.playback(audioLevels: generateWaveformLevels())
-            .frame(height: 80)
-            .padding(.horizontal, Constants.Spacing.md)
+        // Generate waveform with progress visualization
+        AudioWaveform.progress(
+            audioLevels: generateWaveformLevels(),
+            progress: progress
+        )
+        .frame(height: 80)
+        .padding(.horizontal, Constants.Spacing.md)
+        .animation(.linear(duration: 0.1), value: progress)
     }
 
     private var progressBar: some View {
@@ -179,17 +192,20 @@ struct VoicePlayerPopup: View {
             Text("Transcription")
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             ScrollView {
                 Text(text)
                     .font(.body)
                     .foregroundColor(.primary)
                     .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: 200)
-            .padding()
-            .glassCard()
         }
+        .padding(Constants.Spacing.md)  // 16pt padding
+        .frame(maxWidth: .infinity)
+        .glassCard()
     }
 
     // MARK: - Computed Properties
@@ -292,7 +308,8 @@ struct VoicePlayerPopup: View {
         audioData: Data(),
         transcription: "This is a sample transcription of the voice note. It can contain multiple sentences that describe what the user said during the recording.",
         language: "id-ID",
-        duration: 45.5
+        duration: 45.5,
+        fromWidget: false
     )
 
     VoicePlayerPopup(voiceRecording: recording)

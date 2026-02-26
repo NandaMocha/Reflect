@@ -210,7 +210,10 @@ struct ReflectionListView: View {
     // MARK: - Voice Recorder Sheet
 
     private var voiceRecorderSheet: some View {
-        VoiceRecorderView(isPresented: $showVoiceRecorder) { recording in
+        VoiceRecorderView(
+            isPresented: $showVoiceRecorder,
+            fromWidget: widgetAction == .voice  // Detect widget origin
+        ) { recording in
             Task {
                 await handleVoiceRecording(recording)
             }
