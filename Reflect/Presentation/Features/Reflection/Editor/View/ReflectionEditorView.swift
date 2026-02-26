@@ -41,6 +41,7 @@ struct ReflectionEditorView: View {
     // Journaling Suggestions State
     @State var showJournalingPicker = false
     @State var capturedLocation: CapturedLocation?
+    @State var showTemplatePicker = false
 
     // Error handling
     @State var errorMessage: String?
@@ -110,6 +111,7 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
+                .sheet(isPresented: $showTemplatePicker) { templatePickerSheet }
                 .if(isIOS17_2OrNewer) { view in
                     view.journalingSuggestionsPicker(isPresented: $showJournalingPicker) { suggestion in
                         handleJournalingSuggestion(suggestion)
