@@ -124,12 +124,13 @@ final class DIContainer {
         )
     }
 
-    func makeReflectionListViewModel() -> ReflectionListViewModel {
+    func makeReflectionListViewModel(learning: Learning? = nil) -> ReflectionListViewModel {
         guard let context = modelContext else {
             fatalError("ModelContext not configured")
         }
         return ReflectionListViewModel(
             modelContext: context,
+            learning: learning,
             searchUseCase: makeSearchReflectionsUseCase(),
             deleteUseCase: makeDeleteReflectionUseCase()
         )

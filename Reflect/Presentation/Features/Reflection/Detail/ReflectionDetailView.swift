@@ -81,7 +81,7 @@ struct ReflectionDetailView: View {
             deleteReflection()
         }
         .sheet(isPresented: $showShareSheet) {
-            ReflectionShareSheet(items: [shareText])
+            ReflectionShareSheet(items: shareItems)
         }
         .fullScreenCover(item: $showFullscreenImage) { image in
             ReflectionImageFullscreenView(
@@ -95,7 +95,10 @@ struct ReflectionDetailView: View {
             }
         }
         .fullScreenCover(isPresented: $showEditSheet) {
-            ReflectionEditorView(mode: .edit(reflection))
+            ReflectionEditorView(mode: .edit(reflection), onDismiss: {
+                // Dismiss detail view after saving edit
+                dismiss()
+            })
         }
     }
 }

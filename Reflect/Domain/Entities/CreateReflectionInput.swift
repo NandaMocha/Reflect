@@ -87,6 +87,7 @@ struct VoiceRecordingInput: Identifiable {
     var transcription: String?
     let language: String
     let duration: TimeInterval
+    let fromWidget: Bool  // Track if recording originated from widget
 
     init(
         id: UUID = UUID(),
@@ -94,7 +95,8 @@ struct VoiceRecordingInput: Identifiable {
         audioData: Data,
         transcription: String? = nil,
         language: String,
-        duration: TimeInterval
+        duration: TimeInterval,
+        fromWidget: Bool = false
     ) {
         self.id = id
         self.existingId = existingId
@@ -102,6 +104,7 @@ struct VoiceRecordingInput: Identifiable {
         self.transcription = transcription
         self.language = language
         self.duration = duration
+        self.fromWidget = fromWidget
     }
 }
 

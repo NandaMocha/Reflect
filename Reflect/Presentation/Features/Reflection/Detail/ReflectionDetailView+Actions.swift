@@ -10,6 +10,19 @@ extension ReflectionDetailView {
         return text
     }
 
+    var shareItems: [Any] {
+        var items: [Any] = [shareText]
+
+        // Add images if available
+        for imageAttachment in reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+            if let image = imageAttachment.image {
+                items.append(image)
+            }
+        }
+
+        return items
+    }
+
     func copyText() {
         UIPasteboard.general.string = shareText
         HapticManager.shared.success()

@@ -49,3 +49,19 @@ final class VoiceRecording {
         Constants.SpeechLanguage(rawValue: language)?.flag ?? ""
     }
 }
+
+// MARK: - Converters
+
+extension VoiceRecording {
+    /// Converts the VoiceRecording model to VoiceRecordingInput for use in player views
+    func toInput() -> VoiceRecordingInput {
+        VoiceRecordingInput(
+            id: id,
+            existingId: id,
+            audioData: audioData ?? Data(),
+            transcription: transcription,
+            language: language,
+            duration: duration
+        )
+    }
+}

@@ -3,6 +3,7 @@ import SwiftUI
 struct ReflectionEditorHeaderView: View {
     let selectedLearning: Learning?
     let selectedDate: Date
+    let learningsCount: Int
     let onSelectLearning: () -> Void
     let onSelectDate: () -> Void
 
@@ -27,7 +28,7 @@ struct ReflectionEditorHeaderView: View {
                             .foregroundColor(.secondary)
                     }
                 } else {
-                    Text("Select learning...")
+                    Text(learningsCount == 0 ? "Create learning..." : "Select learning...")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

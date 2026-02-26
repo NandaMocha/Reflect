@@ -1,83 +1,404 @@
 import SwiftUI
 import SwiftData
+import AVFoundation
 
 struct ReflectionListView: View {
+    // Optional learning to filter reflections - nil means show all reflections
+    var learning: Learning?
+
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Reflection.createdAt, order: .reverse) private var reflections: [Reflection]
+    @Query(sort: \Learning.sortOrder) private var learnings: [Learning]
 
-    @State private var searchText = ""
-    @State private var showFilters = false
-    @State private var sortOption: Constants.SortOption = .newestFirst
+    // ViewModel - handles data loading, filtering, sorting, grouping
+    @State private var viewModel: ReflectionListViewModel?
 
-    private var filteredReflections: [Reflection] {
-        var result = reflections
+    // Quick action states
+    @State private var showActionMenu = false
+    @State private var showCameraPicker = false
+    @State private var showVoiceRecorder = false
+    @State private var showNoLearningAlert = false
+    @State private var showEditor = false
 
-        // Filter by search text
-        if !searchText.isEmpty {
-            let query = searchText.lowercased()
-            result = result.filter { reflection in
-                reflection.title.lowercased().contains(query) ||
-                reflection.plainTextContent.lowercased().contains(query)
-            }
-        }
+    // Widget action handling
+    @Binding var widgetAction: WidgetAction?
 
-        // Sort
-        switch sortOption {
-        case .newestFirst:
-            result.sort { $0.createdAt > $1.createdAt }
-        case .oldestFirst:
-            result.sort { $0.createdAt < $1.createdAt }
-        case .alphabeticalAZ:
-            result.sort { $0.title.lowercased() < $1.title.lowercased() }
-        case .alphabeticalZA:
-            result.sort { $0.title.lowercased() > $1.title.lowercased() }
-        case .recentlyUpdated:
-            result.sort { $0.updatedAt > $1.updatedAt }
-        }
+    @Namespace private var menuNamespace
 
-        return result
-    }
-
-    private var groupedReflections: [(String, [Reflection])] {
-        let grouped = Dictionary(grouping: filteredReflections) { reflection in
-            reflection.createdAt.sectionHeader
-        }
-        return grouped.sorted { $0.value.first?.createdAt ?? Date() > $1.value.first?.createdAt ?? Date() }
+    init(learning: Learning? = nil, widgetAction: Binding<WidgetAction?> = .constant(nil)) {
+        self.learning = learning
+        self._widgetAction = widgetAction
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                Group {
-                    if reflections.isEmpty {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let viewModel = viewModel {
+                    if viewModel.isLoading && viewModel.reflections.isEmpty {
+                        loadingView
+                    } else if viewModel.isEmpty {
                         emptyState
-                    } else if filteredReflections.isEmpty {
+                    } else if viewModel.reflections.isEmpty {
                         noResultsState
                     } else {
                         reflectionList
                     }
+                } else {
+                    loadingView
                 }
+            }
 
-                // FAB
-                if !reflections.isEmpty {
-                    NavigationLink(destination: ReflectionEditorView(mode: .create)) {
-                        FloatingActionButton(icon: "plus") {}
-                    }
+            // FAB with quick actions
+            if let viewModel = viewModel, !viewModel.isEmpty {
+                quickActionMenu
                     .padding(Constants.Spacing.lg)
-                }
             }
-            .navigationTitle("Reflections")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        sortingMenu
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                    }
-                }
-            }
-            .searchable(text: $searchText, prompt: "Search reflections...")
         }
+        .navigationTitle("\(learning?.title ?? "") Reflections")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    sortingMenu
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+            }
+        }
+        .searchable(text:Binding(
+            get: { viewModel?.searchQuery ?? "" },
+            set: { newValue in
+                viewModel?.updateSearchQuery(newValue)
+            }
+        ), prompt: "Search reflections...")
+        .fullScreenCover(isPresented: $showCameraPicker) {
+            cameraPickerView
+        }
+        .fullScreenCover(isPresented: $showEditor) {
+            ReflectionEditorView(mode: .create, onDismiss: {
+                showEditor = false
+                Task {
+                    await viewModel?.loadReflections()
+                }
+            })
+        }
+        .sheet(isPresented: $showVoiceRecorder) {
+            voiceRecorderSheet
+        }
+        .alert("No Learning", isPresented: $showNoLearningAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Please create a Learning first before adding reflections")
+        }
+        .alert("Error", isPresented: .constant(viewModel?.errorMessage != nil)) {
+            Button("OK", role: .cancel) {
+                viewModel?.errorMessage = nil
+            }
+        } message: {
+            if let error = viewModel?.errorMessage {
+                Text(error)
+            }
+        }
+        .onAppear {
+            // Initialize ViewModel with proper modelContext
+            if viewModel == nil {
+                viewModel = ReflectionListViewModel(
+                    modelContext: modelContext,
+                    learning: learning
+                )
+            }
+            Task {
+                await viewModel?.loadReflections()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .init("ReflectionDidSave"))) { _ in
+            // Reload reflections when a notification is received after saving
+            Task {
+                await viewModel?.loadReflections()
+            }
+        }
+        .onChange(of: widgetAction) { _, action in
+            handleWidgetAction(action)
+        }
+    }
+
+    // MARK: - Widget Action Handling
+
+    private func handleWidgetAction(_ action: WidgetAction?) {
+        guard let action = action else { return }
+
+        // Validate a learning exists
+        guard let _ = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            widgetAction = nil
+            return
+        }
+
+        switch action {
+        case .write:
+            showEditor = true
+        case .camera:
+            showCameraPicker = true
+        case .voice:
+            showVoiceRecorder = true
+        }
+
+        // Reset action after triggering
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            widgetAction = nil
+        }
+    }
+
+    // MARK: - Loading View
+
+    private var loadingView: some View {
+        VStack(spacing: Constants.Spacing.lg) {
+            ProgressView()
+            Text("Loading reflections...")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Quick Action Menu
+
+    private var quickActionMenu: some View {
+        FloatingActionMenu(
+            isExpanded: $showActionMenu,
+            onTap: {
+                // Regular tap - navigate to editor
+                showEditor = true
+            },
+            onCameraTap: {
+                // Validate Learning exists before opening camera
+                guard let _ = getLearningForQuickReflection() else {
+                    showNoLearningAlert = true
+                    return
+                }
+                showCameraPicker = true
+            },
+            onVoiceTap: {
+                // Validate Learning exists before opening voice recorder
+                guard let _ = getLearningForQuickReflection() else {
+                    showNoLearningAlert = true
+                    return
+                }
+                showVoiceRecorder = true
+            }
+        )
+    }
+
+    // MARK: - Camera Picker
+
+    private var cameraPickerView: some View {
+        ImagePickerView(
+            sourceType: .camera,
+            onPhotoPicked: { image in
+                Task {
+                    await handlePhotoPicked(image)
+                }
+                showCameraPicker = false
+            },
+            onVideoPicked: { url, thumbnail, duration in
+                Task {
+                    await handleVideoPicked(url: url, thumbnail: thumbnail, duration: duration)
+                }
+                showCameraPicker = false
+            }
+        )
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Voice Recorder Sheet
+
+    private var voiceRecorderSheet: some View {
+        VoiceRecorderView(
+            isPresented: $showVoiceRecorder,
+            fromWidget: widgetAction == .voice  // Detect widget origin
+        ) { recording in
+            Task {
+                await handleVoiceRecording(recording)
+            }
+        }
+    }
+
+    // MARK: - Handlers
+
+    @MainActor
+    private func handlePhotoPicked(_ image: UIImage) async {
+        guard let learning = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            return
+        }
+
+        let imageService = ImageProcessingService.shared
+
+        // Generate default title
+        let title = generateDefaultTitle()
+
+        // Create reflection
+        let reflection = Reflection(
+            title: title,
+            plainTextContent: ""
+        )
+        reflection.learning = learning
+        reflection.createdAt = Date()
+
+        // Process image
+        let imageData = await imageService.compressImage(image, quality: .high)
+        let thumbnailData = await imageService.generateThumbnail(image, size: CGSize(width: 200, height: 200))
+
+        guard let compressedData = imageData, let thumbData = thumbnailData else {
+            viewModel?.quickReflectionError = "Failed to process image"
+            return
+        }
+
+        let attachment = ImageAttachment(
+            imageData: compressedData,
+            thumbnailData: thumbData,
+            caption: nil
+        )
+        attachment.sortOrder = 0
+        reflection.images.append(attachment)
+
+        // Save
+        modelContext.insert(reflection)
+        try? modelContext.save()
+
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
+        // Reload reflections
+        await viewModel?.loadReflections()
+
+        // Track last used learning
+        UserDefaults.standard.setLastUsedLearningId(learning.id)
+
+        HapticManager.shared.success()
+    }
+
+    @MainActor
+    private func handleVideoPicked(url: URL, thumbnail: UIImage, duration: TimeInterval) async {
+        guard let learning = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            return
+        }
+
+        // Generate default title
+        let title = generateDefaultTitle()
+
+        // Create reflection
+        let reflection = Reflection(
+            title: title,
+            plainTextContent: ""
+        )
+        reflection.learning = learning
+        reflection.createdAt = Date()
+
+        // Load video data
+        guard let videoData = try? Data(contentsOf: url) else {
+            viewModel?.quickReflectionError = "Failed to load video"
+            return
+        }
+
+        // Generate thumbnail as JPEG
+        guard let thumbnailData = thumbnail.jpegData(compressionQuality: 0.8) else {
+            viewModel?.quickReflectionError = "Failed to process thumbnail"
+            return
+        }
+
+        let attachment = VideoAttachment(
+            videoData: videoData,
+            thumbnailData: thumbnailData,
+            caption: nil,
+            duration: duration
+        )
+        attachment.sortOrder = 0
+        reflection.videos.append(attachment)
+
+        // Save
+        modelContext.insert(reflection)
+        try? modelContext.save()
+
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
+        // Reload reflections
+        await viewModel?.loadReflections()
+
+        // Track last used learning
+        UserDefaults.standard.setLastUsedLearningId(learning.id)
+
+        HapticManager.shared.success()
+    }
+
+    @MainActor
+    private func handleVoiceRecording(_ recording: VoiceRecordingInput) async {
+        guard let learning = getLearningForQuickReflection() else {
+            showNoLearningAlert = true
+            return
+        }
+
+        // Use transcription as content, or default text
+        let content = recording.transcription ?? "Voice note"
+
+        // Generate default title
+        let title = generateDefaultTitle()
+
+        // Create reflection
+        let reflection = Reflection(
+            title: title,
+            plainTextContent: content
+        )
+        reflection.learning = learning
+        reflection.createdAt = Date()
+
+        // Create voice recording attachment
+        let voiceRecording = VoiceRecording(
+            audioData: recording.audioData,
+            transcription: recording.transcription,
+            language: recording.language,
+            duration: recording.duration
+        )
+        voiceRecording.sortOrder = 0
+        reflection.voiceRecordings.append(voiceRecording)
+
+        // Save
+        modelContext.insert(reflection)
+        try? modelContext.save()
+
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
+        // Reload reflections
+        await viewModel?.loadReflections()
+
+        // Track last used learning
+        UserDefaults.standard.setLastUsedLearningId(learning.id)
+
+        HapticManager.shared.success()
+    }
+
+    // MARK: - Helper Methods
+
+    private func getLearningForQuickReflection() -> Learning? {
+        // Use the view's learning if specified
+        if let learning = learning {
+            return learning
+        }
+
+        // Otherwise try last used first
+        if let lastUsedId = UserDefaults.standard.lastUsedLearningId(),
+           let lastUsed = learnings.first(where: { $0.id == lastUsedId }) {
+            return lastUsed
+        }
+
+        // Fall back to first Learning by sortOrder
+        return learnings.first
+    }
+
+    private func generateDefaultTitle() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, d"
+        return "Reflection on \(formatter.string(from: Date()))"
     }
 
     // MARK: - Views
@@ -90,14 +411,9 @@ struct ReflectionListView: View {
                 subtitle: "Capture your first learning reflection",
                 buttonTitle: "Create Reflection",
                 buttonAction: {
-                    // Navigation handled by NavigationLink
+                    showEditor = true
                 }
             )
-
-            NavigationLink(destination: ReflectionEditorView(mode: .create)) {
-                PrimaryButton("Create First Reflection", icon: "plus") {}
-            }
-            .frame(maxWidth: 250)
         }
     }
 
@@ -105,33 +421,45 @@ struct ReflectionListView: View {
         EmptyStateView(
             icon: "magnifyingglass",
             title: "No Results Found",
-            subtitle: "Try different keywords",
+            subtitle: viewModel?.hasActiveFilters ?? false ? "No reflections match your filters" : "Try different keywords",
             buttonTitle: "Clear Search",
             buttonAction: {
-                searchText = ""
+                viewModel?.updateSearchQuery("")
             }
         )
     }
 
     private var reflectionList: some View {
         List {
-            ForEach(groupedReflections, id: \.0) { section, sectionReflections in
-                Section {
-                    ForEach(sectionReflections) { reflection in
-                        NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
-                            ReflectionCard(reflection: reflection) {}
+            ForEach(viewModel?.sortedDateGroups ?? [], id: \.self) { group in
+                if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
+                    Section {
+                        ForEach(reflections) { reflection in
+                            NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
+                                ReflectionCard(reflection: reflection) {}
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    Task {
+                                        await viewModel?.deleteReflection(reflection)
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .listRowSeparator(.hidden)
                         }
-                        .buttonStyle(.plain)
+                    } header: {
+                        Text(group.title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .padding(.leading, 4)
                     }
-                } header: {
-                    DateSectionHeader(date: sectionReflections.first?.createdAt ?? Date())
-                        .background(Color(.systemBackground).opacity(0.95))
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
                 }
             }
-
-            .padding(.horizontal, Constants.Spacing.md)
-            .padding(.bottom, 50) // Space for FAB
-
         }
     }
 
@@ -139,37 +467,16 @@ struct ReflectionListView: View {
         Section("Sort By") {
             ForEach(Constants.SortOption.allCases, id: \.self) { option in
                 Button {
-                    sortOption = option
+                    viewModel?.updateSortOption(option)
                 } label: {
                     HStack {
                         Text(option.title)
-                        if sortOption == option {
+                        if viewModel?.sortOption == option {
                             Image(systemName: "checkmark")
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-// MARK: - Date Extension for Section Headers
-
-private extension Date {
-    var sectionHeader: String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(self) {
-            return "Today"
-        } else if calendar.isDateInYesterday(self) {
-            return "Yesterday"
-        } else if calendar.isDate(self, equalTo: Date(), toGranularity: .weekOfYear) {
-            return "This Week"
-        } else if calendar.isDate(self, equalTo: Date(), toGranularity: .month) {
-            return "This Month"
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM yyyy"
-            return formatter.string(from: self)
         }
     }
 }

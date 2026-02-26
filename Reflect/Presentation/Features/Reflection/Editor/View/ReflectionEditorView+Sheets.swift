@@ -14,6 +14,10 @@ extension ReflectionEditorView {
         )
     }
 
+    var createLearningSheet: some View {
+        LearningFormView(mode: .create)
+    }
+
     var datePickerSheet: some View {
         DatePickerSheet(
             selectedDate: $selectedDate,
@@ -25,7 +29,10 @@ extension ReflectionEditorView {
     }
 
     var voiceRecorderSheet: some View {
-        VoiceRecorderView(isPresented: $showVoiceRecorder) { recording in
+        VoiceRecorderView(
+            isPresented: $showVoiceRecorder,
+            fromWidget: false  // Explicitly false for editor
+        ) { recording in
             voiceRecordings.append(recording)
             hasChanges = true
         }

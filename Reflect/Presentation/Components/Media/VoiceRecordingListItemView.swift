@@ -1,9 +1,9 @@
 import SwiftUI
 
-struct VoiceRecordingItemView: View {
-    let recording: VoiceRecordingInput
-    let onPlay: () -> Void
-    let onRemove: () -> Void
+/// A list item view for voice recordings that opens a full-screen player popup
+/// Used in ReflectionDetailView for consistent UI with ReflectionEditorView
+struct VoiceRecordingListItemView: View {
+    let voiceRecording: VoiceRecording
 
     @State private var showPlayerPopup = false
 
@@ -21,7 +21,7 @@ struct VoiceRecordingItemView: View {
                         .font(.caption.weight(.medium))
                         .foregroundColor(.primary)
 
-                    Text(formatDuration(recording.duration))
+                    Text(formatDuration(voiceRecording.duration))
                         .font(.caption2.monospacedDigit())
                         .foregroundColor(.secondary)
                 }
@@ -40,7 +40,7 @@ struct VoiceRecordingItemView: View {
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showPlayerPopup) {
-            VoicePlayerPopup(voiceRecording: recording)
+            VoicePlayerPopup(voiceRecording: voiceRecording.toInput())
         }
     }
 
@@ -56,16 +56,16 @@ struct VoiceRecordingItemView: View {
     }
 }
 
+// MARK: - Preview
+
 #Preview {
-    VoiceRecordingItemView(
-        recording: VoiceRecordingInput(
-            audioData: Data(),
-            transcription: "Sample transcription",
-            language: "id-ID",
-            duration: 45.5
-        ),
-        onPlay: {},
-        onRemove: {}
+    let recording = VoiceRecording(
+        audioData: nil,
+        transcription: "Sample transcription",
+        language: "id-ID",
+        duration: 45.5
     )
-    .padding()
+
+    VoiceRecordingListItemView(voiceRecording: recording)
+        .padding()
 }

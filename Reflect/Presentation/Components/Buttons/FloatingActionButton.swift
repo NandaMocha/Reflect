@@ -10,26 +10,29 @@ struct FloatingActionButton: View {
     }
 
     var body: some View {
-        Button(action: {
-            HapticManager.shared.mediumImpact()
-            action()
-        }) {
-            Image(systemName: icon)
-                .font(.title2.weight(.semibold))
-                .foregroundColor(.white)
-                .frame(width: 56, height: 56)
-                .background(
-                    Circle()
-                        .fill(Color.primaryDefault)
-                        .shadow(
-                            color: Color.primaryDefault.opacity(0.4),
-                            radius: 8,
-                            x: 0,
-                            y: 4
-                        )
-                )
+        GlassEffectContainer {
+            Button(action: {
+                HapticManager.shared.mediumImpact()
+                action()
+            }) {
+                Image(systemName: icon)
+                    .font(.title2.weight(.semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 56, height: 56)
+                    .background(
+                        Circle()
+                            .fill(Color.primaryDefault)
+                            .shadow(
+                                color: Color.primaryDefault.opacity(0.4),
+                                radius: 8,
+                                x: 0,
+                                y: 4
+                            )
+                    )
+            }
+            .buttonStyle(FABButtonStyle())
+            .glassEffect()
         }
-        .buttonStyle(FABButtonStyle())
     }
 }
 

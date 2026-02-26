@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import Foundation
+import OSLog
 
 // MARK: - Save Logic Extension
 
@@ -34,9 +36,22 @@ extension ReflectionEditorView {
                 try await updateReflection(reflection)
             }
 
+            // Track last used learning when saving
+            if let learning = selectedLearning {
+                UserDefaults.standard.setLastUsedLearningId(learning.id)
+            }
+
             HapticManager.shared.success()
+
+            // Post notification to refresh reflection list
+            NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
+            onDismiss?()
             dismiss()
         } catch {
+            os_log("⚠️ [EDITOR] Failed to save: %@", log: .default, type: .error, error.localizedDescription)
+            errorMessage = "Failed to save reflection: \(error.localizedDescription)"
+            showErrorAlert = true
             HapticManager.shared.error()
         }
 
@@ -53,6 +68,13 @@ extension ReflectionEditorView {
         )
         reflection.learning = selectedLearning
         reflection.createdAt = selectedDate
+
+        // Save captured location from journaling suggestion
+        if let location = capturedLocation {
+            reflection.locationLatitude = location.latitude
+            reflection.locationLongitude = location.longitude
+            reflection.locationName = location.name
+        }
 
         // Process images concurrently for better performance
         let imageResults = await processImagesConcurrently(images)
@@ -109,6 +131,18 @@ extension ReflectionEditorView {
         reflection.learning = selectedLearning
         reflection.createdAt = selectedDate
         reflection.updatedAt = Date()
+
+        // Update location from journaling suggestion
+        if let location = capturedLocation {
+            reflection.locationLatitude = location.latitude
+            reflection.locationLongitude = location.longitude
+            reflection.locationName = location.name
+        } else {
+            // Clear location if removed (optional)
+            reflection.locationLatitude = nil
+            reflection.locationLongitude = nil
+            reflection.locationName = nil
+        }
 
         let currentImageIds = Set(images.map { $0.id })
 

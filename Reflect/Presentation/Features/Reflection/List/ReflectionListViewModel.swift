@@ -24,15 +24,22 @@ final class ReflectionListViewModel {
 
     var searchCancellable: AnyCancellable?
     let searchSubject = PassthroughSubject<String, Never>()
+    
+    // MARK: - Public Properties
+
+    var isCreatingQuickReflection: Bool = false
+    var quickReflectionError: String?
 
     // MARK: - Initialization
 
     init(
         modelContext: ModelContext,
+        learning: Learning? = nil,
         searchUseCase: SearchReflectionsUseCaseProtocol? = nil,
         deleteUseCase: DeleteReflectionUseCaseProtocol? = nil
     ) {
         self.modelContext = modelContext
+        self.learningFilter = learning
         let reflectionRepo = ReflectionRepository(modelContext: modelContext)
         self.searchUseCase = searchUseCase ?? SearchReflectionsUseCase(repository: reflectionRepo)
         self.deleteUseCase = deleteUseCase ?? DeleteReflectionUseCase(

@@ -56,6 +56,7 @@ struct ReflectionCard: View {
                 Spacer(minLength: 16)
 
                 VStack(alignment: .trailing, spacing: Constants.Spacing.xs) {
+                    ///NOTE: Below is the thumbnail image which can be refactor as universal component
                     if let thumbnail = reflection.firstThumbnailImage {
                         ZStack {
                             Image(uiImage: thumbnail)

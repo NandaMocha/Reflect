@@ -2,10 +2,12 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import OSLog
+import JournalingSuggestions
 
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
     var preselectedLearning: Learning?
+    var onDismiss: (() -> Void)?
 
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) var modelContext
@@ -28,12 +30,21 @@ struct ReflectionEditorView: View {
     @State var showMediaPicker = false
     @State var showVoiceRecorder = false
     @State var showLearningPicker = false
+    @State var showCreateLearning = false
     @State var showDatePicker = false
     @State var selectedPhotoItems: [PhotosPickerItem] = []
     @State var hasChanges = false
     @State var isSaving = false
     @State var selectedVideoIndex: Int?
     @State var selectedImageIndex: Int?
+
+    // Journaling Suggestions State
+    @State var showJournalingPicker = false
+    @State var capturedLocation: CapturedLocation?
+
+    // Error handling
+    @State var errorMessage: String?
+    @State var showErrorAlert = false
 
     @FocusState var focusedField: ReflectionEditorField?
 
@@ -54,8 +65,16 @@ struct ReflectionEditorView: View {
 
     var isValid: Bool {
         // Title is not mandatory - uses default value if empty
-        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) &&
+        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) || !voiceRecordings.isEmpty &&
         selectedLearning != nil
+    }
+
+    var isIOS17_2OrNewer: Bool {
+        if #available(iOS 17.2, *) {
+            return true
+        } else {
+            return false
+        }
     }
 
     var body: some View {
@@ -74,13 +93,28 @@ struct ReflectionEditorView: View {
                 ) {
                     dismiss()
                 }
+                .alert("Error", isPresented: $showErrorAlert) {
+                    Button("OK", role: .cancel) {
+                        errorMessage = nil
+                    }
+                } message: {
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                    }
+                }
                 .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
+                .sheet(isPresented: $showCreateLearning) { createLearningSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
                 .fullScreenCover(isPresented: $showMediaPicker) {
                     mediaPickerSheet
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
+                .if(isIOS17_2OrNewer) { view in
+                    view.journalingSuggestionsPicker(isPresented: $showJournalingPicker) { suggestion in
+                        handleJournalingSuggestion(suggestion)
+                    }
+                }
                 .sheet(isPresented: Binding(
                     get: { selectedVideoIndex != nil },
                     set: { if !$0 { selectedVideoIndex = nil } }
@@ -109,6 +143,6 @@ struct ReflectionEditorView: View {
 }
 
 #Preview {
-    ReflectionEditorView(mode: .create)
+    ReflectionEditorView(mode: .create, onDismiss: nil)
         .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self, VideoAttachment.self], inMemory: true)
 }

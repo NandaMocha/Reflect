@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import SwiftData
+import CoreLocation
 
 @preconcurrency @Model
 final class Reflection {
@@ -22,6 +23,12 @@ final class Reflection {
 
     @Relationship(deleteRule: .cascade, inverse: \VideoAttachment.reflection)
     var videos: [VideoAttachment] = []
+
+    // MARK: - Location Properties
+
+    var locationLatitude: Double?
+    var locationLongitude: Double?
+    var locationName: String?
 
     init(
         id: UUID = UUID(),

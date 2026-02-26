@@ -4,7 +4,7 @@ import SwiftUI
 
 extension ReflectionDetailView {
     func learningBadge(_ learning: Learning) -> some View {
-        NavigationLink(destination: FilteredReflectionListView(learning: learning)) {
+        NavigationLink(destination: ReflectionListView(learning: learning)) {
             HStack(spacing: Constants.Spacing.xs) {
                 Image(systemName: learning.iconName)
                     .font(.caption)
@@ -53,7 +53,7 @@ extension ReflectionDetailView {
     var voiceNotesSection: some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
             ForEach(reflection.voiceRecordings.sorted(by: { $0.sortOrder < $1.sortOrder })) { recording in
-                VoiceNotePlayer(voiceRecording: recording)
+                VoiceRecordingListItemView(voiceRecording: recording)
             }
         }
     }
