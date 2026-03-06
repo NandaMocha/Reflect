@@ -26,6 +26,9 @@ struct LearningListView: View {
     // Navigation to specific learning for widget
     @State private var navigateToLearningId: UUID?
 
+    // Track if we're navigating from widget (skip restoreState)
+    @State private var isNavigatingFromWidget = false
+
     init(widgetAction: Binding<WidgetAction?> = .constant(nil)) {
         self._widgetAction = widgetAction
     }
@@ -120,13 +123,24 @@ struct LearningListView: View {
             return
         }
 
+        // Clear any existing navigation to prevent duplicates
+        navigationPath.removeLast(navigationPath.count)
+
+        // Disable restoration to prevent it from interfering
+        isRestoringState = false
+
+        // Set flag to prevent restoreState from interfering
+        isNavigatingFromWidget = true
+
         // Navigate to the learning's reflection list
         navigationPath.append(learning)
 
         // Small delay to ensure navigation completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             // The action will be handled by ReflectionListView
             widgetAction = nil
+            // Reset flag after widget flow completes
+            isNavigatingFromWidget = false
         }
     }
 
@@ -142,6 +156,11 @@ struct LearningListView: View {
     }
 
     func restoreState() {
+        // Skip restoration if we're navigating from widget OR if widget action is pending
+        if isNavigatingFromWidget || widgetAction != nil {
+            return
+        }
+
         guard isRestoringState, let learningIdString = lastOpenedLearningId, let learningId = UUID(uuidString: learningIdString) else {
             return
         }

