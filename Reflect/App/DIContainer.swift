@@ -30,6 +30,29 @@ final class DIContainer {
         return ReflectionRepository(modelContext: context)
     }
 
+    // MARK: - Repositories - Achievement
+
+    func makeBadgeRepository() -> BadgeRepositoryProtocol {
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured. Call configure(with:) first.")
+        }
+        return BadgeRepository(modelContext: context)
+    }
+
+    func makeStreakRepository() -> StreakRepositoryProtocol {
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured. Call configure(with:) first.")
+        }
+        return StreakRepository(modelContext: context)
+    }
+
+    func makeMonthlyAchievementRepository() -> MonthlyAchievementRepositoryProtocol {
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured. Call configure(with:) first.")
+        }
+        return MonthlyAchievementRepository(modelContext: context)
+    }
+
     // MARK: - Use Cases - Learning
 
     func makeCreateLearningUseCase() -> CreateLearningUseCaseProtocol {
@@ -98,6 +121,41 @@ final class DIContainer {
 
     func makeCloudSyncService() -> CloudSyncServiceProtocol {
         CloudSyncService()
+    }
+
+    // MARK: - Services - Achievement
+
+    func makeStreakCalculationService() -> StreakCalculationService {
+        StreakCalculationService()
+    }
+
+    func makeBadgeEvaluationService() -> BadgeEvaluationService {
+        BadgeEvaluationService()
+    }
+
+    // MARK: - Use Cases - Achievement
+
+    func makeGetStreakStatsUseCase() -> GetStreakStatsUseCaseProtocol {
+        GetStreakStatsUseCase(streakRepository: makeStreakRepository())
+    }
+
+    func makeCalculateStreakUseCase() -> CalculateStreakUseCaseProtocol {
+        CalculateStreakUseCase(
+            streakRepository: makeStreakRepository(),
+            reflectionRepository: makeReflectionRepository(),
+            calculationService: makeStreakCalculationService()
+        )
+    }
+
+    func makeSubmitStreakReflectionUseCase() -> SubmitStreakReflectionUseCaseProtocol {
+        SubmitStreakReflectionUseCase(
+            streakRepository: makeStreakRepository(),
+            reflectionRepository: makeReflectionRepository(),
+            badgeRepository: makeBadgeRepository(),
+            monthlyAchievementRepository: makeMonthlyAchievementRepository(),
+            calculationService: makeStreakCalculationService(),
+            badgeEvaluationService: makeBadgeEvaluationService()
+        )
     }
 
     // MARK: - ViewModels
