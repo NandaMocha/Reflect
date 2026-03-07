@@ -30,6 +30,11 @@ final class Reflection {
     var locationLongitude: Double?
     var locationName: String?
 
+    // MARK: - Streak Properties
+
+    var submittedDate: Date? = nil
+    var isStreakSubmission: Bool = false
+
     init(
         id: UUID = UUID(),
         title: String,
@@ -85,5 +90,17 @@ final class Reflection {
             return thumbnail
         }
         return firstVideo?.thumbnail
+    }
+
+    // MARK: - Streak Computed Properties
+
+    var isSubmittedToday: Bool {
+        guard let submitted = submittedDate else { return false }
+        return Calendar.current.isDateInToday(submitted)
+    }
+
+    var isFirstDayOfMonth: Bool {
+        guard let submitted = submittedDate else { return false }
+        return Calendar.current.component(.day, from: submitted) == 1
     }
 }
