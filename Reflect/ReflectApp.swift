@@ -31,7 +31,11 @@ struct ReflectApp: App {
                 Reflection.self,
                 ImageAttachment.self,
                 VoiceRecording.self,
-                VideoAttachment.self
+                VideoAttachment.self,
+                // Streak & Badge models
+                Badge.self,
+                StreakData.self,
+                MonthlyAchievement.self
             ])
 
             let modelConfiguration = ModelConfiguration(
@@ -56,8 +60,31 @@ struct ReflectApp: App {
                 .onOpenURL { url in
                     handleWidgetURL(url)
                 }
+                .onAppear {
+                    initializeBadges()
+                }
         }
         .modelContainer(modelContainer)
+    }
+
+    // MARK: - Badge Initialization
+
+    private func initializeBadges() {
+        do {
+            let context = modelContainer.mainContext
+            let fetchDescriptor = FetchDescriptor<Badge>()
+            let existingBadges = try context.fetch(fetchDescriptor)
+
+            if existingBadges.isEmpty {
+                for badgeID in BadgeID.allCases {
+                    let badge = Badge(from: badgeID)
+                    context.insert(badge)
+                }
+                try context.save()
+            }
+        } catch {
+            print("Failed to initialize badges: \(error)")
+        }
     }
 
     // MARK: - Widget URL Handling
