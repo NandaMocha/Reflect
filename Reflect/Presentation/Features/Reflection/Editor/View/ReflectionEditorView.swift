@@ -2,7 +2,9 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import OSLog
+#if canImport(JournalingSuggestions)
 import JournalingSuggestions
+#endif
 
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
@@ -112,11 +114,13 @@ struct ReflectionEditorView: View {
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
                 .sheet(isPresented: $showTemplatePicker) { templatePickerSheet }
+                #if canImport(JournalingSuggestions)
                 .if(isIOS17_2OrNewer) { view in
                     view.journalingSuggestionsPicker(isPresented: $showJournalingPicker) { suggestion in
                         handleJournalingSuggestion(suggestion)
                     }
                 }
+                #endif
                 .sheet(isPresented: Binding(
                     get: { selectedVideoIndex != nil },
                     set: { if !$0 { selectedVideoIndex = nil } }
