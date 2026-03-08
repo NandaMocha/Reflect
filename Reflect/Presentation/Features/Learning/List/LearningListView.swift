@@ -19,6 +19,10 @@ struct LearningListView: View {
     @State var showDeleteAlert = false
     @State var showSettings = false
     @State var isRestoringState = true
+    @State private var showStreakDetail = false
+
+    // Streak ViewModel
+    @State private var streakViewModel: StreakViewModel?
 
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
@@ -87,6 +91,22 @@ struct LearningListView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showStreakDetail) {
+                if let viewModel = streakViewModel {
+                    Text("Streak Detail View")
+                        .font(.title)
+                        .padding()
+                    // TODO: Implement full streak detail view with calendar heatmap and badges
+                }
+            }
+            .onAppear {
+                if streakViewModel == nil {
+                    streakViewModel = StreakViewModel(modelContext: modelContext)
+                }
+                Task {
+                    await streakViewModel?.loadStreakStats()
+                }
             }
             .deleteConfirmationAlert(
                 itemName: "Learning",
@@ -185,6 +205,22 @@ struct LearningListView: View {
 
     var learningList: some View {
         List {
+            // Streak Card Section
+            Section {
+                if let viewModel = streakViewModel {
+                    StreakCard(
+                        currentStreak: viewModel.streakStats?.currentStreak ?? 0,
+                        longestStreak: viewModel.streakStats?.longestStreak ?? 0,
+                        isActive: viewModel.streakStats?.isStreakActiveToday ?? false
+                    ) {
+                        showStreakDetail = true
+                    }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+            }
+
             ForEach(filteredLearnings) { learning in
                 ZStack {
                     NavigationLink(value: learning) { EmptyView() }

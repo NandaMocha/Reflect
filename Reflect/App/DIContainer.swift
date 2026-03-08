@@ -233,4 +233,11 @@ final class DIContainer {
             cloudSyncService: makeCloudSyncService()
         )
     }
+
+    func makeStreakViewModel() -> StreakViewModel {
+        StreakViewModel(
+            getStreakStatsUseCase: makeGetStreakStatsUseCase(),
+            calculateStreakUseCase: makeCalculateStreakUseCase()
+        )
+    }
 }
