@@ -72,18 +72,84 @@ struct ReflectApp: App {
     private func initializeBadges() {
         do {
             let context = modelContainer.mainContext
+
+            // Try to fetch existing badges - this will fail if old schema exists
             let fetchDescriptor = FetchDescriptor<Badge>()
-            let existingBadges = try context.fetch(fetchDescriptor)
+            let existingBadges: [Badge]
+
+            do {
+                existingBadges = try context.fetch(fetchDescriptor)
+            } catch {
+                // Fetch failed due to schema mismatch (old Badge model without category field)
+                print("⚠️ Old badge schema detected. Performing reset...")
+                // Create new badges directly
+                createNewBadges(context: context)
+                return
+            }
 
             if existingBadges.isEmpty {
-                for badgeID in BadgeID.allCases {
-                    let badge = Badge(from: badgeID)
-                    context.insert(badge)
-                }
-                try context.save()
+                // No badges exist, create them
+                createNewBadges(context: context)
+            } else {
+                // Badges exist, check if migration needed
+                migrateBadgesIfNeeded(existingBadges: existingBadges, context: context)
             }
         } catch {
-            print("Failed to initialize badges: \(error)")
+            print("❌ Failed to initialize badges: \(error)")
+        }
+    }
+
+    private func createNewBadges(context: ModelContext) {
+        var createdCount = 0
+        for badgeID in BadgeID.allCases {
+            if badgeID.badgeType == .permanent {
+                let badge = Badge(from: badgeID)
+                context.insert(badge)
+                createdCount += 1
+            }
+        }
+
+        do {
+            try context.save()
+            print("✅ Created \(createdCount) permanent badges")
+        } catch {
+            print("❌ Failed to save badges: \(error)")
+        }
+    }
+
+    private func migrateBadgesIfNeeded(existingBadges: [Badge], context: ModelContext) {
+        // Check if we have old badge IDs
+        let currentBadgeIDs = Set(BadgeID.allCases.map { $0.rawValue })
+        let oldBadges = existingBadges.filter { !currentBadgeIDs.contains($0.id) }
+
+        if !oldBadges.isEmpty {
+            print("🔄 Found \(oldBadges.count) old badges. Cleaning up...")
+
+            // Delete old badges
+            for badge in oldBadges {
+                context.delete(badge)
+            }
+
+            // Create any missing new badges
+            let existingIDs = Set(existingBadges.map { $0.id })
+            var createdCount = 0
+
+            for badgeID in BadgeID.allCases {
+                if badgeID.badgeType == .permanent && !existingIDs.contains(badgeID.rawValue) {
+                    let badge = Badge(from: badgeID)
+                    context.insert(badge)
+                    createdCount += 1
+                }
+            }
+
+            do {
+                try context.save()
+                print("✅ Migration complete: Deleted \(oldBadges.count) old badges, created \(createdCount) new badges")
+            } catch {
+                print("❌ Failed to save migration: \(error)")
+            }
+        } else {
+            print("✅ Badges already up to date")
         }
     }
 

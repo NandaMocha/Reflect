@@ -1,33 +1,30 @@
 import Foundation
 
 final class BadgeEvaluationService {
+
+    // MARK: - Streak Badges (Per Month)
+
+    /// Evaluates monthly streak badges based on current streak
     func evaluateStreakBadges(newStreak: Int, previousStreak: Int) -> [BadgeID] {
         var unlockedBadges: [BadgeID] = []
 
         if previousStreak < 3 && newStreak >= 3 {
-            unlockedBadges.append(.threeDay)
+            unlockedBadges.append(.threeDayStreak)
         }
         if previousStreak < 7 && newStreak >= 7 {
-            unlockedBadges.append(.sevenDay)
+            unlockedBadges.append(.sevenDayStreak)
         }
         if previousStreak < 14 && newStreak >= 14 {
-            unlockedBadges.append(.fourteenDay)
+            unlockedBadges.append(.fourteenDayStreak)
         }
         if previousStreak < 30 && newStreak >= 30 {
-            unlockedBadges.append(.thirtyDay)
+            unlockedBadges.append(.thirtyDayStreak)
         }
 
         return unlockedBadges
     }
 
-    func checkFirstDayOfMonth(submittedDate: Date) -> Bool {
-        Calendar.current.component(.day, from: submittedDate) == 1
-    }
-
-    func checkFirstReflection(totalReflections: Int) -> Bool {
-        totalReflections == 1
-    }
-
+    /// Get celebration level for streak achievements
     func getCelebrationForStreak(_ newStreak: Int, previousStreak: Int) -> BadgeUnlockEvent.CelebrationTrigger {
         if previousStreak < 30 && newStreak >= 30 {
             return .maximum
@@ -41,42 +38,102 @@ final class BadgeEvaluationService {
         return .none
     }
 
-    func checkFullMonth(achievement: MonthlyAchievement) -> Bool {
-        achievement.reflectionCount >= 30 && !achievement.hasFullMonth
-    }
+    // MARK: - Reflection Milestones (Permanent)
 
-    func checkHalfMonth(achievement: MonthlyAchievement) -> Bool {
-        achievement.reflectionCount >= 14 && !achievement.hasHalfMonth
-    }
+    /// Evaluates reflection count milestone badges
+    func evaluateReflectionMilestoneBadges(totalReflections: Int, previousTotal: Int) -> [BadgeID] {
+        var unlockedBadges: [BadgeID] = []
 
-    func check6MonthConsistency(_ achievements: [MonthlyAchievement]) -> Bool {
-        checkConsistency(achievements, months: 6)
-    }
+        let milestones: [(BadgeID, Int)] = [
+            (.fiveReflections, 5),
+            (.tenReflections, 10),
+            (.twentyFiveReflections, 25),
+            (.fiftyReflections, 50),
+            (.hundredReflections, 100),
+            (.twoHundredFiftyReflections, 250),
+            (.fiveHundredReflections, 500),
+            (.thousandReflections, 1000)
+        ]
 
-    func check12MonthConsistency(_ achievements: [MonthlyAchievement]) -> Bool {
-        checkConsistency(achievements, months: 12)
-    }
-
-    private func checkConsistency(_ achievements: [MonthlyAchievement], months: Int) -> Bool {
-        var requiredMonths = Set<String>()
-        var current = Calendar.current.startOfDay(for: .now)
-
-        for _ in 0..<months {
-            let year = Calendar.current.component(.year, from: current)
-            let month = Calendar.current.component(.month, from: current)
-            requiredMonths.insert(String(format: "%04d-%02d", year, month))
-            current = Calendar.current.date(byAdding: .month, value: -1, to: current) ?? current
-        }
-
-        let achievementDict = Dictionary(grouping: achievements, by: { $0.id })
-
-        for monthStr in requiredMonths {
-            guard let achievement = achievementDict[monthStr]?.first,
-                  achievement.hasAnyReflection else {
-                return false
+        for (badgeID, required) in milestones {
+            if previousTotal < required && totalReflections >= required {
+                unlockedBadges.append(badgeID)
             }
         }
 
-        return true
+        return unlockedBadges
+    }
+
+    // MARK: - Media Milestones (Permanent)
+
+    /// Evaluates media count milestone badges
+    func evaluateMediaMilestoneBadges(mediaCount: Int, previousCount: Int) -> [BadgeID] {
+        var unlockedBadges: [BadgeID] = []
+
+        let milestones: [(BadgeID, Int)] = [
+            (.tenMedia, 10),
+            (.fiftyMedia, 50),
+            (.hundredMedia, 100)
+        ]
+
+        for (badgeID, required) in milestones {
+            if previousCount < required && mediaCount >= required {
+                unlockedBadges.append(badgeID)
+            }
+        }
+
+        return unlockedBadges
+    }
+
+    // MARK: - Prompt Milestones (Permanent)
+
+    /// Evaluates prompt count milestone badges
+    func evaluatePromptMilestoneBadges(promptCount: Int, previousCount: Int) -> [BadgeID] {
+        var unlockedBadges: [BadgeID] = []
+
+        let milestones: [(BadgeID, Int)] = [
+            (.tenPrompts, 10),
+            (.fiftyPrompts, 50),
+            (.hundredPrompts, 100)
+        ]
+
+        for (badgeID, required) in milestones {
+            if previousCount < required && promptCount >= required {
+                unlockedBadges.append(badgeID)
+            }
+        }
+
+        return unlockedBadges
+    }
+
+    // MARK: - Special Achievements
+
+    /// Checks if user has completed their first full month of journaling
+    func checkMonthlyChampion(totalReflections: Int, hasUnlockedBefore: Bool) -> Bool {
+        !hasUnlockedBefore && totalReflections >= 30
+    }
+
+    /// Checks if user has maintained 90 consecutive days of reflections
+    func checkQuarterlyChampion(currentStreak: Int, hasUnlockedBefore: Bool) -> Bool {
+        !hasUnlockedBefore && currentStreak >= 90
+    }
+
+    /// Checks if user has maintained 180 consecutive days of reflections
+    func checkHalfYearHero(currentStreak: Int, hasUnlockedBefore: Bool) -> Bool {
+        !hasUnlockedBefore && currentStreak >= 180
+    }
+
+    /// Checks if user has reflected every single day for a full month (30/30 days)
+    /// This is repeatable each month
+    func checkPerfectionist(monthlyAchievement: MonthlyAchievement) -> Bool {
+        // Use the existing hasFullMonth flag which tracks 30+ reflections
+        monthlyAchievement.hasFullMonth
+    }
+
+    /// Checks if perfectionist badge should be awarded for a specific month
+    func checkPerfectionistForMonth(month: Int, year: Int, monthlyData: MonthlyAchievement?) -> Bool {
+        guard let data = monthlyData else { return false }
+        // Check if this month has 30+ reflections
+        return data.hasFullMonth
     }
 }

@@ -1,315 +1,343 @@
-# Complete Badge Specification
+# Badge System v2 - Complete Specification
+
+**Updated**: March 2026
+**Version**: 2.0 - Monthly Streak Badges + Lifetime Achievement Badges
 
 ---
 
-## 🔥 REPEATABLE BADGES
+## 🎯 System Overview
 
-### 3-Day Streak `🔥`
-- **Unlock**: When `currentStreak >= 3` and was `< 3`
-- **Repeatable**: Yes (after streak breaks and rebuilds)
-- **Trigger**: Automatic on day 3
+The badge system has two distinct categories:
+
+1. **🔥 Streak Badges** - Per-month, repeatable badges that track consecutive day streaks
+2. **🏆 Achievement Badges** - Lifetime milestones that are earned once and kept forever
+
+### Key Design Principles
+
+- **Clarity**: No confusion about month boundaries or lost badges
+- **Motivation**: Short-term (monthly) and long-term (lifetime) goals
+- **Fairness**: Streak badges reset each month, achievements are permanent
+- **Progressive**: Clear path from easy to challenging
+
+---
+
+## 🔥 STREAK BADGES (Per Month)
+
+### Overview
+- **Repeatable**: Every month starts fresh
+- **Month-specific**: Users can navigate between months to see past achievements
+- **Independent**: March streaks don't affect April streaks
+- **UI**: Month selector `< March 2025 >` shows that month's streak badges
+
+### Badge List
+
+#### 1. 3-Day Streak 🔥
+- **Icon**: `flame.fill`
+- **Unlock**: 3 consecutive days of reflections
+- **Repeatable**: Yes (each month)
 - **Celebration**: Confetti
+- **Difficulty**: Easy
 
 ```swift
-func check3DayStreak(previousStreak: Int, currentStreak: Int) -> Bool {
-    previousStreak < 3 && currentStreak >= 3
+// Check if current month has 3-day streak
+func check3DayStreak(monthlyData: MonthlyStreakData) -> Bool {
+    monthlyData.currentStreak >= 3
 }
 ```
 
----
-
-### 7-Day Streak `🔥🔥`
-- **Unlock**: When `currentStreak >= 7` and was `< 7`
-- **Repeatable**: Yes
-- **Trigger**: Automatic on day 7
+#### 2. 7-Day Streak 🔥🔥
+- **Icon**: `flame.fill`
+- **Unlock**: 7 consecutive days of reflections
+- **Repeatable**: Yes (each month)
 - **Celebration**: Sparkles
+- **Difficulty**: Medium
 
-```swift
-func check7DayStreak(previousStreak: Int, currentStreak: Int) -> Bool {
-    previousStreak < 7 && currentStreak >= 7
-}
-```
-
----
-
-### 14-Day Streak `🔥🔥🔥`
-- **Unlock**: When `currentStreak >= 14` and was `< 14`
-- **Repeatable**: Yes
-- **Trigger**: Automatic on day 14
+#### 3. 14-Day Streak 🔥🔥🔥
+- **Icon**: `flame.fill`
+- **Unlock**: 14 consecutive days of reflections
+- **Repeatable**: Yes (each month)
 - **Celebration**: Fireworks
+- **Difficulty**: Hard
 
-```swift
-func check14DayStreak(previousStreak: Int, currentStreak: Int) -> Bool {
-    previousStreak < 14 && currentStreak >= 14
-}
-```
-
----
-
-### 30-Day Streak `🔥🔥🔥🔥`
-- **Unlock**: When `currentStreak >= 30` and was `< 30`
-- **Repeatable**: Yes (can earn multiple times with month-long streaks)
-- **Trigger**: Automatic on day 30
+#### 4. 30-Day Streak 🔥🔥🔥🔥
+- **Icon**: `flame.fill`
+- **Unlock**: 30 consecutive days of reflections
+- **Repeatable**: Yes (each month)
 - **Celebration**: Maximum (fireworks + confetti)
-- **Rarity**: Moderate (requires dedication)
-
-```swift
-func check30DayStreak(previousStreak: Int, currentStreak: Int) -> Bool {
-    previousStreak < 30 && currentStreak >= 30
-}
-```
+- **Difficulty**: Expert
+- **Prestige**: Legendary achievement
 
 ---
 
-### Monthly Start `🌅`
-- **Unlock**: Reflection on 1st day of any month
-- **Repeatable**: Yes (up to 12 times per year)
-- **Trigger**: Automatic on submission if `day == 1`
-- **Celebration**: Soft sparkles
-- **Frequency**: Once per month opportunity
+## 🏆 ACHIEVEMENT BADGES (Lifetime)
 
-```swift
-func checkFirstDayOfMonth(submittedDate: Date) -> Bool {
-    Calendar.current.component(.day, from: submittedDate) == 1
-}
-```
-
-**Special**: If first reflection ever on Jan 1st, unlocks both 🌟 + 🌅 simultaneously
+### Overview
+- **Permanent**: Once earned, never lost
+- **Cumulative**: Based on lifetime totals
+- **Categories**: Reflections, Media, Prompts, Special
 
 ---
 
-## ⭐ PERMANENT BADGES
+### 📚 Category 1: Reflection Milestones
 
-### First Reflection `🌟`
-- **Unlock**: On very first reflection (when `totalReflections == 1`)
-- **Permanent**: Yes (one-time only)
-- **Trigger**: Automatic on 1st submission
-- **Celebration**: Confetti
-- **Uniqueness**: Everyone gets this
+#### 1. Curious Mind (5 Reflections) ⭐
+- **Icon**: `star.fill`
+- **Unlock**: 5 total reflections in lifetime
+- **Type**: Permanent
+- **Difficulty**: Easy
+- **Description**: "Every journey begins with a single step. You've started yours!"
 
-```swift
-func checkFirstReflection(totalReflections: Int, alreadyUnlocked: Bool) -> Bool {
-    totalReflections == 1 && !alreadyUnlocked
-}
-```
+#### 2. Dedicated Learner (10 Reflections) ⭐⭐
+- **Icon**: `star.circle.fill`
+- **Unlock**: 10 total reflections
+- **Type**: Permanent
+- **Difficulty**: Easy
+- **Description**: "Building momentum, one reflection at a time"
 
----
+#### 3. Consistent Creator (25 Reflections) 💫
+- **Icon**: `sparkles`
+- **Unlock**: 25 total reflections
+- **Type**: Permanent
+- **Difficulty**: Medium
+- **Description**: "Making reflection your daily superpower"
 
-### Full Month `📅`
-- **Unlock**: 30+ reflections in a calendar month
-- **Permanent**: Yes, per month (can earn multiple times in different months)
-- **Trigger**: Daily recalculation
-- **Celebration**: Yes
-- **Important**: NOT about consecutive days, just 30 reflections anytime in month
+#### 4. Wisdom Seeker (50 Reflections) 📖
+- **Icon**: "book.fill"
+- **Unlock**: 50 total reflections
+- **Type**: Permanent
+- **Difficulty**: Medium
+- **Description**: "A growing collection of insights and discoveries"
 
-```swift
-func checkFullMonth(month: MonthlyAchievement) -> Bool {
-    month.reflectionCount >= 30 && !month.hasFullMonth
-}
-```
+#### 5. Reflection Master (100 Reflections) 🎓
+- **Icon**: "graduationcap.fill"
+- **Unlock**: 100 total reflections
+- **Type**: Permanent
+- **Difficulty**: Hard
+- **Description**: "A century of learning - impressive dedication!"
 
-**Example**:
-- Mar 1: 1 reflection
-- Mar 5: 2 reflections
-- Mar 10: 3 reflections
-- ...continuing...
-- Mar 31: Total reaches 30+
-- Result: ✓ Full Month badge for March
+#### 6. Seasoned Sage (250 Reflections) 🦉
+- **Icon**: "lightbulb.max.fill"
+- **Unlock**: 250 total reflections
+- **Type**: Permanent
+- **Difficulty**: Expert
+- **Description**: "Your journal holds a wealth of wisdom"
 
----
+#### 7. Knowledge Keeper (500 Reflections) 📚
+- **Icon**: "books.vertical.fill"
+- **Unlock**: 500 total reflections
+- **Type**: Permanent
+- **Difficulty**: Expert
+- **Description**: "An extraordinary milestone of personal growth"
 
-### Half Month `📅✨`
-- **Unlock**: 14+ reflections in a calendar month
-- **Permanent**: Yes, per month (can earn multiple times)
-- **Trigger**: Daily recalculation
-- **Celebration**: Yes
-- **Lower bar**: For when full month isn't possible
-
-```swift
-func checkHalfMonth(month: MonthlyAchievement) -> Bool {
-    month.reflectionCount >= 14 && !month.hasHalfMonth
-}
-```
-
-**Example**:
-- Feb 1-14: One reflection each day = 14 total
-- Result: ✓ Half Month badge for February
-
----
-
-### 6-Month Consistency `🏆`
-- **Unlock**: 1+ reflection in each of last 6 CONSECUTIVE calendar months
-- **Permanent**: Yes (one-time only)
-- **Trigger**: Monthly consistency check
-- **Celebration**: Major celebration
-- **Strictness**: Must be 6 consecutive months (no gaps)
-
-```swift
-func check6MonthConsistency(achievements: [MonthlyAchievement]) -> Bool {
-    let last6Months = getLast6ConsecutiveMonths()
-    return last6Months.allSatisfy { month in
-        achievements.first(where: { $0.yearMonthString == month.yearMonthString })?.hasAnyReflection ?? false
-    }
-}
-```
-
-**Example**:
-```
-Current: March 2026
-Required: Mar, Feb, Jan, Dec, Nov, Oct (all must have 1+ reflection)
-
-✓ March 2026: Has reflection
-✓ February 2026: Has reflection
-✓ January 2026: Has reflection
-✓ December 2025: Has reflection
-✓ November 2025: Has reflection
-✓ October 2025: Has reflection
-Result: 🏆 Unlocked!
-
-If November had 0 reflections:
-✗ Badge NOT unlocked (must be consecutive)
-```
+#### 8. Legendary Learner (1000 Reflections) 👑
+- **Icon**: "crown.fill"
+- **Unlock**: 1000 total reflections
+- **Type**: Permanent
+- **Difficulty**: Legendary
+- **Description**: "You've achieved the impossible - truly remarkable!"
 
 ---
 
-### 12-Month Consistency `👑`
-- **Unlock**: 1+ reflection in each of last 12 CONSECUTIVE calendar months
-- **Permanent**: Yes (one-time only, legendary)
-- **Trigger**: Monthly consistency check
-- **Celebration**: MAXIMUM celebration
-- **Rarity**: Very rare (requires 1 year of consistency)
-- **Strictness**: Must be 12 consecutive months (no gaps)
+### 📸 Category 2: Media Master
 
-```swift
-func check12MonthConsistency(achievements: [MonthlyAchievement]) -> Bool {
-    let last12Months = getLast12ConsecutiveMonths()
-    return last12Months.allSatisfy { month in
-        achievements.first(where: { $0.yearMonthString == month.yearMonthString })?.hasAnyReflection ?? false
-    }
-}
-```
+#### 9. Visual Storyteller (10 with Media) 📷
+- **Icon**: "camera.fill"
+- **Unlock**: 10 reflections with images/videos
+- **Type**: Permanent
+- **Difficulty**: Easy
+- **Description**: "Capturing life's moments, one memory at a time"
 
-**Example**:
-```
-Current: March 2027
-Required: Mar 2026 through Mar 2027 (all must have 1+ reflection)
+#### 10. Memory Maker (50 with Media) 🎞️
+- **Icon**: "photo.stack"
+- **Unlock**: 50 reflections with images/videos
+- **Type**: Permanent
+- **Difficulty**: Hard
+- **Description**: "Your visual journal tells a beautiful story"
 
-✓ All 12 months have reflections
-Result: 👑 Unlocked! (Legendary achievement!)
+#### 11. Content Creator (100 with Media) 🎬
+- **Icon**: "video.fill"
+- **Unlock**: 100 reflections with images/videos
+- **Type**: Permanent
+- **Difficulty**: Expert
+- **Description**: "A masterpiece of photos and videos"
 
-If any single month had 0 reflections:
-✗ Badge NOT unlocked
-```
+---
+
+### 💡 Category 3: Prompt Explorer
+
+#### 12. Guided Path (10 with Prompts) 💡
+- **Icon**: "lightbulb"
+- **Unlock**: 10 reflections with guided prompts
+- **Type**: Permanent
+- **Difficulty**: Easy
+- **Description**: "Following questions to deeper understanding"
+
+#### 13. Deep Thinker (50 with Prompts) 🧠
+- **Icon**: "brain.head.profile"
+- **Unlock**: 50 reflections with guided prompts
+- **Type**: Permanent
+- **Difficulty**: Hard
+- **Description**: "Every prompt unlocks new insights"
+
+#### 14. Philosopher's Path (100 with Prompts) 🏛️
+- **Icon**: "building.columns.fill"
+- **Unlock**: 100 reflections with guided prompts
+- **Type**: Permanent
+- **Difficulty**: Expert
+- **Description**: "Mastering the art of self-discovery"
+
+---
+
+### 🌟 Category 4: Special Achievements
+
+#### 15. Monthly Champion (First Month Complete) 🏆
+- **Icon**: "trophy.fill"
+- **Unlock**: Complete first full month of journaling
+- **Repeatable**: No (one-time only)
+- **Description**: "Completed your first full month of journaling"
+
+#### 16. Quarterly Champion (3-Month Consistency) 🎖️
+- **Icon**: "medal.fill"
+- **Unlock**: 90 consecutive days of reflections
+- **Repeatable**: No (one-time only)
+- **Description**: "90 days of unwavering consistency"
+
+#### 17. Half-Year Hero (6-Month Consistency) 🦸
+- **Icon**: "figure.run"
+- **Unlock**: 180 consecutive days of reflections
+- **Repeatable**: No (one-time only)
+- **Description**: "180 days of dedication - extraordinary!"
+
+#### 18. Perfectionist (Perfect Month) 💎
+- **Icon**: "diamond.fill"
+- **Unlock**: Reflected every single day for a full month (30/30 days)
+- **Repeatable**: Yes (each month)
+- **Description**: "Flawless consistency - 30 days in a row"
 
 ---
 
 ## 📊 Badge Summary Table
 
-| Badge | Type | Repeats | Trigger | Celebration |
-|-------|------|---------|---------|------------|
-| 🔥 3-Day | Repeatable | Yes* | Day 3 of streak | Confetti |
-| 🔥🔥 7-Day | Repeatable | Yes* | Day 7 of streak | Sparkles |
-| 🔥🔥🔥 14-Day | Repeatable | Yes* | Day 14 of streak | Fireworks |
-| 🔥🔥🔥🔥 30-Day | Repeatable | Yes* | Day 30 of streak | Maximum |
-| 🌅 Monthly Start | Repeatable | 12x/year | On 1st of month | Soft sparkles |
-| 🌟 First | Permanent | Never | 1st reflection | Confetti |
-| 📅 Full Month | Permanent | Monthly | 30+ reflections | Yes |
-| 📅✨ Half Month | Permanent | Monthly | 14+ reflections | Yes |
-| 🏆 6-Month | Permanent | Never | 6 months consistency | Major |
-| 👑 12-Month | Permanent | Never | 12 months consistency | Maximum |
-
-*Repeatable after streak breaks and rebuilds
+| Badge | Category | Type | Difficulty |
+|-------|----------|------|------------|
+| **Streak Badges** (Per Month) |
+| 🔥 3-Day | Streak | Monthly | Easy |
+| 🔥🔥 7-Day | Streak | Monthly | Medium |
+| 🔥🔥🔥 14-Day | Streak | Monthly | Hard |
+| 🔥🔥🔥🔥 30-Day | Streak | Monthly | Expert |
+| **Achievement Badges** (Lifetime) |
+| ⭐ Curious Mind | Reflections | Permanent | Easy |
+| ⭐⭐ Dedicated Learner | Reflections | Permanent | Easy |
+| 💫 Consistent Creator | Reflections | Permanent | Medium |
+| 📖 Wisdom Seeker | Reflections | Permanent | Medium |
+| 🎓 Reflection Master | Reflections | Permanent | Hard |
+| 🦉 Seasoned Sage | Reflections | Permanent | Expert |
+| 📚 Knowledge Keeper | Reflections | Permanent | Expert |
+| 👑 Legendary Learner | Reflections | Permanent | Legendary |
+| 📷 Visual Storyteller | Media | Permanent | Easy |
+| 🎞️ Memory Maker | Media | Permanent | Hard |
+| 🎬 Content Creator | Media | Permanent | Expert |
+| 💡 Guided Path | Prompts | Permanent | Easy |
+| 🧠 Deep Thinker | Prompts | Permanent | Hard |
+| 🏛️ Philosopher's Path | Prompts | Permanent | Expert |
+| 🏆 Monthly Champion | Special | Permanent | Medium |
+| 🎖️ Quarterly Champion | Special | Permanent | Expert |
+| 🦸 Half-Year Hero | Special | Permanent | Legendary |
+| 💎 Perfectionist | Special | Monthly | Hard |
 
 ---
 
-## 🎮 Earning Examples
+## 🎮 Usage Examples
 
-### January 1, 2026 (First Reflection Ever)
+### Example 1: January 2025 - Perfect Month
 ```
-User creates first reflection on Jan 1st
+Jan 1: Reflection → Streak Day 1, unlocks 🌅 Monthly Start
+Jan 2: Reflection → Streak Day 2
+Jan 3: Reflection → Streak Day 3 → 🔥 3-Day Badge
+...
+Jan 7: Reflection → Streak Day 7 → 🔥🔥 7-Day Badge
+Jan 14: Reflection → Streak Day 14 → 🔥🔥🔥 14-Day Badge
+Jan 30: Reflection → Streak Day 30 → 🔥🔥🔥🔥 30-Day Badge
+Jan 31: Reflection → Streak Day 31 (31/31 days) → 💎 Perfectionist Badge!
 
-Unlocks:
-1. 🌟 First Reflection (very first ever)
-2. 🌅 Monthly Start (day == 1)
-3. Streak: Day 1
-
-Celebration: MAJOR (double badge!)
-```
-
-### January 1-30 (30-Day Streak)
-```
-Day 1: Reflection → Streak: 1
-Day 2: Reflection → Streak: 2
-Day 3: Reflection → Streak: 3 → 🔥 Badge
-Day 7: Reflection → Streak: 7 → 🔥🔥 Badge
-Day 14: Reflection → Streak: 14 → 🔥🔥🔥 Badge
-Day 30: Reflection → Streak: 30 → 🔥🔥🔥🔥 Badge
-Month end: 30 reflections → 📅 Full Month Badge
-
-Result: 5 badges in one month!
+Total: 6 streak badges for January
+Lifetime: Now has 31 total reflections (→ ⭐ Curious Mind)
 ```
 
-### January 31 (Break Streak)
+### Example 2: February 2025 - Fresh Start
 ```
-No reflection submitted on Jan 31
-Streak: 0 (broken)
+Feb 1: Reflection → Streak Day 1 (new month, fresh start!)
+Feb 2: No reflection
+Feb 3: Reflection → Streak Day 1 (counter reset)
+...
+Feb 28: End of month with 15-day streak
+
+January badges: Still visible in January view (not lost!)
+February badges: Shows 14-day badge earned
 ```
 
-### February 1 (Restart)
+### Example 3: Media Milestones
 ```
-Create reflection on Feb 1
-Streak: Day 1 (new cycle)
-🌅 Monthly Start (Feb's first-day)
-
-Can earn 3-day badge again if streak reaches 3
-```
-
-### January 2026 - August 2026 (6 Months)
-```
-Create 1+ reflection each month:
-✓ Jan 2026
-✓ Feb 2026
-✓ Mar 2026
-✓ Apr 2026
-✓ May 2026
-✓ Jun 2026
-
-Result: 🏆 6-Month Consistency Badge!
+Reflection #1: Just text
+Reflection #2: With photo → Media Count: 1
+Reflection #3: With video → Media Count: 2
+...
+Reflection #12: With photo → Media Count: 10 → 📷 Visual Storyteller
+Reflection #53: With video → Media Count: 50 → 🎞️ Memory Maker
 ```
 
 ---
 
-## 🎯 Key Rules
+## 🔧 Implementation Notes
 
-1. **Streak resets**: When user misses a day
-2. **Monthly badges independent**: From streak (can have both in same month)
-3. **Consistency requires no gaps**: 6 or 12 months must be consecutive
-4. **First-day bonus**: Can unlock twice if also first reflection
-5. **Repeatable badges**: Can be earned again after streak breaks
-6. **One reflection per day**: Only counts once for streak, but all count for monthly total
+### Data Model Changes
+- Each badge needs: `id`, `name`, `description`, `icon`, `category`, `badgeType`, `isUnlocked`, `unlockedAt`, `unlockedCount`
+- Streak badges need: `month`, `year` for per-month tracking
+- Achievement badges track: `totalCount`, `mediaCount`, `promptCount`
 
----
+### UI Structure
+```
+Streak Detail View:
+├─ Month Selector: "< January 2025 >"
+├─ Streak Badges Grid (shows January's 4 badges)
+└─ Achievement Badges Grid (shows all lifetime badges)
 
-## 💡 Badge Difficulty Ranking
+Badge Card:
+├─ Icon
+├─ Name
+├─ Description
+└─ Earned badge indicator (for achievements)
+```
 
-**Easy**:
-- 🌅 Monthly Start (just remember 1st)
-- 🌟 First Reflection (automatic)
-
-**Medium**:
-- 🔥 3-Day Streak
-- 📅✨ Half Month
-
-**Hard**:
-- 🔥🔥 7-Day Streak
-- 🔥🔥🔥 14-Day Streak
-- 📅 Full Month
-
-**Expert**:
-- 🔥🔥🔥🔥 30-Day Streak
-- 🏆 6-Month Consistency
-- 👑 12-Month Consistency
+### Evaluation Logic
+- **Streak Badges**: Evaluated each month, stored with month/year metadata
+- **Reflection Milestones**: Check on every reflection save
+- **Media Milestones**: Count reflections with ImageAttachment or VideoAttachment
+- **Prompt Milestones**: Count reflections where prompt/guided field is not empty
 
 ---
 
-Ready for algorithms? See **03_ALGORITHMS.md**
+## 💡 Key Differences from v1
+
+| Aspect | Old System | New System |
+|--------|------------|------------|
+| Streak badges | One global streak | Per-month streaks |
+| Month boundaries | Confusing | Clear separation |
+| Lost badges | Possible? | Never! |
+| Achievement types | Mixed (streaks + monthly) | Clear categories |
+| Progress tracking | Unclear | Very clear |
+| Motivation | Short-term only | Both short & long-term |
+
+---
+
+## 🎯 Design Philosophy
+
+1. **Monthly Fresh Start**: Each month is a clean slate for streaks
+2. **Historical Preservation**: Past achievements are never lost
+3. **Multiple Paths**: Users can excel at streaks, media, or prompts
+4. **Clear Goals**: Always know what to aim for next
+5. **Fair Play**: Missing a day doesn't lose lifetime achievements
+
+---
+
+Ready to implement? See **IMPLEMENTATION_STATUS.md**

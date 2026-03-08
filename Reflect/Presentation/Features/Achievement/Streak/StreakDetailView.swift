@@ -84,23 +84,37 @@ struct StreakDetailView: View {
 
 private func setupTestData(in context: ModelContext) {
     Task {
-        // Create test badges
+        // Create test badges from new system
     let badges = [
-        Badge(from: .firstReflection),
-        Badge(from: .threeDay),
-        Badge(from: .sevenDay),
-        Badge(from: .fourteenDay),
-        Badge(from: .thirtyDay),
-        Badge(from: .firstDayMonth),
-        Badge(from: .fullMonth),
-        Badge(from: .halfMonth),
-        Badge(from: .sixMonthConsistency),
-        Badge(from: .twelveMonthConsistency)
+        // Streak Badges
+        Badge(from: .threeDayStreak),
+        Badge(from: .sevenDayStreak),
+        Badge(from: .fourteenDayStreak),
+        Badge(from: .thirtyDayStreak),
+
+        // Reflection Milestones
+        Badge(from: .fiveReflections),
+        Badge(from: .tenReflections),
+        Badge(from: .twentyFiveReflections),
+        Badge(from: .fiftyReflections),
+        Badge(from: .hundredReflections),
+
+        // Media Milestones
+        Badge(from: .tenMedia),
+        Badge(from: .fiftyMedia),
+
+        // Prompt Milestones
+        Badge(from: .tenPrompts),
+        Badge(from: .fiftyPrompts),
+
+        // Special Achievements
+        Badge(from: .monthlyChampion),
+        Badge(from: .perfectionist)
     ]
 
     // Unlock some badges
-    badges[0].unlock()
-    badges[1].unlock()
+    badges[0].unlock() // 3-Day Streak
+    badges[4].unlock() // Curious Mind (5 reflections)
 
     for badge in badges {
         context.insert(badge)

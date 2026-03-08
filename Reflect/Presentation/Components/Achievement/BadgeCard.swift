@@ -11,7 +11,7 @@ struct BadgeCard: View {
             onTap?()
         }) {
             VStack(alignment: .leading, spacing: 12) {
-                // Header: Icon + Status
+                // Header: Icon
                 HStack {
                     // Icon
                     ZStack {
@@ -20,41 +20,25 @@ struct BadgeCard: View {
                             .frame(width: 56, height: 56)
 
                         Image(systemName: badge.icon)
-                            .font(.system(size: 28))
+                            .font(.system(size: 20))
                             .foregroundStyle(iconColor)
                     }
 
                     Spacer()
-
-                    // Status badge
-                    if badge.isUnlocked {
-                        statusBadge
-                    }
                 }
 
                 // Content
                 VStack(alignment: .leading, spacing: 4) {
-                    // Name with new indicator
-                    HStack(spacing: 6) {
-                        Text(badge.name)
-                            .font(.headline)
-                            .foregroundStyle(badge.isUnlocked ? .primary : .secondary)
-
-                        if badge.isNew {
-                            newIndicator
-                        }
-                    }
+                    // Name
+                    Text(badge.name)
+                        .font(.headline)
+                        .foregroundStyle(badge.isUnlocked ? .primary : .secondary)
 
                     // Description
                     Text(badge.badgeDescription)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
-                }
-
-                // Footer (only show if unlocked)
-                if badge.isUnlocked, let unlockedAt = badge.unlockedAt {
-                    footer(unlockedAt)
                 }
             }
             .padding(16)
@@ -65,64 +49,6 @@ struct BadgeCard: View {
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    isPressed = true
-                }
-                .onEnded { _ in
-                    isPressed = false
-                }
-        )
-    }
-
-    // MARK: - Helper Views
-
-    @ViewBuilder
-    private var statusBadge: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.caption.bold())
-
-            Text("Earned")
-                .font(.caption.bold())
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.green)
-        .clipShape(Capsule())
-    }
-
-    @ViewBuilder
-    private var newIndicator: some View {
-        Text("NEW")
-            .font(.caption2.bold())
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.orange)
-            .clipShape(Capsule())
-    }
-
-    private func footer(_ unlockedAt: Date) -> some View {
-        HStack {
-            Image(systemName: "calendar")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text("Earned \(unlockedAt, style: .relative)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            if badge.unlockedCount > 1 {
-                Text("×\(badge.unlockedCount)")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     // MARK: - Style Properties
@@ -165,7 +91,7 @@ struct BadgeCard: View {
     private var accentColor: Color {
         // Return different colors based on badge type
         switch badge.type {
-        case .repeatedStreak:
+        case .monthlyStreak:
             return .orange
         case .permanent:
             return .blue
@@ -177,23 +103,23 @@ struct BadgeCard: View {
 
 #Preview {
     VStack(spacing: 16) {
-        // Unlocked badge
+        // Unlocked streak badge
         BadgeCard(badge: {
-            let badge = Badge(from: .threeDay)
+            let badge = Badge(from: .threeDayStreak)
             badge.unlock()
             return badge
         }()) {
             print("Tapped unlocked badge")
         }
 
-        // Locked badge
-        BadgeCard(badge: Badge(from: .sevenDay)) {
+        // Locked streak badge
+        BadgeCard(badge: Badge(from: .sevenDayStreak)) {
             print("Tapped locked badge")
         }
 
-        // New badge
+        // Unlocked achievement badge
         BadgeCard(badge: {
-            let badge = Badge(from: .firstReflection)
+            let badge = Badge(from: .fiveReflections)
             badge.unlock()
             return badge
         }()) {

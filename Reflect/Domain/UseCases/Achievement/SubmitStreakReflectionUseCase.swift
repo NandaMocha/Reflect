@@ -44,6 +44,7 @@ final class SubmitStreakReflectionUseCase: SubmitStreakReflectionUseCaseProtocol
         // Get previous streak
         let streakData = try await streakRepository.getStreakData()
         let previousStreak = streakData.currentStreak
+        let previousTotalReflections = streakData.totalReflections
 
         // Calculate new streak
         let reflections = try await reflectionRepository.fetchAll()
@@ -67,21 +68,67 @@ final class SubmitStreakReflectionUseCase: SubmitStreakReflectionUseCaseProtocol
         // Evaluate badges
         var unlockedBadges: [BadgeID] = []
 
-        // Streak badges
+        // 1. Streak badges (monthly)
         unlockedBadges.append(contentsOf: badgeEvaluationService.evaluateStreakBadges(
             newStreak: newStreak,
             previousStreak: previousStreak
         ))
 
-        // First day of month badge
-        if let submittedDate = reflection.submittedDate,
-           badgeEvaluationService.checkFirstDayOfMonth(submittedDate: submittedDate) {
-            unlockedBadges.append(.firstDayMonth)
+        // 2. Reflection milestone badges
+        unlockedBadges.append(contentsOf: badgeEvaluationService.evaluateReflectionMilestoneBadges(
+            totalReflections: streakData.totalReflections,
+            previousTotal: previousTotalReflections
+        ))
+
+        // 3. Media milestone badges
+        let allReflections = try await reflectionRepository.fetchAll()
+        let mediaCount = allReflections.filter { reflection in
+            !reflection.images.isEmpty || !reflection.videos.isEmpty
+        }.count
+
+        // Note: You may want to store previous media count in streak data for proper comparison
+        unlockedBadges.append(contentsOf: badgeEvaluationService.evaluateMediaMilestoneBadges(
+            mediaCount: mediaCount,
+            previousCount: 0 // TODO: Track previous media count in StreakData
+        ))
+
+        // 4. Prompt milestone badges
+        // TODO: Implement prompt tracking - currently Reflection model doesn't have prompt field
+        // This will be added when the prompt feature is implemented
+        // For now, we skip prompt badge evaluation
+        // let promptCount = allReflections.filter { reflection in
+        //     // Check if reflection was created from a guided prompt
+        //     return false // Placeholder until prompt tracking is added
+        // }.count
+        //
+        // unlockedBadges.append(contentsOf: badgeEvaluationService.evaluatePromptMilestoneBadges(
+        //     promptCount: promptCount,
+        //     previousCount: 0 // TODO: Track previous prompt count in StreakData
+        // ))
+
+        // 5. Special achievements
+        // Monthly Champion (first month complete)
+        if badgeEvaluationService.checkMonthlyChampion(
+            totalReflections: streakData.totalReflections,
+            hasUnlockedBefore: false // TODO: Check if already unlocked
+        ) {
+            unlockedBadges.append(.monthlyChampion)
         }
 
-        // First reflection badge
-        if badgeEvaluationService.checkFirstReflection(totalReflections: streakData.totalReflections) {
-            unlockedBadges.append(.firstReflection)
+        // Quarterly Champion (90-day consistency)
+        if badgeEvaluationService.checkQuarterlyChampion(
+            currentStreak: newStreak,
+            hasUnlockedBefore: false // TODO: Check if already unlocked
+        ) {
+            unlockedBadges.append(.quarterlyChampion)
+        }
+
+        // Half-Year Hero (180-day consistency)
+        if badgeEvaluationService.checkHalfYearHero(
+            currentStreak: newStreak,
+            hasUnlockedBefore: false // TODO: Check if already unlocked
+        ) {
+            unlockedBadges.append(.halfYearHero)
         }
 
         // Get celebration trigger
@@ -93,7 +140,8 @@ final class SubmitStreakReflectionUseCase: SubmitStreakReflectionUseCaseProtocol
         // Unlock badges
         for badgeID in unlockedBadges {
             if let badge = try await badgeRepository.fetch(id: badgeID.rawValue) {
-                if !badge.isUnlocked {
+                // Always unlock monthly streak badges, or unlock once for permanent badges
+                if badgeID.badgeType == .monthlyStreak || !badge.isUnlocked {
                     try await badgeRepository.unlock(badge)
                 }
             }

@@ -3,6 +3,7 @@ import SwiftData
 
 struct BadgeGridView: View {
     @State private var viewModel: BadgeGridViewModel
+    @State private var selectedBadge: Badge?
     var onBadgeTap: ((Badge) -> Void)?
 
     init(viewModel: BadgeGridViewModel, onBadgeTap: ((Badge) -> Void)? = nil) {
@@ -26,6 +27,9 @@ struct BadgeGridView: View {
         .task {
             await viewModel.loadBadges()
         }
+        .sheet(item: $selectedBadge) { badge in
+            BadgeDetailView(badge: badge)
+        }
     }
 
     @ViewBuilder
@@ -34,20 +38,13 @@ struct BadgeGridView: View {
             // Progress Header
             progressHeader
 
-            // Newly Unlocked Section (if any)
+            // Newly Unlocked Section (if any) - Landscape cards
             if viewModel.hasNewUnlocks {
                 newlyUnlockedSection
             }
 
-            // Unlocked Badges
-            if !viewModel.unlockedBadges.isEmpty {
-                unlockedSection
-            }
-
-            // Locked Badges
-            if !viewModel.lockedBadges.isEmpty {
-                lockedSection
-            }
+            // All Badges (combined list)
+            allBadgesSection
         }
     }
 
@@ -99,6 +96,26 @@ struct BadgeGridView: View {
                     .font(.headline)
             }
 
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(viewModel.newlyUnlockedBadges) { badge in
+                        LandscapeBadgeCard(badge: badge) {
+                            selectedBadge = badge
+                        }
+                        .frame(width: .infinity)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
+
+    private var allBadgesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your Badges")
+                .font(.headline)
+
             LazyVGrid(
                 columns: [
                     GridItem(.flexible(), spacing: 12),
@@ -106,57 +123,50 @@ struct BadgeGridView: View {
                 ],
                 spacing: 12
             ) {
-                ForEach(viewModel.newlyUnlockedBadges) { badge in
+                ForEach(sortedBadges) { badge in
                     BadgeCard(badge: badge) {
-                        onBadgeTap?(badge)
+                        selectedBadge = badge
                     }
                 }
             }
         }
     }
 
-    private var unlockedSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Earned")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+    // All badges sorted: unlocked first (by difficulty), then locked (by difficulty)
+    private var sortedBadges: [Badge] {
+        // Separate into unlocked and locked
+        let unlocked = viewModel.badges.filter { $0.isUnlocked }
+        let locked = viewModel.badges.filter { !$0.isUnlocked }
 
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 12),
-                    GridItem(.flexible(), spacing: 12)
-                ],
-                spacing: 12
-            ) {
-                ForEach(viewModel.unlockedBadges.filter { !$0.isNew }) { badge in
-                    BadgeCard(badge: badge) {
-                        onBadgeTap?(badge)
-                    }
-                }
-            }
+        // Sort unlocked by difficulty (easiest first)
+        let sortedUnlocked = unlocked.sorted { badge1, badge2 in
+            badgeDifficultyOrder(badge1) < badgeDifficultyOrder(badge2)
         }
+
+        // Sort locked by difficulty (easiest first)
+        let sortedLocked = locked.sorted { badge1, badge2 in
+            badgeDifficultyOrder(badge1) < badgeDifficultyOrder(badge2)
+        }
+
+        // Return: all unlocked first, then locked
+        return sortedUnlocked + sortedLocked
     }
 
-    private var lockedSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Locked")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 12),
-                    GridItem(.flexible(), spacing: 12)
-                ],
-                spacing: 12
-            ) {
-                ForEach(viewModel.lockedBadges) { badge in
-                    BadgeCard(badge: badge) {
-                        onBadgeTap?(badge)
-                    }
-                }
-            }
-        }
+    // Badge difficulty order: easiest (1) to hardest (10)
+    private func badgeDifficultyOrder(_ badge: Badge) -> Int {
+        let difficultyMap: [String: Int] = [
+            "first-reflection": 1,        // Easiest
+            "3day-streak": 2,
+            "7day-streak": 3,
+            "14day-streak": 4,
+            "30day-streak": 5,
+            "first-day-month": 6,
+            "half-month": 7,
+            "full-month": 8,
+            "6month-consistency": 9,
+            "12month-consistency": 10     // Hardest
+        ]
+        return difficultyMap[badge.id] ?? 999
     }
 
     private var emptyState: some View {

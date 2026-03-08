@@ -36,7 +36,16 @@ struct StreakCard: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(activeStreakColor.opacity(0.3), lineWidth: 2)
+                    .stroke(
+                        LinearGradient(
+                            colors: currentStreak > 0
+                                ? [activeStreakColor.opacity(0.6), activeStreakColor.opacity(0.2)]
+                                : [.gray.opacity(0.3), .gray.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: currentStreak > 0 ? 3 : 1
+                    )
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -45,9 +54,23 @@ struct StreakCard: View {
     private var flameIcon: some View {
         ZStack {
             if currentStreak > 0 {
-                Image(systemName: "flame.fill")
-                    .font(.title2)
-                    .foregroundColor(flameColor)
+                // Multi-colored fire effect
+                ZStack {
+                    Image(systemName: "flame.fill")
+                        .font(.title2)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.red, .orange, .yellow],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+
+                    Image(systemName: "flame.fill")
+                        .font(.title2)
+                        .foregroundStyle(.red)
+                        .opacity(0.8)
+                }
             } else {
                 Image(systemName: "flame")
                     .font(.title2)
