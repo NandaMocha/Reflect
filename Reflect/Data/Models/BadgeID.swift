@@ -229,6 +229,65 @@ enum BadgeID: String, CaseIterable, Identifiable {
     static func badges(in category: BadgeCategory) -> [BadgeID] {
         allCases.filter { $0.badgeCategory == category }
     }
+
+    // MARK: - Celebration
+
+    /// Returns the appropriate celebration trigger for this badge
+    var celebration: BadgeUnlockEvent.CelebrationTrigger {
+        switch self {
+        // Streak badges
+        case .threeDayStreak:
+            return .confetti
+        case .sevenDayStreak:
+            return .sparkles
+        case .fourteenDayStreak:
+            return .fireworks
+        case .thirtyDayStreak:
+            return .maximum
+
+        // First reflection milestone
+        case .fiveReflections:
+            return .confetti
+
+        // Higher reflection milestones
+        case .tenReflections, .twentyFiveReflections:
+            return .sparkles
+
+        // Major reflection milestones
+        case .fiftyReflections, .hundredReflections:
+            return .fireworks
+
+        // Epic reflection milestones
+        case .twoHundredFiftyReflections, .fiveHundredReflections, .thousandReflections:
+            return .maximum
+
+        // Media milestones
+        case .tenMedia:
+            return .confetti
+        case .fiftyMedia:
+            return .sparkles
+        case .hundredMedia:
+            return .fireworks
+
+        // Prompt milestones
+        case .tenPrompts:
+            return .confetti
+        case .fiftyPrompts:
+            return .sparkles
+        case .hundredPrompts:
+            return .fireworks
+
+        // Special achievements
+        case .monthlyChampion:
+            return .sparkles
+        case .quarterlyChampion:
+            return .fireworks
+        case .halfYearHero:
+            return .maximum
+        case .perfectionist:
+            return .maximum
+        }
+    }
 }
 
 enum BadgeType: String, Codable {
