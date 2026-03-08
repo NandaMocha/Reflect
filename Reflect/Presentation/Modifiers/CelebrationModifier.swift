@@ -45,6 +45,21 @@ extension View {
             trigger: badgeID.celebration
         )
     }
+
+    /// Shows a celebration overlay with just the trigger type
+    /// - Parameters:
+    ///   - isPresented: Binding to control presentation
+    ///   - trigger: The celebration trigger type
+    func celebration(
+        isPresented: Binding<Bool>,
+        trigger: BadgeUnlockEvent.CelebrationTrigger
+    ) -> some View {
+        celebration(
+            isPresented: isPresented,
+            badge: nil,
+            trigger: trigger
+        )
+    }
 }
 
 // MARK: - Usage Example

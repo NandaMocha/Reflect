@@ -185,4 +185,28 @@ extension ReflectionEditorView {
         let asset = AVAsset(url: url)
         return CMTimeGetSeconds(asset.duration)
     }
+
+    // MARK: - Notification Observers
+
+    func setupNotificationObservers() {
+        // Listen for streak updates (when badges are unlocked)
+        NotificationCenter.default.addObserver(
+            forName: .streakDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let userInfo = notification.userInfo,
+                  let celebrationTrigger = userInfo["celebrationTrigger"] as? BadgeUnlockEvent.CelebrationTrigger,
+                  let unlockedBadges = userInfo["unlockedBadges"] as? [BadgeID] else {
+                return
+            }
+
+            // Show celebration if badges were unlocked
+            if !unlockedBadges.isEmpty && celebrationTrigger != .none {
+                self.celebrationTrigger = celebrationTrigger
+                self.showCelebration = true
+            }
+        }
+    }
 }

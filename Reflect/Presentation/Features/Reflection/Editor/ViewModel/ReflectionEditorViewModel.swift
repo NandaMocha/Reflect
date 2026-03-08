@@ -22,6 +22,11 @@ final class ReflectionEditorViewModel {
     var showImagePicker: Bool = false
     var selectedPhotoItems: [PhotosPickerItem] = []
 
+    // MARK: - Celebration State
+    var showCelebration: Bool = false
+    var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
+    var unlockedBadges: [BadgeID] = []
+
     // MARK: - Mode
     enum Mode {
         case create
@@ -75,6 +80,39 @@ final class ReflectionEditorViewModel {
         case .edit(let reflection):
             configure(with: reflection)
         }
+
+        // Listen for streak updates
+        setupNotificationObservers()
+    }
+
+    // MARK: - Notification Observers
+
+    private func setupNotificationObservers() {
+        Task { @MainActor in
+            NotificationCenter.default.addObserver(
+                forName: .streakDidUpdate,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self = self,
+                      let userInfo = notification.userInfo,
+                      let celebrationTrigger = userInfo["celebrationTrigger"] as? BadgeUnlockEvent.CelebrationTrigger,
+                      let unlockedBadges = userInfo["unlockedBadges"] as? [BadgeID] else {
+                    return
+                }
+
+                // Show celebration if badges were unlocked
+                if !unlockedBadges.isEmpty && celebrationTrigger != .none {
+                    self.celebrationTrigger = celebrationTrigger
+                    self.unlockedBadges = unlockedBadges
+                    self.showCelebration = true
+                }
+            }
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
 

@@ -105,6 +105,21 @@ struct LearningListView: View {
                     await streakViewModel?.loadStreakStats()
                     await streakViewModel?.loadBadges()
                 }
+
+                // Listen for streak updates to refresh
+                NotificationCenter.default.addObserver(
+                    forName: .streakDidUpdate,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor in
+                        await self?.streakViewModel?.loadStreakStats()
+                        await self?.streakViewModel?.loadBadges()
+                    }
+                }
+            }
+            .onDisappear {
+                NotificationCenter.default.removeObserver(self)
             }
             .deleteConfirmationAlert(
                 itemName: "Learning",

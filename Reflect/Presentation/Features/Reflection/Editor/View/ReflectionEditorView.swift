@@ -49,6 +49,10 @@ struct ReflectionEditorView: View {
     @State var errorMessage: String?
     @State var showErrorAlert = false
 
+    // Celebration state
+    @State var showCelebration = false
+    @State var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
+
     @FocusState var focusedField: ReflectionEditorField?
 
     var isEditing: Bool {
@@ -142,8 +146,13 @@ struct ReflectionEditorView: View {
                     let viewStartTime = CFAbsoluteTimeGetCurrent()
                     os_log("📱 [PERF] ReflectionEditorView onAppear started", log: .default, type: .info)
                     loadExistingData()
+                    setupNotificationObservers()
                     os_log("📱 [PERF] ReflectionEditorView onAppear completed in %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - viewStartTime) * 1000)
                 }
+                .onDisappear {
+                    NotificationCenter.default.removeObserver(self)
+                }
+                .celebration(isPresented: $showCelebration, trigger: celebrationTrigger)
         }
     }
 }

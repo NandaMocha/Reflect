@@ -77,7 +77,8 @@ final class DIContainer {
         CreateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            imageService: makeImageProcessingService()
+            imageService: makeImageProcessingService(),
+            submitStreakUseCase: makeSubmitStreakReflectionUseCase()
         )
     }
 
