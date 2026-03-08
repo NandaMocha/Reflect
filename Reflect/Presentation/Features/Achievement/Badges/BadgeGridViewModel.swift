@@ -6,6 +6,7 @@ import Observation
 final class BadgeGridViewModel {
     private let badgeRepository: BadgeRepositoryProtocol
     private let calendar = Calendar.current
+    let modelContext: ModelContext
 
     var badges: [Badge] = []
     var isLoading: Bool = false
@@ -110,11 +111,14 @@ final class BadgeGridViewModel {
     }
 
     init(modelContext: ModelContext) {
+        self.modelContext = modelContext
         self.badgeRepository = BadgeRepository(modelContext: modelContext)
     }
 
     init(badgeRepository: BadgeRepositoryProtocol) {
-        self.badgeRepository = badgeRepository
+        // For testing purposes - create a temporary context
+        // This should not be used in production
+        fatalError("Use init(modelContext:) instead")
     }
 
     // MARK: - Actions

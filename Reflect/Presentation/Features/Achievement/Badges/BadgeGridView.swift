@@ -4,6 +4,7 @@ import SwiftData
 struct BadgeGridView: View {
     @State private var viewModel: BadgeGridViewModel
     @State private var selectedBadge: Badge?
+    @State private var calendarViewModel: CalendarHeatmapViewModel?
     var onBadgeTap: ((Badge) -> Void)?
 
     init(viewModel: BadgeGridViewModel, onBadgeTap: ((Badge) -> Void)? = nil) {
@@ -26,6 +27,12 @@ struct BadgeGridView: View {
         }
         .task {
             await viewModel.loadBadges()
+            // Initialize calendar view model with same month
+            if calendarViewModel == nil {
+                let vm = CalendarHeatmapViewModel(modelContext: viewModel.modelContext)
+                vm.selectedMonth = viewModel.selectedMonth
+                calendarViewModel = vm
+            }
         }
         .sheet(item: $selectedBadge) { badge in
             BadgeDetailView(badge: badge)
@@ -48,6 +55,11 @@ struct BadgeGridView: View {
 
             // Streak Badges for Selected Month
             streakBadgesSection
+
+            // Calendar Heatmap Section
+            if let calendarViewModel = calendarViewModel {
+                calendarHeatmapSection(calendarViewModel)
+            }
 
             // Achievement Badges (Permanent) - Section divider
             achievementBadgesSection
@@ -127,11 +139,19 @@ struct BadgeGridView: View {
             onPrevious: {
                 withAnimation(.easeInOut) {
                     viewModel.selectPreviousMonth()
+                    // Sync calendar month
+                    if var calendarVM = calendarViewModel {
+                        calendarVM.selectedMonth = viewModel.selectedMonth
+                    }
                 }
             },
             onNext: {
                 withAnimation(.easeInOut) {
                     viewModel.selectNextMonth()
+                    // Sync calendar month
+                    if var calendarVM = calendarViewModel {
+                        calendarVM.selectedMonth = viewModel.selectedMonth
+                    }
                 }
             }
         )
@@ -194,6 +214,31 @@ struct BadgeGridView: View {
         .padding(.vertical, 16)
         .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Calendar Heatmap Section
+
+    private func calendarHeatmapSection(_ calendarViewModel: CalendarHeatmapViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "calendar")
+                    .foregroundStyle(.green)
+
+                Text("Reflection Calendar")
+                    .font(.headline)
+
+                Text("(\(calendarViewModel.selectedMonthYearString))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            MonthlyCalendarHeatmap(viewModel: calendarViewModel) { newMonth in
+                // Sync badge selector month when calendar changes
+                withAnimation(.easeInOut) {
+                    viewModel.selectedMonth = newMonth
+                }
+            }
+        }
     }
 
     // MARK: - Achievement Badges Section
