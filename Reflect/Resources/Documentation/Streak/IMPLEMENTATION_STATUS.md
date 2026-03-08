@@ -1,8 +1,8 @@
 # Streak & Badge System - Implementation Status
 
-**Last Updated**: March 8, 2026
-**Overall Progress**: Phase 1-3 Complete (Data & Service Layer) | Phase 4-5 Partial (Basic UI Only)
-**Completion**: ~40% (Foundation Complete, UI Partial)
+**Last Updated**: March 9, 2026
+**Overall Progress**: Badge System v2 Complete | Remaining: UI Polish & Integration
+**Completion**: ~70% (Badge System v2 Complete, UI Components Created)
 
 ---
 
@@ -32,8 +32,8 @@ The Streak & Badge system has a solid foundation with complete data, service, an
 
 | Model | Status | File | Notes |
 |-------|--------|------|-------|
-| BadgeID enum | ✅ Complete | `BadgeID.swift` | All 10 badges defined |
-| Badge | ✅ Complete | `Badge.swift` | SwiftData model, unlock tracking |
+| BadgeID enum | ✅ Complete | `BadgeID.swift` | 18 badges defined (v2) |
+| Badge | ✅ Complete | `Badge.swift` | SwiftData model, month/year tracking, optional category |
 | StreakData | ✅ Complete | `StreakData.swift` | Singleton pattern |
 | MonthlyAchievement | ✅ Complete | `MonthlyAchievement.swift` | Monthly stats |
 | StreakStats | ✅ Complete | `StreakStats.swift` | Display model |
@@ -42,7 +42,7 @@ The Streak & Badge system has a solid foundation with complete data, service, an
 | Reflection Enhancement | ✅ Complete | `Reflection.swift` | Added `submittedDate`, `isStreakSubmission` |
 
 **SwiftData Schema**: ✅ Updated in `ReflectApp.swift`
-**Badge Initialization**: ✅ Automatic on app launch
+**Badge Initialization**: ✅ Automatic migration support for old schema
 
 ---
 
@@ -102,35 +102,42 @@ The Streak & Badge system has a solid foundation with complete data, service, an
 
 ---
 
-### Phase 5: UI Components ⚠️ 20% COMPLETE
+### Phase 5: UI Components ⚠️ 60% COMPLETE
 
 #### Implemented Components ✅
 
 | Component | File | Purpose | Status |
 |-----------|------|---------|--------|
 | StreakCard | `StreakCard.swift` | Main streak display card | ✅ Complete |
+| BadgeCard | `BadgeCard.swift` | Individual badge display | ✅ Complete |
+| LandscapeBadgeCard | `LandscapeBadgeCard.swift` | Horizontal badge card | ✅ Complete |
+| BadgeDetailView | `BadgeDetailView.swift` | Badge detail popup | ✅ Complete |
+| BadgeGridView | `BadgeGridView.swift` | Badge grid with categories | ✅ Complete |
+| StreakDetailView | `StreakDetailView.swift` | Detail view container | ⚠️ Basic |
 
 **Features**:
 - ✅ Current streak display
 - ✅ Longest streak display
 - ✅ Animated flame icon (color-coded)
 - ✅ Tap to view details
+- ✅ Badge cards with locked/unlocked states
+- ✅ Badge detail view with unlock info
+- ✅ Badge grid organized by category
+- ✅ Difficulty-based sorting
+- ✅ Recently unlocked badges section
 
 #### Missing UI Components ❌
 
 | Component | Purpose | Documentation | Status |
 |-----------|---------|---------------|--------|
-| **StreakDetailView** | Full detail modal | `01_OVERVIEW.md` | ❌ NOT IMPLEMENTED |
+| **MonthSelectorView** | Navigate between months | `02_BADGES.md` | ❌ Missing |
 | ├─ MonthlyCalendarHeatmap | GitHub-style calendar | `03_ALGORITHMS.md` | ❌ Missing |
-| ├─ BadgeGridView | Grid of all 10 badges | `02_BADGES.md` | ❌ Missing |
-| ├─ BadgeCard | Individual badge display | `05_QUICK_REFERENCE.md` | ❌ Missing |
 | └─ StreakProgressBar | Progress to next milestone | `05_QUICK_REFERENCE.md` | ❌ Missing |
 | **Celebration Views** | Badge unlock animations | `03_ALGORITHMS.md` | ❌ NOT IMPLEMENTED |
 | ├─ ConfettiView | 3-day, first reflection | `03_ALGORITHMS.md` | ❌ Missing |
 | ├─ SparklesView | 7-day, monthly start | `03_ALGORITHMS.md` | ❌ Missing |
 | ├─ FireworksView | 14-day streak | `03_ALGORITHMS.md` | ❌ Missing |
 | └─ MaximumCelebrationView | 30-day, consistency | `03_ALGORITHMS.md` | ❌ Missing |
-| **FlameAnimation** | Animated pulsing flame | `05_QUICK_REFERENCE.md` | ❌ Missing |
 
 #### Current State
 
@@ -178,30 +185,42 @@ The current implementation shows a placeholder when tapping the streak card:
 
 ---
 
-### 2. Badge System ⚠️ 50% COMPLETE
+### 2. Badge System ✅ 90% COMPLETE
 
-#### Badge Definition ✅
-- ✅ All 10 badges defined
-- ✅ Badge types (repeatable vs permanent)
-- ✅ Icons and descriptions
-- ✅ Unlock criteria specified
+#### Badge Definition ✅ (v2)
+- ✅ 18 badges defined across 4 categories
+- ✅ Badge types (monthlyStreak vs permanent)
+- ✅ Badge categories (streak, reflections, media, prompts, special)
+- ✅ Engaging names and descriptions
+- ✅ SF Symbol icons
+- ✅ Optional category field for migration
+
+**Badge Categories**:
+- **Streak Badges** (Monthly, Repeatable): 3-Day, 7-Day, 14-Day, 30-Day
+- **Reflection Milestones** (Permanent): 5, 10, 25, 50, 100, 250, 500, 1000
+- **Media Master** (Permanent): 10, 50, 100 with media
+- **Prompt Explorer** (Permanent): 10, 50, 100 with prompts
+- **Special Achievements** (Permanent): Monthly Champion, Quarterly Champion, Half-Year Hero, Perfectionist
 
 #### Badge Tracking ✅
 - ✅ Badge model with unlock state
 - ✅ Unlock date tracking
 - ✅ Unlock count for repeatable badges
+- ✅ Month/year tracking for monthly badges
 - ✅ "New" badge detection (unlocked today)
+- ✅ Migration support for old schema
 
-#### Badge Evaluation Logic ✅
+#### Badge Evaluation Logic ✅ (v2)
 - ✅ Streak badges (3, 7, 14, 30-day)
-- ✅ First reflection badge
-- ✅ Monthly start badge
-- ✅ Full/half month badges
-- ✅ 6 & 12-month consistency
+- ✅ Reflection milestone badges (5, 10, 25, 50, 100, 250, 500, 1000)
+- ✅ Media milestone badges (10, 50, 100)
+- ✅ Prompt milestone badges (10, 50, 100) - Logic ready, needs Reflection.prompt field
+- ✅ Special achievements (Monthly/Quarterly/Half-Year Champion, Perfectionist)
+- ✅ Celebration triggers for all badge types
 
 **What's Missing**:
-- ❌ **Badge UI** - No way for users to see badges
-- ❌ **Badge Evaluation Trigger** - Logic exists but not called
+- ⚠️ **Badge GridView** - Created but needs month selector integration
+- ⚠️ **Badge Evaluation Trigger** - Logic exists but not fully wired
 - ❌ **Celebrations** - No visual feedback on unlock
 
 ---
@@ -492,19 +511,19 @@ Gap:      ❌ No visual feedback
 
 | Phase | Progress | Notes |
 |-------|----------|-------|
-| Phase 1: Data Models | 100% ✅ | Complete |
-| Phase 2: Repositories | 100% ✅ | Complete |
-| Phase 3: Services | 100% ✅ | Complete |
-| Phase 4: ViewModels | 50% ⚠️ | Only StreakViewModel |
-| Phase 5: UI Components | 20% ⚠️ | Only StreakCard |
-| Phase 6: Integration | 0% ❌ | Not started |
+| Phase 1: Data Models | 100% ✅ | Complete with v2 badges |
+| Phase 2: Repositories | 100% ✅ | Complete with new query methods |
+| Phase 3: Services | 100% ✅ | Complete with v2 evaluation logic |
+| Phase 4: ViewModels | 50% ⚠️ | StreakViewModel, BadgeGridViewModel |
+| Phase 5: UI Components | 60% ⚠️ | Cards and grid created, missing month selector & calendar |
+| Phase 6: Integration | 70% ⚠️ | Badge evaluation wired, missing celebration triggers |
 | Phase 7: Testing | 0% ❌ | Not started |
 
-### Overall Completion: ~40%
+### Overall Completion: ~70%
 
-**Strong Foundation**: Data and service layers are solid
-**Incomplete UX**: UI layer needs significant work
-**Critical Gap**: No integration between layers
+**Strong Foundation**: Badge system v2 complete, all data and service layers solid
+**Good Progress**: UI components created for badges and cards
+**Remaining**: Month selector, calendar heatmap, celebrations
 
 ---
 
