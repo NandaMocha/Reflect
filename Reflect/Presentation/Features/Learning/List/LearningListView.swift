@@ -94,10 +94,7 @@ struct LearningListView: View {
             }
             .sheet(isPresented: $showStreakDetail) {
                 if let viewModel = streakViewModel {
-                    Text("Streak Detail View")
-                        .font(.title)
-                        .padding()
-                    // TODO: Implement full streak detail view with calendar heatmap and badges
+                    StreakDetailView(streakViewModel: viewModel)
                 }
             }
             .onAppear {
