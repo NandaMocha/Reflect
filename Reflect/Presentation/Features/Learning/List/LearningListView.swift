@@ -106,6 +106,7 @@ struct LearningListView: View {
                 }
                 Task {
                     await streakViewModel?.loadStreakStats()
+                    await streakViewModel?.loadBadges()
                 }
             }
             .deleteConfirmationAlert(

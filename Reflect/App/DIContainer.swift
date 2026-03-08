@@ -237,7 +237,8 @@ final class DIContainer {
     func makeStreakViewModel() -> StreakViewModel {
         StreakViewModel(
             getStreakStatsUseCase: makeGetStreakStatsUseCase(),
-            calculateStreakUseCase: makeCalculateStreakUseCase()
+            calculateStreakUseCase: makeCalculateStreakUseCase(),
+            badgeRepository: makeBadgeRepository()
         )
     }
 }
