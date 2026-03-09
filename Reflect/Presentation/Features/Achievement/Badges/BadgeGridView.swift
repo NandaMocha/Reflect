@@ -48,6 +48,11 @@ struct BadgeGridView: View {
     @ViewBuilder
     private var content: some View {
         VStack(spacing: 24) {
+            // Newly Unlocked Section (shown above segmented control for both tabs)
+            if viewModel.hasNewUnlocks {
+                newlyUnlockedSection
+            }
+
             // Header with Segmented Control
             headerSection
 
@@ -81,11 +86,6 @@ struct BadgeGridView: View {
 
     private var monthlyTabContent: some View {
         VStack(spacing: 24) {
-            // Newly Unlocked Section (if any)
-            if viewModel.hasNewUnlocks {
-                newlyUnlockedSection
-            }
-
             // Reflection Calendar (full width, bigger)
             if let calendarViewModel = calendarViewModel {
                 calendarHeatmapSection(calendarViewModel)
@@ -136,18 +136,14 @@ struct BadgeGridView: View {
                     .font(.headline)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(viewModel.newlyUnlockedBadges) { badge in
-                        LandscapeBadgeCard(badge: badge) {
-                            selectedBadge = badge
-                        }
-                        .frame(width: .infinity)
+            // Simple HStack without ScrollView
+            HStack(spacing: 12) {
+                ForEach(viewModel.newlyUnlockedBadges) { badge in
+                    LandscapeBadgeCard(badge: badge) {
+                        selectedBadge = badge
                     }
                 }
-                .padding(.vertical, 4)
             }
-            .scrollIndicators(.hidden)
         }
     }
 

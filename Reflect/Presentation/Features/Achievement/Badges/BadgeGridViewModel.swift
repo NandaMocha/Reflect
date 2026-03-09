@@ -75,8 +75,19 @@ final class BadgeGridViewModel {
     }
 
     var hasNextMonth: Bool {
-        // Allow going forward to current month (or future months)
-        return true
+        // Only allow going forward if current month is before current actual month
+        let currentComponents = calendar.dateComponents([.month, .year], from: selectedMonth)
+        let todayComponents = calendar.dateComponents([.month, .year], from: Date())
+
+        guard let currentYear = currentComponents.year,
+              let currentMonth = currentComponents.month,
+              let todayYear = todayComponents.year,
+              let todayMonth = todayComponents.month else {
+            return false
+        }
+
+        // Can only go forward if selected month is strictly before current month
+        return currentYear < todayYear || (currentYear == todayYear && currentMonth < todayMonth)
     }
 
     private var earliestBadgeMonth: Date? {
