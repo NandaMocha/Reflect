@@ -176,35 +176,22 @@ struct BadgeGridView: View {
 
     // MARK: - Streak Badges Section
 
+    @ViewBuilder
     private var streakBadgesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "flame.fill")
-                    .foregroundStyle(.orange)
-
-                Text("Streak Badges")
-                    .font(.headline)
-
-                Text("(\(viewModel.selectedMonthYearString))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            let streakBadges = viewModel.streakBadgesForSelectedMonth
-            if streakBadges.isEmpty {
-                emptyStreakBadgesState
-            } else {
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12)
-                    ],
-                    spacing: 12
-                ) {
-                    ForEach(streakBadges) { badge in
-                        BadgeCard(badge: badge) {
-                            selectedBadge = badge
-                        }
+        let streakBadges = viewModel.streakBadgesForSelectedMonth
+        if streakBadges.isEmpty {
+            emptyStreakBadgesState
+        } else {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 12),
+                    GridItem(.flexible(), spacing: 12)
+                ],
+                spacing: 12
+            ) {
+                ForEach(streakBadges) { badge in
+                    BadgeCard(badge: badge) {
+                        selectedBadge = badge
                     }
                 }
             }
@@ -236,24 +223,10 @@ struct BadgeGridView: View {
     // MARK: - Calendar Heatmap Section
 
     private func calendarHeatmapSection(_ calendarViewModel: CalendarHeatmapViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundStyle(.green)
-
-                Text("Reflection Calendar")
-                    .font(.headline)
-
-                Text("(\(calendarViewModel.selectedMonthYearString))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            MonthlyCalendarHeatmap(viewModel: calendarViewModel) { newMonth in
-                // Sync badge selector month when calendar changes
-                withAnimation(.easeInOut) {
-                    viewModel.selectedMonth = newMonth
-                }
+        MonthlyCalendarHeatmap(viewModel: calendarViewModel) { newMonth in
+            // Sync badge selector month when calendar changes
+            withAnimation(.easeInOut) {
+                viewModel.selectedMonth = newMonth
             }
         }
     }

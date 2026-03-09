@@ -11,11 +11,8 @@ struct MonthlyCalendarHeatmap: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Month Header with Navigation
-            monthHeader
-
             if let heatmapData = viewModel.heatmapData {
-                // Calendar Grid
+                // Calendar Grid (no month header)
                 calendarGrid(heatmapData: heatmapData)
 
                 // Stats Row
@@ -40,29 +37,6 @@ struct MonthlyCalendarHeatmap: View {
         .onChange(of: viewModel.selectedMonth) { oldValue, newValue in
             onMonthChange?(newValue)
         }
-    }
-
-    // MARK: - Month Header
-
-    private var monthHeader: some View {
-        HStack {
-            Spacer()
-
-            // Month Label Only (no navigation buttons)
-            VStack(spacing: 2) {
-                Text(viewModel.selectedMonthYearString)
-                    .font(.headline)
-
-                if let totalReflections = viewModel.heatmapData?.reflectionCountByDay.values.reduce(0, +) {
-                    Text("\(totalReflections) reflection\(totalReflections == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 16)
     }
 
     // MARK: - Calendar Grid
