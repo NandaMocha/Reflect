@@ -32,9 +32,8 @@ struct MonthlyCalendarHeatmap: View {
                     .frame(maxWidth: .infinity, minHeight: 150)
             }
         }
-        .padding()
+        .frame(maxWidth: .infinity)
         .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
         .task {
             await viewModel.loadHeatmapData()
         }
@@ -115,7 +114,7 @@ struct MonthlyCalendarHeatmap: View {
                                 // Empty cell for padding
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(Color.clear)
-                                    .frame(width: 32, height: 32)
+                                    .frame(width: 40, height: 40)
                             }
                         }
                     }

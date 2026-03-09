@@ -1,10 +1,16 @@
 import SwiftUI
 import SwiftData
 
+enum BadgeTab {
+    case monthly
+    case permanent
+}
+
 struct BadgeGridView: View {
     @State private var viewModel: BadgeGridViewModel
     @State private var selectedBadge: Badge?
     @State private var calendarViewModel: CalendarHeatmapViewModel?
+    @State private var selectedTab: BadgeTab = .monthly
     var onBadgeTap: ((Badge) -> Void)?
 
     init(viewModel: BadgeGridViewModel, onBadgeTap: ((Badge) -> Void)? = nil) {
@@ -27,7 +33,7 @@ struct BadgeGridView: View {
         }
         .task {
             await viewModel.loadBadges()
-            // Initialize calendar view model with same month
+            // Initialize calendar view model with current month
             if calendarViewModel == nil {
                 let vm = CalendarHeatmapViewModel(modelContext: viewModel.modelContext)
                 vm.selectedMonth = viewModel.selectedMonth
@@ -42,12 +48,47 @@ struct BadgeGridView: View {
     @ViewBuilder
     private var content: some View {
         VStack(spacing: 24) {
-            // Progress Header
-            progressHeader
+            // Header with Segmented Control
+            headerSection
 
-            // Newly Unlocked Section (if any) - Landscape cards
+            // Tab Content
+            switch selectedTab {
+            case .monthly:
+                monthlyTabContent
+            case .permanent:
+                permanentTabContent
+            }
+        }
+    }
+
+    // MARK: - Header Section
+
+    private var headerSection: some View {
+        VStack(spacing: 16) {
+            Text("Your Badges")
+                .font(.title2.bold())
+
+            // Segmented Control
+            Picker("", selection: $selectedTab) {
+                Text("Monthly").tag(BadgeTab.monthly)
+                Text("Permanent").tag(BadgeTab.permanent)
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    // MARK: - Monthly Tab Content
+
+    private var monthlyTabContent: some View {
+        VStack(spacing: 24) {
+            // Newly Unlocked Section (if any)
             if viewModel.hasNewUnlocks {
                 newlyUnlockedSection
+            }
+
+            // Reflection Calendar (full width, bigger)
+            if let calendarViewModel = calendarViewModel {
+                calendarHeatmapSection(calendarViewModel)
             }
 
             // Month Selector for Streak Badges
@@ -55,54 +96,35 @@ struct BadgeGridView: View {
 
             // Streak Badges for Selected Month
             streakBadgesSection
+        }
+    }
 
-            // Calendar Heatmap Section
-            if let calendarViewModel = calendarViewModel {
-                calendarHeatmapSection(calendarViewModel)
+    // MARK: - Permanent Tab Content
+
+    private var permanentTabContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            let permanentBadges = viewModel.permanentBadges
+            if permanentBadges.isEmpty {
+                emptyAchievementBadgesState
+            } else {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 12),
+                        GridItem(.flexible(), spacing: 12)
+                    ],
+                    spacing: 12
+                ) {
+                    ForEach(sortedPermanentBadges) { badge in
+                        BadgeCard(badge: badge) {
+                            selectedBadge = badge
+                        }
+                    }
+                }
             }
-
-            // Achievement Badges (Permanent) - Section divider
-            achievementBadgesSection
         }
     }
 
     // MARK: - Sections
-
-    private var progressHeader: some View {
-        VStack(spacing: 8) {
-            Text("Your Badges")
-                .font(.title2.bold())
-
-            // Progress bar
-            VStack(spacing: 4) {
-                HStack {
-                    Text("\(viewModel.totalUnlocked) of \(viewModel.totalBadges)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Text("\(Int(viewModel.progress * 100))%")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 8)
-
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(.blue)
-                            .frame(width: geometry.size.width * viewModel.progress, height: 8)
-                            .animation(.easeInOut, value: viewModel.progress)
-                    }
-                }
-                .frame(height: 8)
-            }
-        }
-    }
 
     private var newlyUnlockedSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -242,41 +264,6 @@ struct BadgeGridView: View {
     }
 
     // MARK: - Achievement Badges Section
-
-    private var achievementBadgesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "trophy.fill")
-                    .foregroundStyle(.blue)
-
-                Text("Achievement Badges")
-                    .font(.headline)
-
-                Text("(Lifetime)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            let permanentBadges = viewModel.permanentBadges
-            if permanentBadges.isEmpty {
-                emptyAchievementBadgesState
-            } else {
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12)
-                    ],
-                    spacing: 12
-                ) {
-                    ForEach(sortedPermanentBadges) { badge in
-                        BadgeCard(badge: badge) {
-                            selectedBadge = badge
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     private var emptyAchievementBadgesState: some View {
         HStack {

@@ -113,6 +113,42 @@ enum BadgeID: String, CaseIterable, Identifiable {
         }
     }
 
+    var requirementDescription: String {
+        switch self {
+        // Streak Badges
+        case .threeDayStreak: return "3 consecutive days of reflections"
+        case .sevenDayStreak: return "7 consecutive days of reflections"
+        case .fourteenDayStreak: return "14 consecutive days of reflections"
+        case .thirtyDayStreak: return "30 consecutive days of reflections"
+
+        // Reflection Milestones
+        case .fiveReflections: return "5 reflections completed"
+        case .tenReflections: return "10 reflections completed"
+        case .twentyFiveReflections: return "25 reflections completed"
+        case .fiftyReflections: return "50 reflections completed"
+        case .hundredReflections: return "100 reflections completed"
+        case .twoHundredFiftyReflections: return "250 reflections completed"
+        case .fiveHundredReflections: return "500 reflections completed"
+        case .thousandReflections: return "1000 reflections completed"
+
+        // Media Master
+        case .tenMedia: return "10 reflections using media (photo, video, or voice)"
+        case .fiftyMedia: return "50 reflections using media (photo, video, or voice)"
+        case .hundredMedia: return "100 reflections using media (photo, video, or voice)"
+
+        // Prompt Explorer
+        case .tenPrompts: return "10 reflections with guided prompts"
+        case .fiftyPrompts: return "50 reflections with guided prompts"
+        case .hundredPrompts: return "100 reflections with guided prompts"
+
+        // Special
+        case .monthlyChampion: return "Complete 30 reflections in a single month"
+        case .quarterlyChampion: return "90-day consistency (reflections every day for 3 months)"
+        case .halfYearHero: return "180-day consistency (reflections every day for 6 months)"
+        case .perfectionist: return "Achieve 100% monthly reflection rate for a full month"
+        }
+    }
+
     var icon: String {
         switch self {
             // Streak Badges

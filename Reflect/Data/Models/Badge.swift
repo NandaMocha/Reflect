@@ -102,4 +102,16 @@ final class Badge {
         let date = Calendar.current.date(from: DateComponents(year: year, month: month)) ?? Date()
         return formatter.string(from: date)
     }
+
+    // MARK: - Helper Methods
+
+    var howToAchieve: String {
+        // Try to match BadgeID and get its requirement description
+        if let badgeID = BadgeID.allCases.first(where: { $0.rawValue == id }) {
+            return badgeID.requirementDescription
+        }
+
+        // Fallback to description if no match found
+        return badgeDescription
+    }
 }

@@ -10,12 +10,12 @@ struct HeatmapDayCell: View {
             // Background color based on reflection count
             RoundedRectangle(cornerRadius: 2)
                 .fill(backgroundColor)
-                .frame(width: 32, height: 32)
+                .frame(width: 40, height: 40)
 
             // Day number
             if let day = day {
                 Text("\(day)")
-                    .font(.system(size: 10, weight: isToday ? .bold : .regular))
+                    .font(.system(size: 12, weight: isToday ? .bold : .regular))
                     .foregroundStyle(isToday ? .white : textColor)
             }
         }

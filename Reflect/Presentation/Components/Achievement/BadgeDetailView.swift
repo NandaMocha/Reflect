@@ -23,6 +23,9 @@ struct BadgeDetailView: View {
                             .multilineTextAlignment(.center)
                     }
 
+                    // How to Achieve Section
+                    howToAchieveSection
+
                     // Status Info
                     VStack(spacing: 12) {
                         statusCard
@@ -112,6 +115,29 @@ struct BadgeDetailView: View {
             }
         }
         .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var howToAchieveSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "info.circle.fill")
+                    .foregroundStyle(.blue)
+
+                Text("How to Achieve")
+                    .font(.headline)
+            }
+
+            Text(badge.howToAchieve)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+
+            Spacer()
+                .frame(height: 1)
+        }
+        .padding(16)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
