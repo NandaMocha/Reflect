@@ -293,6 +293,11 @@ enum BadgeID: String, CaseIterable, Identifiable {
 enum BadgeType: String, Codable {
     case monthlyStreak = "monthly_streak"    // Repeatable each month
     case permanent = "permanent"              // Earned once, kept forever
+
+    // MARK: - Backward Compatibility
+
+    @available(*, deprecated, message: "Use monthlyStreak instead. This case exists only for migrating old data.")
+    case repeatedStreak = "repeated_streak"  // Old name, migrated to monthlyStreak
 }
 
 enum BadgeCategory: String, Codable {

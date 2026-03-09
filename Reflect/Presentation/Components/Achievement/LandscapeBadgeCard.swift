@@ -69,7 +69,7 @@ struct LandscapeBadgeCard: View {
 
     private var accentColor: Color {
         switch badge.type {
-        case .monthlyStreak:
+        case .monthlyStreak, .repeatedStreak:
             return .orange
         case .permanent:
             return .blue

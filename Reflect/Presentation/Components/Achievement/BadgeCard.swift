@@ -91,7 +91,7 @@ struct BadgeCard: View {
     private var accentColor: Color {
         // Return different colors based on badge type
         switch badge.type {
-        case .monthlyStreak:
+        case .monthlyStreak, .repeatedStreak:
             return .orange
         case .permanent:
             return .blue

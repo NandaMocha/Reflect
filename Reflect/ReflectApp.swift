@@ -118,7 +118,20 @@ struct ReflectApp: App {
     }
 
     private func migrateBadgesIfNeeded(existingBadges: [Badge], context: ModelContext) {
-        // Check if we have old badge IDs
+        var needsSave = false
+
+        // Migration 1: Convert old .repeatedStreak to .monthlyStreak
+        let badgesWithOldType = existingBadges.filter { $0.type == .repeatedStreak }
+        if !badgesWithOldType.isEmpty {
+            print("🔄 Migrating \(badgesWithOldType.count) badges from repeatedStreak to monthlyStreak...")
+            for badge in badgesWithOldType {
+                badge.type = .monthlyStreak
+                badge.updatedAt = Date()
+                needsSave = true
+            }
+        }
+
+        // Migration 2: Check if we have old badge IDs
         let currentBadgeIDs = Set(BadgeID.allCases.map { $0.rawValue })
         let oldBadges = existingBadges.filter { !currentBadgeIDs.contains($0.id) }
 
@@ -129,6 +142,7 @@ struct ReflectApp: App {
             for badge in oldBadges {
                 context.delete(badge)
             }
+            needsSave = true
 
             // Create any missing new badges
             let existingIDs = Set(existingBadges.map { $0.id })
@@ -142,9 +156,13 @@ struct ReflectApp: App {
                 }
             }
 
+            print("✅ Migration complete: Deleted \(oldBadges.count) old badges, created \(createdCount) new badges")
+        }
+
+        if needsSave {
             do {
                 try context.save()
-                print("✅ Migration complete: Deleted \(oldBadges.count) old badges, created \(createdCount) new badges")
+                print("✅ Badge migration saved successfully")
             } catch {
                 print("❌ Failed to save migration: \(error)")
             }
