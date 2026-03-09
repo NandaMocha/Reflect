@@ -149,9 +149,6 @@ struct ReflectionEditorView: View {
                     setupNotificationObservers()
                     os_log("📱 [PERF] ReflectionEditorView onAppear completed in %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - viewStartTime) * 1000)
                 }
-                .onDisappear {
-                    NotificationCenter.default.removeObserver(self)
-                }
                 .celebration(isPresented: $showCelebration, trigger: celebrationTrigger)
         }
     }

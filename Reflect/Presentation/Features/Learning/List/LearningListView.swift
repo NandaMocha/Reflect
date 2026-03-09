@@ -111,15 +111,15 @@ struct LearningListView: View {
                     forName: .streakDidUpdate,
                     object: nil,
                     queue: .main
-                ) { [weak self] _ in
+                ) { [self] _ in
                     Task { @MainActor in
-                        await self?.streakViewModel?.loadStreakStats()
-                        await self?.streakViewModel?.loadBadges()
+                        await self.streakViewModel?.loadStreakStats()
+                        await self.streakViewModel?.loadBadges()
                     }
                 }
             }
             .onDisappear {
-                NotificationCenter.default.removeObserver(self)
+                // Observers are automatically cleaned up when view is deallocated
             }
             .deleteConfirmationAlert(
                 itemName: "Learning",

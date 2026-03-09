@@ -194,9 +194,8 @@ extension ReflectionEditorView {
             forName: .streakDidUpdate,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
-            guard let self = self,
-                  let userInfo = notification.userInfo,
+        ) { [self] notification in
+            guard let userInfo = notification.userInfo,
                   let celebrationTrigger = userInfo["celebrationTrigger"] as? BadgeUnlockEvent.CelebrationTrigger,
                   let unlockedBadges = userInfo["unlockedBadges"] as? [BadgeID] else {
                 return
