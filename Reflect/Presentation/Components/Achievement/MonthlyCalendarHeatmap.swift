@@ -45,24 +45,10 @@ struct MonthlyCalendarHeatmap: View {
     // MARK: - Month Header
 
     private var monthHeader: some View {
-        HStack(spacing: 16) {
-            // Previous Month
-            Button(action: {
-                if let newMonth = Calendar.current.date(byAdding: .month, value: -1, to: viewModel.selectedMonth) {
-                    withAnimation(.easeInOut) {
-                        viewModel.selectedMonth = newMonth
-                    }
-                }
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.title3)
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-            }
-
+        HStack {
             Spacer()
 
-            // Month Label
+            // Month Label Only (no navigation buttons)
             VStack(spacing: 2) {
                 Text(viewModel.selectedMonthYearString)
                     .font(.headline)
@@ -75,21 +61,8 @@ struct MonthlyCalendarHeatmap: View {
             }
 
             Spacer()
-
-            // Next Month
-            Button(action: {
-                if let newMonth = Calendar.current.date(byAdding: .month, value: 1, to: viewModel.selectedMonth) {
-                    withAnimation(.easeInOut) {
-                        viewModel.selectedMonth = newMonth
-                    }
-                }
-            }) {
-                Image(systemName: "chevron.right")
-                    .font(.title3)
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-            }
         }
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Calendar Grid
