@@ -29,7 +29,6 @@ struct BadgeGridView: View {
                     content
                 }
             }
-            .padding()
         }
         .task {
             await viewModel.loadBadges()
