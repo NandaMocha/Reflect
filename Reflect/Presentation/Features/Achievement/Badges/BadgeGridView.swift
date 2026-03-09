@@ -85,13 +85,13 @@ struct BadgeGridView: View {
 
     private var monthlyTabContent: some View {
         VStack(spacing: 24) {
+            // Month Selector (shown first, above calendar)
+            monthSelectorSection
+
             // Reflection Calendar (full width, bigger)
             if let calendarViewModel = calendarViewModel {
                 calendarHeatmapSection(calendarViewModel)
             }
-
-            // Month Selector for Streak Badges
-            monthSelectorSection
 
             // Streak Badges for Selected Month
             streakBadgesSection
