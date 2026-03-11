@@ -88,9 +88,9 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
         // Special
         case .monthlyChampion: return "Completed your first full month of journaling"
-        case .quarterlyChampion: return "90 days of unwavering consistency"
-        case .halfYearHero: return "180 days of dedication - extraordinary!"
-        case .perfectionist: return "Flawless consistency - 30 days in a row"
+        case .quarterlyChampion: return "90 total reflections"
+        case .halfYearHero: return "180 total reflections"
+        case .perfectionist: return "30+ reflections in a single month"
         }
     }
 
@@ -118,9 +118,9 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
         // Special
         case .monthlyChampion: return "Complete 30 reflections in a single month"
-        case .quarterlyChampion: return "90-day consistency (reflections every day for 3 months)"
-        case .halfYearHero: return "180-day consistency (reflections every day for 6 months)"
-        case .perfectionist: return "Achieve 100% monthly reflection rate for a full month"
+        case .quarterlyChampion: return "Complete 90 total reflections"
+        case .halfYearHero: return "Complete 180 total reflections"
+        case .perfectionist: return "Achieve 30+ reflections in a single month"
         }
     }
 
