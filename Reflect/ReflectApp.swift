@@ -119,7 +119,25 @@ struct ReflectApp: App {
     private func migrateBadgesIfNeeded(existingBadges: [Badge], context: ModelContext) {
         var needsSave = false
 
-        // Migration: Check if we have old badge IDs
+        // Migration 1: Remove streak badges (3-day, 7-day, 14-day, 30-day streaks)
+        let streakBadgeIDs = [
+            "3day-streak",
+            "7day-streak",
+            "14day-streak",
+            "30day-streak"
+        ]
+        let streakBadges = existingBadges.filter { streakBadgeIDs.contains($0.id) }
+
+        if !streakBadges.isEmpty {
+            print("🔄 Found \(streakBadges.count) streak badges. Removing...")
+            for badge in streakBadges {
+                context.delete(badge)
+            }
+            needsSave = true
+            print("✅ Removed \(streakBadges.count) streak badges")
+        }
+
+        // Migration 2: Check if we have other old badge IDs
         let currentBadgeIDs = Set(BadgeID.allCases.map { $0.rawValue })
         let oldBadges = existingBadges.filter { !currentBadgeIDs.contains($0.id) }
 
@@ -132,19 +150,24 @@ struct ReflectApp: App {
             }
             needsSave = true
 
-            // Create any missing new badges
-            let existingIDs = Set(existingBadges.map { $0.id })
-            var createdCount = 0
+            print("✅ Deleted \(oldBadges.count) old badges")
+        }
 
-            for badgeID in BadgeID.allCases {
-                if badgeID.badgeType == .permanent && !existingIDs.contains(badgeID.rawValue) {
-                    let badge = Badge(from: badgeID)
-                    context.insert(badge)
-                    createdCount += 1
-                }
+        // Migration 3: Create any missing new badges
+        let existingIDs = Set(existingBadges.map { $0.id })
+        var createdCount = 0
+
+        for badgeID in BadgeID.allCases {
+            if badgeID.badgeType == .permanent && !existingIDs.contains(badgeID.rawValue) {
+                let badge = Badge(from: badgeID)
+                context.insert(badge)
+                createdCount += 1
             }
+        }
 
-            print("✅ Migration complete: Deleted \(oldBadges.count) old badges, created \(createdCount) new badges")
+        if createdCount > 0 {
+            needsSave = true
+            print("✅ Created \(createdCount) new badges")
         }
 
         if needsSave {
