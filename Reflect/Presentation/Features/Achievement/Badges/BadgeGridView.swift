@@ -1,16 +1,9 @@
 import SwiftUI
 import SwiftData
 
-enum BadgeTab {
-    case monthly
-    case permanent
-}
-
 struct BadgeGridView: View {
     @State private var viewModel: BadgeGridViewModel
     @State private var selectedBadge: Badge?
-    @State private var calendarViewModel: CalendarHeatmapViewModel?
-    @State private var selectedTab: BadgeTab = .monthly
     var onBadgeTap: ((Badge) -> Void)?
 
     init(viewModel: BadgeGridViewModel, onBadgeTap: ((Badge) -> Void)? = nil) {
@@ -22,22 +15,17 @@ struct BadgeGridView: View {
         ScrollView {
             VStack(spacing: 24) {
                 if viewModel.isLoading {
-                    ProgressView("Loading badges...")
+                    ProgressView("Loading achievements...")
                 } else if viewModel.badges.isEmpty {
                     emptyState
                 } else {
                     content
                 }
             }
+            .padding()
         }
         .task {
             await viewModel.loadBadges()
-            // Initialize calendar view model with current month
-            if calendarViewModel == nil {
-                let vm = CalendarHeatmapViewModel(modelContext: viewModel.modelContext)
-                vm.selectedMonth = viewModel.selectedMonth
-                calendarViewModel = vm
-            }
         }
         .sheet(item: $selectedBadge) { badge in
             BadgeDetailView(badge: badge)
@@ -47,60 +35,66 @@ struct BadgeGridView: View {
     @ViewBuilder
     private var content: some View {
         VStack(spacing: 24) {
-            // Newly Unlocked Section (shown above segmented control for both tabs)
-            if viewModel.hasNewUnlocks {
-                newlyUnlockedSection
+            // Achievement Count Header
+            achievementCountHeader
+
+            // Latest Achieved (single landscape card)
+            if let latestAchievement = viewModel.latestAchievement {
+                latestAchievedSection(latestAchievement)
             }
 
-            // Header with Segmented Control
-            headerSection
-
-            // Tab Content
-            switch selectedTab {
-            case .monthly:
-                monthlyTabContent
-            case .permanent:
-                permanentTabContent
-            }
+            // All Achievements (2-column grid)
+            allAchievementsGrid
         }
     }
 
-    // MARK: - Header Section
+    // MARK: - Achievement Count Header
 
-    private var headerSection: some View {
-        VStack(spacing: 16) {
-            Text("Your Badges")
-                .font(.title2.bold())
+    private var achievementCountHeader: some View {
+        HStack {
+            Text("\(viewModel.totalUnlocked)")
+                .font(.system(size: 48, weight: .bold))
+                .foregroundStyle(.blue)
 
-            // Segmented Control
-            Picker("", selection: $selectedTab) {
-                Text("Monthly").tag(BadgeTab.monthly)
-                Text("Permanent").tag(BadgeTab.permanent)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Achievements")
+                    .font(.title2.bold())
+
+                Text("of \(viewModel.totalBadges) unlocked")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .pickerStyle(.segmented)
+
+            Spacer()
         }
     }
 
-    // MARK: - Monthly Tab Content
+    // MARK: - Latest Achieved Section
 
-    private var monthlyTabContent: some View {
-        VStack(spacing: 24) {
-            // Month Selector (shown first, above calendar)
-            monthSelectorSection
-
-            // Reflection Calendar (full width, bigger)
-            if let calendarViewModel = calendarViewModel {
-                calendarHeatmapSection(calendarViewModel)
-            }
-        }
-    }
-
-    // MARK: - Permanent Tab Content
-
-    private var permanentTabContent: some View {
+    private func latestAchievedSection(_ achievement: Badge) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            let permanentBadges = viewModel.permanentBadges
-            if permanentBadges.isEmpty {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.orange)
+
+                Text("Latest Achieved")
+                    .font(.headline)
+            }
+
+            LandscapeBadgeCard(badge: achievement) {
+                selectedBadge = achievement
+            }
+        }
+    }
+
+    // MARK: - All Achievements Grid
+
+    private var allAchievementsGrid: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("All Achievements")
+                .font(.headline)
+
+            if viewModel.badges.isEmpty {
                 emptyAchievementBadgesState
             } else {
                 LazyVGrid(
@@ -110,8 +104,8 @@ struct BadgeGridView: View {
                     ],
                     spacing: 12
                 ) {
-                    ForEach(sortedPermanentBadges) { badge in
-                        BadgeCard(badge: badge) {
+                    ForEach(sortedAchievements) { badge in
+                        AchievementCard(badge: badge) {
                             selectedBadge = badge
                         }
                     }
@@ -120,103 +114,18 @@ struct BadgeGridView: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Sorting
 
-    private var newlyUnlockedSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(.orange)
-
-                Text("Recently Unlocked")
-                    .font(.headline)
-            }
-
-            // Simple HStack without ScrollView
-            HStack(spacing: 12) {
-                ForEach(viewModel.newlyUnlockedBadges) { badge in
-                    LandscapeBadgeCard(badge: badge) {
-                        selectedBadge = badge
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Month Selector Section
-
-    private var monthSelectorSection: some View {
-        MonthSelectorView(
-            currentMonth: viewModel.selectedMonth,
-            hasPrevious: viewModel.hasPreviousMonth,
-            hasNext: viewModel.hasNextMonth,
-            onPrevious: {
-                withAnimation(.easeInOut) {
-                    viewModel.selectPreviousMonth()
-                    // Sync calendar month
-                    if var calendarVM = calendarViewModel {
-                        calendarVM.selectedMonth = viewModel.selectedMonth
-                    }
-                }
-            },
-            onNext: {
-                withAnimation(.easeInOut) {
-                    viewModel.selectNextMonth()
-                    // Sync calendar month
-                    if var calendarVM = calendarViewModel {
-                        calendarVM.selectedMonth = viewModel.selectedMonth
-                    }
-                }
-            }
-        )
-    }
-
-    // MARK: - Calendar Heatmap Section
-
-    private func calendarHeatmapSection(_ calendarViewModel: CalendarHeatmapViewModel) -> some View {
-        MonthlyCalendarHeatmap(viewModel: calendarViewModel) { newMonth in
-            // Sync badge selector month when calendar changes
-            withAnimation(.easeInOut) {
-                viewModel.selectedMonth = newMonth
-            }
-        }
-    }
-
-    // MARK: - Achievement Badges Section
-
-    private var emptyAchievementBadgesState: some View {
-        HStack {
-            VStack(spacing: 8) {
-                Image(systemName: "medal")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-
-                Text("No achievement badges yet")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text("Keep reflecting to earn milestones!")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(.vertical, 16)
-        .background(Color(.tertiarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    // Permanent badges sorted: unlocked first (by difficulty), then locked (by difficulty)
-    private var sortedPermanentBadges: [Badge] {
-        let badges = viewModel.permanentBadges
+    private var sortedAchievements: [Badge] {
+        let badges = viewModel.badges
 
         // Separate into unlocked and locked
         let unlocked = badges.filter { $0.isUnlocked }
         let locked = badges.filter { !$0.isUnlocked }
 
-        // Sort unlocked by difficulty (easiest first)
+        // Sort unlocked by unlocked date (most recent first)
         let sortedUnlocked = unlocked.sorted { badge1, badge2 in
-            badgeDifficultyOrder(badge1) < badgeDifficultyOrder(badge2)
+            (badge1.unlockedAt ?? .distantPast) > (badge2.unlockedAt ?? .distantPast)
         }
 
         // Sort locked by difficulty (easiest first)
@@ -224,18 +133,13 @@ struct BadgeGridView: View {
             badgeDifficultyOrder(badge1) < badgeDifficultyOrder(badge2)
         }
 
-        // Return: all unlocked first, then locked
+        // Return: all unlocked first (by recency), then locked (by difficulty)
         return sortedUnlocked + sortedLocked
     }
 
     // Badge difficulty order: easiest (1) to hardest (10)
     private func badgeDifficultyOrder(_ badge: Badge) -> Int {
         let difficultyMap: [String: Int] = [
-            // Streak badges
-            "3day-streak": 2,
-            "7day-streak": 3,
-            "14day-streak": 4,
-            "30day-streak": 5,
             // Special achievements
             "monthly-champion": 6,
             "perfectionist": 7,
@@ -262,21 +166,142 @@ struct BadgeGridView: View {
         return difficultyMap[badge.id] ?? 999
     }
 
+    // MARK: - Empty States
+
+    private var emptyAchievementBadgesState: some View {
+        HStack {
+            VStack(spacing: 8) {
+                Image(systemName: "medal")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+
+                Text("No achievements yet")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text("Keep reflecting to earn milestones!")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 16)
+        .background(Color(.tertiarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "medal")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
-            Text("No Badges Yet")
+            Text("No Achievements Yet")
                 .font(.headline)
 
-            Text("Start reflecting to earn your first badge!")
+            Text("Start reflecting to earn your first achievement!")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.vertical, 32)
+    }
+}
+
+// MARK: - Achievement Card (Square)
+
+struct AchievementCard: View {
+    let badge: Badge
+    let onTap: () -> Void
+
+    private var requiredCount: Int {
+        // Get required count from BadgeID
+        if let badgeID = BadgeID(rawValue: badge.id) {
+            return badgeID.requiredCount
+        }
+        return 1 // Default fallback
+    }
+
+    private var currentProgress: Int {
+        badge.unlockedCount
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            // Achievement Icon
+            Text(badge.icon)
+                .font(.system(size: 48))
+                .foregroundStyle(badge.isUnlocked ? .blue : .secondary)
+                .frame(width: 80, height: 80)
+
+            // Achievement Title
+            Text(badge.name)
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+
+            // Short Description
+            Text(badge.badgeDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+
+            // Progress Indicator
+            AchievementProgressBar(
+                current: currentProgress,
+                target: requiredCount
+            )
+            .frame(height: 8)
+
+            // Current/Target Text
+            Text("\(currentProgress)/\(requiredCount)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .onTapGesture(perform: onTap)
+    }
+}
+
+// MARK: - Achievement Progress Bar
+
+struct AchievementProgressBar: View {
+    let current: Int
+    let target: Int
+
+    var progress: Double {
+        guard target > 0 else { return 0 }
+        return min(Double(current) / Double(target), 1.0)
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // Background
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(.tertiarySystemFill))
+
+                // Progress
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(progressColor)
+                    .frame(width: geometry.size.width * progress)
+            }
+        }
+    }
+
+    private var progressColor: Color {
+        if progress >= 1.0 {
+            return .green
+        } else if progress >= 0.5 {
+            return .blue
+        } else {
+            return .orange
+        }
     }
 }
 
