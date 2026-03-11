@@ -100,9 +100,12 @@ struct ReflectApp: App {
 
     private func createNewBadges(context: ModelContext) {
         var createdCount = 0
+        print("🎯 Creating badges for all achievements...")
+
         for badgeID in BadgeID.allCases {
             if badgeID.badgeType == .permanent {
                 let badge = Badge(from: badgeID)
+                print("   → Creating: \(badge.name) (ID: \(badge.id))")
                 context.insert(badge)
                 createdCount += 1
             }
@@ -111,6 +114,17 @@ struct ReflectApp: App {
         do {
             try context.save()
             print("✅ Created \(createdCount) permanent badges")
+
+            // Verify badges were created and persisted
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let descriptor = FetchDescriptor<Badge>()
+                if let fetchedBadges = try? context.fetch(descriptor) {
+                    print("✅ Verification: \(fetchedBadges.count) badges in database")
+                    for badge in fetchedBadges {
+                        print("   - \(badge.name): unlockedCount=\(badge.unlockedCount), isUnlocked=\(badge.isUnlocked)")
+                    }
+                }
+            }
         } catch {
             print("❌ Failed to save badges: \(error)")
         }

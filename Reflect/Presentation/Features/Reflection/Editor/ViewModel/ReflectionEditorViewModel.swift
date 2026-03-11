@@ -61,10 +61,19 @@ final class ReflectionEditorViewModel {
         let reflectionRepo = ReflectionRepository(modelContext: modelContext)
         let learningRepo = LearningRepository(modelContext: modelContext)
 
+        // Create badge evaluation service
+        let badgeEvaluationService = BadgeEvaluationService()
+        let badgeRepo = BadgeRepository(modelContext: modelContext)
+        let evaluateBadgesUseCase = EvaluateBadgesUseCase(
+            badgeEvaluationService: badgeEvaluationService,
+            badgeRepository: badgeRepo
+        )
+
         self.createUseCase = createUseCase ?? CreateReflectionUseCase(
             reflectionRepository: reflectionRepo,
             learningRepository: learningRepo,
-            imageService: ImageProcessingService.shared
+            imageService: ImageProcessingService.shared,
+            evaluateBadgesUseCase: evaluateBadgesUseCase
         )
         self.updateUseCase = updateUseCase ?? UpdateReflectionUseCase(
             reflectionRepository: reflectionRepo,

@@ -69,7 +69,7 @@ struct LearningListView: View {
                         HapticManager.shared.lightImpact()
                         showSettings = true
                     } label: {
-                        Image(systemName: "person.circle")
+                        Image(systemName: "gearshape")
                             .font(.title3)
                     }
                 }

@@ -54,15 +54,15 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    sortingMenu
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                }
-            }
-        }
+//        .toolbar {
+//            ToolbarItem(placement: .primaryAction) {
+//                Menu {
+//                    sortingMenu
+//                } label: {
+//                    Image(systemName: "line.3.horizontal.decrease.circle")
+//                }
+//            }
+//        }
         .searchable(text:Binding(
             get: { viewModel?.searchQuery ?? "" },
             set: { newValue in
