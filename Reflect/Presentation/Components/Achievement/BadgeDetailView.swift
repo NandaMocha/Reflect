@@ -4,6 +4,17 @@ struct BadgeDetailView: View {
     let badge: Badge
     @Environment(\.dismiss) var dismiss
 
+    private var requiredCount: Int {
+        if let badgeID = BadgeID(rawValue: badge.id) {
+            return badgeID.requiredCount
+        }
+        return 1
+    }
+
+    private var currentProgress: Int {
+        badge.unlockedCount
+    }
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -23,6 +34,11 @@ struct BadgeDetailView: View {
                             .multilineTextAlignment(.center)
                     }
 
+                    // Progress Section (if not unlocked or has progress)
+                    if !badge.isUnlocked || currentProgress > requiredCount {
+                        progressSection
+                    }
+
                     // How to Achieve Section
                     howToAchieveSection
 
@@ -40,7 +56,7 @@ struct BadgeDetailView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 40)
             }
-            .navigationTitle("Badge Details")
+            .navigationTitle("Achievement Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -59,10 +75,53 @@ struct BadgeDetailView: View {
                 .frame(width: 120, height: 120)
 
             Image(systemName: badge.icon)
-                .font(.system(size: 40))
+                .font(.system(size: 50))
                 .foregroundStyle(iconColor)
         }
         .shadow(color: iconColor.opacity(0.3), radius: 10)
+    }
+
+    private var progressSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .foregroundStyle(.blue)
+
+                Text("Progress")
+                    .font(.headline)
+            }
+
+            // Progress Bar
+            AchievementProgressBar(
+                current: currentProgress,
+                target: requiredCount
+            )
+            .frame(height: 12)
+
+            // Progress Text
+            HStack {
+                Text("\(currentProgress) of \(requiredCount)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if badge.isUnlocked {
+                    Text("✓ Completed")
+                        .font(.subheadline)
+                        .foregroundStyle(.green)
+                        .fontWeight(.semibold)
+                } else {
+                    let remaining = requiredCount - currentProgress
+                    Text("\(remaining) remaining")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var statusCard: some View {
@@ -76,7 +135,7 @@ struct BadgeDetailView: View {
                     .font(.headline)
                     .foregroundStyle(badge.isUnlocked ? .green : .gray)
 
-                Text(badge.isUnlocked ? "You've earned this badge!" : "Keep reflecting to unlock this badge")
+                Text(badge.isUnlocked ? "You've earned this achievement!" : "Keep reflecting to unlock this achievement")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -120,7 +179,7 @@ struct BadgeDetailView: View {
     }
 
     private var howToAchieveSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "info.circle.fill")
                     .foregroundStyle(.blue)
@@ -129,17 +188,22 @@ struct BadgeDetailView: View {
                     .font(.headline)
             }
 
-            Text(badge.howToAchieve)
+            Text(requirementDescription)
                 .font(.body)
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
-
-            Spacer()
-                .frame(height: 1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var requirementDescription: String {
+        if let badgeID = BadgeID(rawValue: badge.id) {
+            return badgeID.requirementDescription
+        }
+        return badge.badgeDescription
     }
 
     private var iconBackgroundColor: Color {
@@ -169,7 +233,9 @@ struct BadgeDetailView: View {
 #Preview {
     BadgeDetailView(badge: {
         let badge = Badge(from: .fiveReflections)
-        badge.unlock()
+        badge.isUnlocked = true
+        badge.unlockedCount = 5
+        badge.unlockedAt = Date()
         return badge
     }())
 }

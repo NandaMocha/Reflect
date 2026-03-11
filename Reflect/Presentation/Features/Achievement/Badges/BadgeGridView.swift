@@ -229,8 +229,8 @@ struct AchievementCard: View {
     var body: some View {
         VStack(spacing: 8) {
             // Achievement Icon
-            Text(badge.icon)
-                .font(.system(size: 48))
+            Image(systemName: badge.icon)
+                .font(.system(size: 44))
                 .foregroundStyle(badge.isUnlocked ? .blue : .secondary)
                 .frame(width: 80, height: 80)
 

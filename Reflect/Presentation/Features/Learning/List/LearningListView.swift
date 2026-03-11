@@ -284,8 +284,8 @@ struct LearningListView: View {
                     if !latestAchievements.isEmpty {
                         HStack(spacing: 8) {
                             ForEach(latestAchievements.prefix(4)) { badge in
-                                Text(badge.icon)
-                                    .font(.system(size: 24))
+                                Image(systemName: badge.icon)
+                                    .font(.system(size: 20, weight: .semibold))
                                     .foregroundStyle(.blue)
                                     .frame(width: 40, height: 40)
                                     .background(Color.blue.opacity(0.1))
