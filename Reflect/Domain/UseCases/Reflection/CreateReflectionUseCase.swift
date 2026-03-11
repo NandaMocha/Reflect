@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 protocol CreateReflectionUseCaseProtocol {
     func execute(input: CreateReflectionInput) async throws -> Reflection
@@ -8,15 +9,18 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
     private let reflectionRepository: ReflectionRepositoryProtocol
     private let learningRepository: LearningRepositoryProtocol
     private let imageService: ImageProcessingServiceProtocol
+    private let evaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol?
 
     init(
         reflectionRepository: ReflectionRepositoryProtocol,
         learningRepository: LearningRepositoryProtocol,
-        imageService: ImageProcessingServiceProtocol
+        imageService: ImageProcessingServiceProtocol,
+        evaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol? = nil
     ) {
         self.reflectionRepository = reflectionRepository
         self.learningRepository = learningRepository
         self.imageService = imageService
+        self.evaluateBadgesUseCase = evaluateBadgesUseCase
     }
 
     func execute(input: CreateReflectionInput) async throws -> Reflection {
@@ -34,6 +38,11 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
             plainTextContent: input.content
         )
         reflection.learning = learning
+
+        // Store prompt ID if provided
+        if let promptID = input.promptID {
+            reflection.promptID = promptID
+        }
 
         // Process images (async)
         for (index, imageInput) in input.images.enumerated() {
@@ -62,6 +71,25 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
         }
 
         try await reflectionRepository.create(reflection)
+
+        // Evaluate badges after reflection is created
+        if let evaluateBadgesUseCase = evaluateBadgesUseCase,
+           let modelContext = input.modelContext {
+            let newlyUnlockedBadges = try? await evaluateBadgesUseCase.execute(
+                input: EvaluateBadgesInput(modelContext: modelContext, newReflection: reflection)
+            )
+
+            // Post notification for newly unlocked badges
+            if let unlockedBadges = newlyUnlockedBadges, !unlockedBadges.isEmpty {
+                NotificationCenter.default.post(
+                    name: .badgesDidUnlock,
+                    object: unlockedBadges
+                )
+            }
+
+            // Post notification for progress update
+            NotificationCenter.default.post(name: .badgeProgressDidUpdate, object: nil)
+        }
 
         return reflection
     }

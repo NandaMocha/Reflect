@@ -10,6 +10,7 @@ final class ReflectionEditorViewModel {
     var title: String = ""
     var content: String = ""
     var selectedLearning: Learning?
+    var promptID: String? = nil  // ID of the prompt if reflection was created from a prompt
     var images: [ImageInput] = []
     var videos: [VideoInput] = []
     var voiceRecordings: [VoiceRecordingInput] = []
@@ -39,7 +40,7 @@ final class ReflectionEditorViewModel {
     var existingVideoIds: Set<UUID> = []
 
     // MARK: - Dependencies
-    private let modelContext: ModelContext
+    let modelContext: ModelContext  // Made internal for use in extensions
     let createUseCase: CreateReflectionUseCaseProtocol
     let updateUseCase: UpdateReflectionUseCaseProtocol
     let imageService: ImageProcessingServiceProtocol

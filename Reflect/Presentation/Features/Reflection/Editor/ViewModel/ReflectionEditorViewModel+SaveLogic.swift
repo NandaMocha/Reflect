@@ -21,8 +21,10 @@ extension ReflectionEditorViewModel {
                     title: title.trimmingCharacters(in: .whitespaces),
                     content: content.trimmingCharacters(in: .whitespaces),
                     learningId: selectedLearning?.id,
+                    promptID: promptID,
                     images: images,
-                    voiceRecordings: voiceRecordings
+                    voiceRecordings: voiceRecordings,
+                    modelContext: modelContext
                 )
                 try await createUseCase.execute(input: input)
 

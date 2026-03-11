@@ -31,6 +31,7 @@ final class Reflection {
     var locationName: String?
 
     var submittedDate: Date? = nil
+    var promptID: String? = nil  // ID of the prompt if reflection was created from a prompt
 
     init(
         id: UUID = UUID(),

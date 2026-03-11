@@ -1,25 +1,32 @@
 import Foundation
 import UIKit
+import SwiftData
 
 struct CreateReflectionInput {
     var title: String
     var content: String
     var learningId: UUID?
+    var promptID: String?  // ID of the prompt if reflection was created from a prompt
     var images: [ImageInput]
     var voiceRecordings: [VoiceRecordingInput]
+    var modelContext: ModelContext?  // Context for badge evaluation
 
     init(
         title: String = "",
         content: String = "",
         learningId: UUID? = nil,
+        promptID: String? = nil,
         images: [ImageInput] = [],
-        voiceRecordings: [VoiceRecordingInput] = []
+        voiceRecordings: [VoiceRecordingInput] = [],
+        modelContext: ModelContext? = nil
     ) {
         self.title = title
         self.content = content
         self.learningId = learningId
+        self.promptID = promptID
         self.images = images
         self.voiceRecordings = voiceRecordings
+        self.modelContext = modelContext
     }
 
     var isValid: Bool {

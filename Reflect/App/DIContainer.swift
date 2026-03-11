@@ -70,7 +70,8 @@ final class DIContainer {
         CreateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            imageService: makeImageProcessingService()
+            imageService: makeImageProcessingService(),
+            evaluateBadgesUseCase: makeEvaluateBadgesUseCase()
         )
     }
 
@@ -120,6 +121,15 @@ final class DIContainer {
 
     func makeBadgeEvaluationService() -> BadgeEvaluationService {
         BadgeEvaluationService()
+    }
+
+    // MARK: - Use Cases - Achievement
+
+    func makeEvaluateBadgesUseCase() -> EvaluateBadgesUseCaseProtocol {
+        EvaluateBadgesUseCase(
+            badgeEvaluationService: makeBadgeEvaluationService(),
+            badgeRepository: makeBadgeRepository()
+        )
     }
 
     // MARK: - ViewModels
