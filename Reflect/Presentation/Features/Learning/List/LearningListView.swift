@@ -19,6 +19,10 @@ struct LearningListView: View {
     @State var showDeleteAlert = false
     @State var showSettings = false
     @State var isRestoringState = true
+    @State var showAchievementGallery = false
+
+    // Achievement State
+    @State private var badges: [Badge] = []
 
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
@@ -88,6 +92,21 @@ struct LearningListView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showAchievementGallery) {
+                let viewModel = BadgeGridViewModel(modelContext: modelContext)
+                NavigationView {
+                    BadgeGridView(viewModel: viewModel)
+                        .navigationTitle("Achievements")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") {
+                                    showAchievementGallery = false
+                                }
+                            }
+                        }
+                }
+            }
             .onDisappear {
                 // Observers are automatically cleaned up when view is deallocated
             }
@@ -104,7 +123,14 @@ struct LearningListView: View {
             }
         }
         .onAppear {
+            loadBadges()
             restoreState()
+        }
+        .onChange(of: showAchievementGallery) { _, newValue in
+            if !newValue {
+                // Reload badges when gallery is dismissed
+                loadBadges()
+            }
         }
         .onChange(of: widgetAction) { _, action in
             handleWidgetAction(action)
@@ -188,6 +214,9 @@ struct LearningListView: View {
 
     var learningList: some View {
         List {
+            // Achievement Entry Section
+            achievementEntrySection
+
             ForEach(filteredLearnings) { learning in
                 ZStack {
                     NavigationLink(value: learning) { EmptyView() }
@@ -224,6 +253,74 @@ struct LearningListView: View {
             try? modelContext.save()
             HapticManager.shared.success()
         }
+    }
+
+    // MARK: - Achievement Entry Section
+
+    private var achievementEntrySection: some View {
+        Section {
+            Button {
+                HapticManager.shared.lightImpact()
+                showAchievementGallery = true
+            } label: {
+                HStack(spacing: 16) {
+                    // Achievement Title & Count
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Achievements")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+
+                        if !badges.isEmpty {
+                            let unlockedCount = badges.filter { $0.isUnlocked }.count
+                            Text("\(unlockedCount) of \(badges.count) unlocked")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    // Latest 4 Achievement Icons
+                    if !latestAchievements.isEmpty {
+                        HStack(spacing: 8) {
+                            ForEach(latestAchievements.prefix(4)) { badge in
+                                Text(badge.icon)
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(.blue)
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.blue.opacity(0.1))
+                                    .clipShape(Circle())
+                            }
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+        }
+        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+
+    private var latestAchievements: [Badge] {
+        badges.filter { $0.isUnlocked }
+            .sorted { ($0.unlockedAt ?? .distantPast) > ($1.unlockedAt ?? .distantPast) }
+    }
+
+    // MARK: - Load Badges
+
+    private func loadBadges() {
+        let descriptor = FetchDescriptor<Badge>()
+        badges = (try? modelContext.fetch(descriptor)) ?? []
     }
 }
 
