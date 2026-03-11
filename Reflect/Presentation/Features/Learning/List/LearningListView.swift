@@ -265,52 +265,49 @@ struct LearningListView: View {
 
     private var achievementEntrySection: some View {
         Section {
-            Button {
-                HapticManager.shared.lightImpact()
-                showAchievementGallery = true
-            } label: {
-                HStack(spacing: 16) {
-                    // Achievement Title & Count
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Achievements")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-
-                        if !badges.isEmpty {
-                            let unlockedCount = badges.filter { $0.isUnlocked }.count
-                            Text("\(unlockedCount) of \(badges.count) unlocked")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            VStack {
+                Button {
+                    HapticManager.shared.lightImpact()
+                    showAchievementGallery = true
+                } label: {
+                    HStack(spacing: 16) {
+                        // Achievement Title & Count
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Achievements")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
                         }
-                    }
-
-                    Spacer()
-
-                    // Latest 4 Achievement Icons
-                    if !latestAchievements.isEmpty {
-                        HStack(spacing: 8) {
-                            ForEach(latestAchievements.prefix(4)) { badge in
-                                Image(systemName: badge.icon)
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(.blue)
-                                    .frame(width: 40, height: 40)
-                                    .background(Color.blue.opacity(0.1))
-                                    .clipShape(Circle())
+                        
+                        Spacer()
+                        
+                        // Latest 4 Achievement Icons
+                        if !latestAchievements.isEmpty {
+                            HStack(spacing: 8) {
+                                ForEach(latestAchievements.prefix(4)) { badge in
+                                    Image(systemName: badge.icon)
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundStyle(.blue)
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.blue.opacity(0.1))
+                                        .clipShape(Circle())
+                                }
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
                             }
-
+                        } else {
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
                     }
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, 8)
+                .buttonStyle(.plain)
+                
+                Divider()
             }
-            .buttonStyle(.plain)
         }
         .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
         .listRowSeparator(.hidden)
