@@ -126,6 +126,12 @@ struct LearningListView: View {
             loadBadges()
             restoreState()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .badgeProgressDidUpdate)) { _ in
+            loadBadges()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .badgesDidUnlock)) { _ in
+            loadBadges()
+        }
         .onChange(of: showAchievementGallery) { _, newValue in
             if !newValue {
                 // Reload badges when gallery is dismissed

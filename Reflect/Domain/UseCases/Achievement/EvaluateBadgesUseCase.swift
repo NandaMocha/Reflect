@@ -153,9 +153,16 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
     ) async {
         let allBadges = (try? modelContext.fetch(FetchDescriptor<Badge>())) ?? []
 
+        print("🔄 Updating badge progress:")
+        print("   Total reflections: \(totalReflections)")
+        print("   Media reflections: \(mediaCount)")
+        print("   Prompt reflections: \(promptCount)")
+        print("   Badges found: \(allBadges.count)")
+
         for badge in allBadges {
             guard let badgeID = BadgeID(rawValue: badge.id) else { continue }
 
+            let oldCount = badge.unlockedCount
             switch badgeID.badgeCategory {
             case .reflections:
                 badge.unlockedCount = totalReflections
@@ -171,9 +178,14 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
                 // Perfectionist is handled separately
                 break
             }
+
+            if oldCount != badge.unlockedCount {
+                print("   ✅ \(badge.name): \(oldCount) → \(badge.unlockedCount)")
+            }
         }
 
         try? modelContext.save()
+        print("   ✅ Badge progress saved")
     }
 
     private func unlockBadge(_ badgeID: BadgeID, modelContext: ModelContext, count: Int) async {
@@ -184,12 +196,14 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
         if let existingBadge = existingBadges.first {
             // Update existing badge
             if !existingBadge.isUnlocked {
+                print("🏆 UNLOCKING: \(existingBadge.name)")
                 existingBadge.isUnlocked = true
                 existingBadge.unlockedAt = Date()
                 existingBadge.unlockedCount = count
             }
         } else {
             // Create new badge
+            print("🏆 CREATING & UNLOCKING: \(badgeID.displayName)")
             let newBadge = Badge(from: badgeID)
             newBadge.isUnlocked = true
             newBadge.unlockedAt = Date()
