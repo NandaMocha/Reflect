@@ -4,29 +4,19 @@ protocol CreateReflectionUseCaseProtocol {
     func execute(input: CreateReflectionInput) async throws -> Reflection
 }
 
-// MARK: - Streak Integration Result
-
-struct CreateReflectionResult {
-    let reflection: Reflection
-    let streakResult: SubmitStreakReflectionResult?
-}
-
 final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
     private let reflectionRepository: ReflectionRepositoryProtocol
     private let learningRepository: LearningRepositoryProtocol
     private let imageService: ImageProcessingServiceProtocol
-    private let submitStreakUseCase: SubmitStreakReflectionUseCaseProtocol?
 
     init(
         reflectionRepository: ReflectionRepositoryProtocol,
         learningRepository: LearningRepositoryProtocol,
-        imageService: ImageProcessingServiceProtocol,
-        submitStreakUseCase: SubmitStreakReflectionUseCaseProtocol? = nil
+        imageService: ImageProcessingServiceProtocol
     ) {
         self.reflectionRepository = reflectionRepository
         self.learningRepository = learningRepository
         self.imageService = imageService
-        self.submitStreakUseCase = submitStreakUseCase
     }
 
     func execute(input: CreateReflectionInput) async throws -> Reflection {
@@ -72,42 +62,6 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
         }
 
         try await reflectionRepository.create(reflection)
-
-        // Evaluate streak and badges after creating reflection
-        var streakResult: SubmitStreakReflectionResult?
-        if let submitStreakUseCase = submitStreakUseCase {
-            do {
-                streakResult = try await submitStreakUseCase.execute(reflection: reflection)
-
-                // Post notification for UI updates
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: .streakDidUpdate,
-                        object: nil,
-                        userInfo: [
-                            "newStreak": streakResult!.newStreak,
-                            "unlockedBadges": streakResult!.unlockedBadges,
-                            "celebrationTrigger": streakResult!.celebrationTrigger
-                        ]
-                    )
-
-                    // Post individual badge unlock notifications
-                    for badgeID in streakResult!.unlockedBadges {
-                        NotificationCenter.default.post(
-                            name: .badgeDidUnlock,
-                            object: nil,
-                            userInfo: [
-                                "badgeID": badgeID,
-                                "celebrationTrigger": badgeID.celebration
-                            ]
-                        )
-                    }
-                }
-            } catch {
-                // Log error but don't fail the reflection creation
-                print("⚠️ Failed to evaluate streak: \(error.localizedDescription)")
-            }
-        }
 
         return reflection
     }

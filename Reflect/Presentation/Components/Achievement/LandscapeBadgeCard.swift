@@ -69,8 +69,6 @@ struct LandscapeBadgeCard: View {
 
     private var accentColor: Color {
         switch badge.type {
-        case .monthlyStreak, .repeatedStreak:
-            return .orange
         case .permanent:
             return .blue
         }
@@ -80,7 +78,7 @@ struct LandscapeBadgeCard: View {
 #Preview {
     VStack(spacing: 16) {
         LandscapeBadgeCard(badge: {
-            let badge = Badge(from: .threeDayStreak)
+            let badge = Badge(from: .fiveReflections)
             badge.unlock()
             return badge
         }()) {
@@ -88,7 +86,7 @@ struct LandscapeBadgeCard: View {
         }
 
         LandscapeBadgeCard(badge: {
-            let badge = Badge(from: .fiveReflections)
+            let badge = Badge(from: .tenReflections)
             badge.unlock()
             return badge
         }()) {

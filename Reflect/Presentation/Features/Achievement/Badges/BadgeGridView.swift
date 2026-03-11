@@ -92,9 +92,6 @@ struct BadgeGridView: View {
             if let calendarViewModel = calendarViewModel {
                 calendarHeatmapSection(calendarViewModel)
             }
-
-            // Streak Badges for Selected Month
-            streakBadgesSection
         }
     }
 
@@ -172,52 +169,6 @@ struct BadgeGridView: View {
                 }
             }
         )
-    }
-
-    // MARK: - Streak Badges Section
-
-    @ViewBuilder
-    private var streakBadgesSection: some View {
-        let streakBadges = viewModel.streakBadgesForSelectedMonth
-        if streakBadges.isEmpty {
-            emptyStreakBadgesState
-        } else {
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 12),
-                    GridItem(.flexible(), spacing: 12)
-                ],
-                spacing: 12
-            ) {
-                ForEach(streakBadges) { badge in
-                    BadgeCard(badge: badge) {
-                        selectedBadge = badge
-                    }
-                }
-            }
-        }
-    }
-
-    private var emptyStreakBadgesState: some View {
-        HStack {
-            VStack(spacing: 8) {
-                Image(systemName: "calendar.badge.exclamationmark")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-
-                Text("No streak badges for this month")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text("Start reflecting to build your streak!")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(.vertical, 16)
-        .background(Color(.tertiarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Calendar Heatmap Section

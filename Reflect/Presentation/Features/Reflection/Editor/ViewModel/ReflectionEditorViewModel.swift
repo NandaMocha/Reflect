@@ -88,27 +88,7 @@ final class ReflectionEditorViewModel {
     // MARK: - Notification Observers
 
     private func setupNotificationObservers() {
-        Task { @MainActor in
-            NotificationCenter.default.addObserver(
-                forName: .streakDidUpdate,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                guard let self = self,
-                      let userInfo = notification.userInfo,
-                      let celebrationTrigger = userInfo["celebrationTrigger"] as? BadgeUnlockEvent.CelebrationTrigger,
-                      let unlockedBadges = userInfo["unlockedBadges"] as? [BadgeID] else {
-                    return
-                }
-
-                // Show celebration if badges were unlocked
-                if !unlockedBadges.isEmpty && celebrationTrigger != .none {
-                    self.celebrationTrigger = celebrationTrigger
-                    self.unlockedBadges = unlockedBadges
-                    self.showCelebration = true
-                }
-            }
-        }
+        // No streak notifications needed
     }
 
     deinit {

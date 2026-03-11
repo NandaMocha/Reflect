@@ -39,13 +39,6 @@ final class DIContainer {
         return BadgeRepository(modelContext: context)
     }
 
-    func makeStreakRepository() -> StreakRepositoryProtocol {
-        guard let context = modelContext else {
-            fatalError("ModelContext not configured. Call configure(with:) first.")
-        }
-        return StreakRepository(modelContext: context)
-    }
-
     func makeMonthlyAchievementRepository() -> MonthlyAchievementRepositoryProtocol {
         guard let context = modelContext else {
             fatalError("ModelContext not configured. Call configure(with:) first.")
@@ -77,8 +70,7 @@ final class DIContainer {
         CreateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            imageService: makeImageProcessingService(),
-            submitStreakUseCase: makeSubmitStreakReflectionUseCase()
+            imageService: makeImageProcessingService()
         )
     }
 
@@ -126,37 +118,8 @@ final class DIContainer {
 
     // MARK: - Services - Achievement
 
-    func makeStreakCalculationService() -> StreakCalculationService {
-        StreakCalculationService()
-    }
-
     func makeBadgeEvaluationService() -> BadgeEvaluationService {
         BadgeEvaluationService()
-    }
-
-    // MARK: - Use Cases - Achievement
-
-    func makeGetStreakStatsUseCase() -> GetStreakStatsUseCaseProtocol {
-        GetStreakStatsUseCase(streakRepository: makeStreakRepository())
-    }
-
-    func makeCalculateStreakUseCase() -> CalculateStreakUseCaseProtocol {
-        CalculateStreakUseCase(
-            streakRepository: makeStreakRepository(),
-            reflectionRepository: makeReflectionRepository(),
-            calculationService: makeStreakCalculationService()
-        )
-    }
-
-    func makeSubmitStreakReflectionUseCase() -> SubmitStreakReflectionUseCaseProtocol {
-        SubmitStreakReflectionUseCase(
-            streakRepository: makeStreakRepository(),
-            reflectionRepository: makeReflectionRepository(),
-            badgeRepository: makeBadgeRepository(),
-            monthlyAchievementRepository: makeMonthlyAchievementRepository(),
-            calculationService: makeStreakCalculationService(),
-            badgeEvaluationService: makeBadgeEvaluationService()
-        )
     }
 
     // MARK: - ViewModels
@@ -232,14 +195,6 @@ final class DIContainer {
         return OnboardingViewModel(
             modelContext: context,
             cloudSyncService: makeCloudSyncService()
-        )
-    }
-
-    func makeStreakViewModel() -> StreakViewModel {
-        StreakViewModel(
-            getStreakStatsUseCase: makeGetStreakStatsUseCase(),
-            calculateStreakUseCase: makeCalculateStreakUseCase(),
-            badgeRepository: makeBadgeRepository()
         )
     }
 }

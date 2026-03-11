@@ -2,42 +2,6 @@ import Foundation
 
 final class BadgeEvaluationService {
 
-    // MARK: - Streak Badges (Per Month)
-
-    /// Evaluates monthly streak badges based on current streak
-    func evaluateStreakBadges(newStreak: Int, previousStreak: Int) -> [BadgeID] {
-        var unlockedBadges: [BadgeID] = []
-
-        if previousStreak < 3 && newStreak >= 3 {
-            unlockedBadges.append(.threeDayStreak)
-        }
-        if previousStreak < 7 && newStreak >= 7 {
-            unlockedBadges.append(.sevenDayStreak)
-        }
-        if previousStreak < 14 && newStreak >= 14 {
-            unlockedBadges.append(.fourteenDayStreak)
-        }
-        if previousStreak < 30 && newStreak >= 30 {
-            unlockedBadges.append(.thirtyDayStreak)
-        }
-
-        return unlockedBadges
-    }
-
-    /// Get celebration level for streak achievements
-    func getCelebrationForStreak(_ newStreak: Int, previousStreak: Int) -> BadgeUnlockEvent.CelebrationTrigger {
-        if previousStreak < 30 && newStreak >= 30 {
-            return .maximum
-        } else if previousStreak < 14 && newStreak >= 14 {
-            return .fireworks
-        } else if previousStreak < 7 && newStreak >= 7 {
-            return .sparkles
-        } else if previousStreak < 3 && newStreak >= 3 {
-            return .confetti
-        }
-        return .none
-    }
-
     // MARK: - Reflection Milestones (Permanent)
 
     /// Evaluates reflection count milestone badges
@@ -113,14 +77,14 @@ final class BadgeEvaluationService {
         !hasUnlockedBefore && totalReflections >= 30
     }
 
-    /// Checks if user has maintained 90 consecutive days of reflections
-    func checkQuarterlyChampion(currentStreak: Int, hasUnlockedBefore: Bool) -> Bool {
-        !hasUnlockedBefore && currentStreak >= 90
+    /// Checks if user has maintained 90 total reflections
+    func checkQuarterlyChampion(totalReflections: Int, hasUnlockedBefore: Bool) -> Bool {
+        !hasUnlockedBefore && totalReflections >= 90
     }
 
-    /// Checks if user has maintained 180 consecutive days of reflections
-    func checkHalfYearHero(currentStreak: Int, hasUnlockedBefore: Bool) -> Bool {
-        !hasUnlockedBefore && currentStreak >= 180
+    /// Checks if user has maintained 180 total reflections
+    func checkHalfYearHero(totalReflections: Int, hasUnlockedBefore: Bool) -> Bool {
+        !hasUnlockedBefore && totalReflections >= 180
     }
 
     /// Checks if user has reflected every single day for a full month (30/30 days)

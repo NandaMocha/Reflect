@@ -120,11 +120,6 @@ extension ReflectionEditorView {
 
         modelContext.insert(reflection)
         try modelContext.save()
-
-        // Trigger badge evaluation in background
-        Task {
-            await submitReflectionForStreak(reflection)
-        }
     }
 
     func updateReflection(_ reflection: Reflection) async throws {
@@ -252,11 +247,6 @@ extension ReflectionEditorView {
         }
 
         try modelContext.save()
-
-        // Trigger badge evaluation in background (if not already evaluated)
-        Task {
-            await submitReflectionForStreak(reflection)
-        }
     }
 
     // MARK: - Concurrent Image Processing
@@ -313,47 +303,6 @@ extension ReflectionEditorView {
                 results.append(result)
             }
             return results.sorted { $0.index < $1.index }
-        }
-    }
-
-    // MARK: - Streak System Integration
-
-    /// Submits reflection for streak tracking and badge evaluation
-    @MainActor
-    private func submitReflectionForStreak(_ reflection: Reflection) async {
-        do {
-            // Create repositories
-            let streakRepository = StreakRepository(modelContext: modelContext)
-            let reflectionRepository = ReflectionRepository(modelContext: modelContext)
-            let badgeRepository = BadgeRepository(modelContext: modelContext)
-            let monthlyAchievementRepository = MonthlyAchievementRepository(modelContext: modelContext)
-
-            // Create services
-            let calculationService = StreakCalculationService()
-            let badgeEvaluationService = BadgeEvaluationService()
-
-            // Create use case
-            let submitUseCase = SubmitStreakReflectionUseCase(
-                streakRepository: streakRepository,
-                reflectionRepository: reflectionRepository,
-                badgeRepository: badgeRepository,
-                monthlyAchievementRepository: monthlyAchievementRepository,
-                calculationService: calculationService,
-                badgeEvaluationService: badgeEvaluationService
-            )
-
-            // Execute use case to evaluate badges and update streak
-            let result = try await submitUseCase.execute(reflection: reflection)
-
-            // TODO: Show celebration if new badges were unlocked
-            if !result.unlockedBadges.isEmpty {
-                os_log("🎉 [STREAK] Unlocked %d new badges!", log: .default, type: .info, result.unlockedBadges.count)
-                // Will implement celebration triggers in next commit
-            }
-
-        } catch {
-            os_log("⚠️ [STREAK] Failed to submit reflection for streak: %@", log: .default, type: .error, error.localizedDescription)
-            // Don't show error to user - streak system is optional
         }
     }
 }

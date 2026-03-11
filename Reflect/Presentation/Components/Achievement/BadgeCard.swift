@@ -89,13 +89,8 @@ struct BadgeCard: View {
     }
 
     private var accentColor: Color {
-        // Return different colors based on badge type
-        switch badge.type {
-        case .monthlyStreak, .repeatedStreak:
-            return .orange
-        case .permanent:
-            return .blue
-        }
+        // All badges are now permanent
+        return .blue
     }
 }
 
@@ -103,17 +98,17 @@ struct BadgeCard: View {
 
 #Preview {
     VStack(spacing: 16) {
-        // Unlocked streak badge
+        // Unlocked badge
         BadgeCard(badge: {
-            let badge = Badge(from: .threeDayStreak)
+            let badge = Badge(from: .fiveReflections)
             badge.unlock()
             return badge
         }()) {
             print("Tapped unlocked badge")
         }
 
-        // Locked streak badge
-        BadgeCard(badge: Badge(from: .sevenDayStreak)) {
+        // Locked badge
+        BadgeCard(badge: Badge(from: .tenReflections)) {
             print("Tapped locked badge")
         }
 

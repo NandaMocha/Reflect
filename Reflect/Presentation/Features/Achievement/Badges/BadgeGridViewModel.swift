@@ -34,23 +34,11 @@ final class BadgeGridViewModel {
         !newlyUnlockedBadges.isEmpty
     }
 
-    // MARK: - Month-based Badge Categories
+    // MARK: - Badge Categories
 
-    /// Streak badges for the selected month (monthlyStreak type)
-    var streakBadgesForSelectedMonth: [Badge] {
-        let components = calendar.dateComponents([.month, .year], from: selectedMonth)
-        guard let month = components.month, let year = components.year else {
-            return []
-        }
-
-        return badges.filter { badge in
-            badge.type == .monthlyStreak && badge.month == month && badge.year == year
-        }
-    }
-
-    /// All permanent achievement badges (earned once and kept forever)
+    /// All permanent achievement badges (all badges are now permanent after removing streaks)
     var permanentBadges: [Badge] {
-        badges.filter { $0.type == .permanent }
+        badges  // All badges are permanent now
     }
 
     // MARK: - Month Navigation Helpers
@@ -91,14 +79,8 @@ final class BadgeGridViewModel {
     }
 
     private var earliestBadgeMonth: Date? {
-        let monthlyBadges = badges.filter { $0.type == .monthlyStreak && $0.month != nil && $0.year != nil }
-
-        guard let firstBadge = monthlyBadges.first(
-            where: { $0.month != nil && $0.year != nil }
-        ) else { return nil }
-
-        guard let month = firstBadge.month, let year = firstBadge.year else { return nil }
-        return calendar.date(from: DateComponents(year: year, month: month))
+        // No more monthly streak badges - return nil
+        return nil
     }
 
     // Stats

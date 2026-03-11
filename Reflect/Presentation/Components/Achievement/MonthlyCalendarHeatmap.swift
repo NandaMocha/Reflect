@@ -229,7 +229,6 @@ private struct MockReflectionRepository: ReflectionRepositoryProtocol {
                 createdAt: calendar.date(byAdding: .day, value: -day, to: now) ?? Date()
             )
             reflection.submittedDate = calendar.date(byAdding: .day, value: -day, to: now)
-            reflection.isStreakSubmission = true
             reflections.append(reflection)
         }
 

@@ -30,10 +30,7 @@ final class Reflection {
     var locationLongitude: Double?
     var locationName: String?
 
-    // MARK: - Streak Properties
-
     var submittedDate: Date? = nil
-    var isStreakSubmission: Bool = false
 
     init(
         id: UUID = UUID(),

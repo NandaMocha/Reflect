@@ -2,13 +2,6 @@ import Foundation
 
 enum BadgeID: String, CaseIterable, Identifiable {
 
-    // MARK: - Streak Badges (Per Month, Repeatable)
-
-    case threeDayStreak = "3day-streak"
-    case sevenDayStreak = "7day-streak"
-    case fourteenDayStreak = "14day-streak"
-    case thirtyDayStreak = "30day-streak"
-
     // MARK: - Achievement Badges - Reflection Milestones (Permanent)
 
     case fiveReflections = "5-reflections"
@@ -43,12 +36,6 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        // Streak Badges
-        case .threeDayStreak: return "3-Day Streak"
-        case .sevenDayStreak: return "7-Day Streak"
-        case .fourteenDayStreak: return "14-Day Streak"
-        case .thirtyDayStreak: return "30-Day Streak"
-
         // Reflection Milestones
         case .fiveReflections: return "Curious Mind"
         case .tenReflections: return "Dedicated Learner"
@@ -79,12 +66,6 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
     var badgeDescription: String {
         switch self {
-        // Streak Badges
-        case .threeDayStreak: return "3 consecutive days of reflections"
-        case .sevenDayStreak: return "7 consecutive days of reflections"
-        case .fourteenDayStreak: return "14 consecutive days of reflections"
-        case .thirtyDayStreak: return "30 consecutive days of reflections"
-
         // Reflection Milestones
         case .fiveReflections: return "Every journey begins with a single step. You've started yours!"
         case .tenReflections: return "Building momentum, one reflection at a time"
@@ -115,12 +96,6 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
     var requirementDescription: String {
         switch self {
-        // Streak Badges
-        case .threeDayStreak: return "3 consecutive days of reflections"
-        case .sevenDayStreak: return "7 consecutive days of reflections"
-        case .fourteenDayStreak: return "14 consecutive days of reflections"
-        case .thirtyDayStreak: return "30 consecutive days of reflections"
-
         // Reflection Milestones
         case .fiveReflections: return "5 reflections completed"
         case .tenReflections: return "10 reflections completed"
@@ -151,12 +126,6 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-            // Streak Badges
-            case .threeDayStreak: return "flame.fill"
-            case .sevenDayStreak: return "flame.fill"
-            case .fourteenDayStreak: return "flame.fill"
-            case .thirtyDayStreak: return "flame.fill"
-
             // Reflection Milestones
             case .fiveReflections: return "star.fill"
             case .tenReflections: return "star.circle.fill"
@@ -186,27 +155,12 @@ enum BadgeID: String, CaseIterable, Identifiable {
     }
 
     var badgeType: BadgeType {
-        switch self {
-        // Streak Badges (Monthly, repeatable)
-        case .threeDayStreak, .sevenDayStreak, .fourteenDayStreak, .thirtyDayStreak:
-            return .monthlyStreak
-
-        // Special - Perfectionist is repeatable monthly
-        case .perfectionist:
-            return .monthlyStreak
-
-        // All other achievements are permanent
-        default:
-            return .permanent
-        }
+        // All achievements are permanent
+        return .permanent
     }
 
     var badgeCategory: BadgeCategory {
         switch self {
-        // Streak Badges
-        case .threeDayStreak, .sevenDayStreak, .fourteenDayStreak, .thirtyDayStreak:
-            return .streak
-
         // Reflection Milestones
         case .fiveReflections, .tenReflections, .twentyFiveReflections, .fiftyReflections,
              .hundredReflections, .twoHundredFiftyReflections, .fiveHundredReflections, .thousandReflections:
@@ -236,10 +190,6 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .twoHundredFiftyReflections: return 250
         case .fiveHundredReflections: return 500
         case .thousandReflections: return 1000
-        case .threeDayStreak: return 3
-        case .sevenDayStreak: return 7
-        case .fourteenDayStreak: return 14
-        case .thirtyDayStreak: return 30
         case .monthlyChampion: return 1
         case .quarterlyChampion: return 90
         case .halfYearHero: return 180
@@ -251,14 +201,9 @@ enum BadgeID: String, CaseIterable, Identifiable {
         allCases
     }
 
-    // Helper to get all streak badges
-    static var streakBadges: [BadgeID] {
-        [.threeDayStreak, .sevenDayStreak, .fourteenDayStreak, .thirtyDayStreak]
-    }
-
     // Helper to get all achievement badges
     static var achievementBadges: [BadgeID] {
-        allCases.filter { $0.badgeType == .permanent || $0 == .perfectionist }
+        allCases
     }
 
     // Helper to get badges by category
@@ -271,16 +216,6 @@ enum BadgeID: String, CaseIterable, Identifiable {
     /// Returns the appropriate celebration trigger for this badge
     var celebration: BadgeUnlockEvent.CelebrationTrigger {
         switch self {
-        // Streak badges
-        case .threeDayStreak:
-            return .confetti
-        case .sevenDayStreak:
-            return .sparkles
-        case .fourteenDayStreak:
-            return .fireworks
-        case .thirtyDayStreak:
-            return .maximum
-
         // First reflection milestone
         case .fiveReflections:
             return .confetti
@@ -327,19 +262,12 @@ enum BadgeID: String, CaseIterable, Identifiable {
 }
 
 enum BadgeType: String, Codable {
-    case monthlyStreak = "monthly_streak"    // Repeatable each month
-    case permanent = "permanent"              // Earned once, kept forever
-
-    // MARK: - Backward Compatibility
-
-    @available(*, deprecated, message: "Use monthlyStreak instead. This case exists only for migrating old data.")
-    case repeatedStreak = "repeated_streak"  // Old name, migrated to monthlyStreak
+    case permanent = "permanent"  // Earned once, kept forever
 }
 
 enum BadgeCategory: String, Codable {
-    case streak = "streak"                    // Consecutive day streaks
-    case reflections = "reflections"          // Total reflection count
-    case media = "media"                      // Reflections with media
-    case prompts = "prompts"                  // Reflections with prompts
-    case special = "special"                  // Special achievements
+    case reflections = "reflections"  // Total reflection count
+    case media = "media"               // Reflections with media
+    case prompts = "prompts"           // Reflections with prompts
+    case special = "special"           // Special achievements
 }

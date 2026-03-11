@@ -32,9 +32,8 @@ struct ReflectApp: App {
                 ImageAttachment.self,
                 VoiceRecording.self,
                 VideoAttachment.self,
-                // Streak & Badge models
+                // Badge models
                 Badge.self,
-                StreakData.self,
                 MonthlyAchievement.self
             ])
 
@@ -120,18 +119,7 @@ struct ReflectApp: App {
     private func migrateBadgesIfNeeded(existingBadges: [Badge], context: ModelContext) {
         var needsSave = false
 
-        // Migration 1: Convert old .repeatedStreak to .monthlyStreak
-        let badgesWithOldType = existingBadges.filter { $0.type == .repeatedStreak }
-        if !badgesWithOldType.isEmpty {
-            print("🔄 Migrating \(badgesWithOldType.count) badges from repeatedStreak to monthlyStreak...")
-            for badge in badgesWithOldType {
-                badge.type = .monthlyStreak
-                badge.updatedAt = Date()
-                needsSave = true
-            }
-        }
-
-        // Migration 2: Check if we have old badge IDs
+        // Migration: Check if we have old badge IDs
         let currentBadgeIDs = Set(BadgeID.allCases.map { $0.rawValue })
         let oldBadges = existingBadges.filter { !currentBadgeIDs.contains($0.id) }
 

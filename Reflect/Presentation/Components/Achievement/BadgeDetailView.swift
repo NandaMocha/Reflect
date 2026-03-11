@@ -160,8 +160,6 @@ struct BadgeDetailView: View {
 
     private var accentColor: Color {
         switch badge.type {
-        case .monthlyStreak, .repeatedStreak:
-            return .orange
         case .permanent:
             return .blue
         }
@@ -170,7 +168,7 @@ struct BadgeDetailView: View {
 
 #Preview {
     BadgeDetailView(badge: {
-        let badge = Badge(from: .threeDayStreak)
+        let badge = Badge(from: .fiveReflections)
         badge.unlock()
         return badge
     }())
