@@ -46,25 +46,14 @@ struct QuickActionsWidgetView: View {
     }
 
     private var smallWidgetView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // App logo (30x30, top-left). Uses a dedicated "AppLogo" imageset because
-            // the `AppIcon` asset name is reserved and can't be loaded via Image(_:)
-            // at runtime.
-            Image("AppLogo")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 30, height: 30)
-                .clipShape(RoundedRectangle(cornerRadius: 6.5, style: .continuous))
+        VStack(spacing: 16) {
+            // Top section - Write button
+            writeButton
 
-            VStack(spacing: 16) {
-                // Top section - Write button
-                writeButton
-
-                // Bottom section - Camera and Voice buttons
-                HStack(spacing: 20) {
-                    cameraButton
-                    voiceButton
-                }
+            // Bottom section - Camera and Voice buttons
+            HStack(spacing: 20) {
+                cameraButton
+                voiceButton
             }
         }
         .padding(20)
