@@ -429,11 +429,8 @@ struct ReflectionListView: View {
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
                         ForEach(reflections) { reflection in
-                            ZStack {
-                                NavigationLink(value: reflection) { EmptyView() }
-                                    .opacity(.zero)
-                                
-                                ReflectionCard(reflection: reflection) {}
+                            NavigationLink(value: reflection) {
+                                ReflectionCard(reflection: reflection)
                             }
                             .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
