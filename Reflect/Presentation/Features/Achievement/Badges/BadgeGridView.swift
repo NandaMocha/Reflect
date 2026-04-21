@@ -194,8 +194,12 @@ struct AchievementCard: View {
         return 1 // Default fallback
     }
 
+    /// Cap at the badge's threshold so an achieved milestone displays as `N/N`, not a running
+    /// total (e.g. `10/5`). `Badge.unlockedCount` gets overwritten to the current lifetime
+    /// total on every save — the raw value is fine for the progress-bar fill (which already
+    /// clamps to 1.0), but the numeric label would otherwise overshoot.
     private var currentProgress: Int {
-        badge.unlockedCount
+        min(badge.unlockedCount, requiredCount)
     }
 
     var body: some View {

@@ -11,8 +11,9 @@ struct BadgeDetailView: View {
         return 1
     }
 
+    /// See AchievementCard.currentProgress — cap at threshold for display.
     private var currentProgress: Int {
-        badge.unlockedCount
+        min(badge.unlockedCount, requiredCount)
     }
 
     var body: some View {
