@@ -10,10 +10,10 @@ The first review (`achievement-counter-review.md`) was static analysis — it fo
 
 The happy-path *create* flow is now correct. **What's still broken is everything else.** The four bugs below, in impact order, explain why a user would say "the counter isn't working":
 
-1. **Editing a reflection never re-evaluates badges.** `UpdateReflectionUseCase` has no `evaluateBadgesUseCase` wired at all. Add media to an existing reflection → media count stays stale → media badges never unlock.
-2. **Celebrations never fire.** The `.celebration()` modifier is applied to `ReflectionEditorView`, but nothing sets `showCelebration = true` when a badge unlocks. The notification fires and is ignored.
-3. **The main-screen UI has no numeric counter.** `LearningListView`'s achievement strip shows up to 4 icons and the word "Achievements" — no `5/16`-style counter. The only numeric display lives behind two sheet levels.
-4. **Sheet re-renders reinstantiate the VM.** `LearningListView:95-97` constructs `BadgeGridViewModel` inside the sheet content closure. Allocation churn on every re-render, even if `@State` preserves the first instance.
+1. **Editing a reflection never re-evaluates badges.** ✅ **Fixed in commit `0ed0a3a`** — `UpdateReflectionUseCase` now accepts and runs `evaluateBadgesUseCase` end-to-end, mirroring the create path.
+2. **Celebrations never fire.** ✅ **Fixed in commit `7003d96`** — the VM now subscribes to `.badgesDidUnlock` on the main queue and sets `showCelebration` / `celebrationTrigger` from the payload, picking the most dramatic celebration tier when multiple badges unlock simultaneously.
+3. **The main-screen UI has no numeric counter.** ⏳ Open — needs a product call on whether the icon-strip is intentional or should carry a `5/16`-style number.
+4. **Sheet re-renders reinstantiate the VM.** ⏳ Open — not strictly broken, but fragile; medium-risk refactor gated behind manual UI testing.
 
 ## Evidence for each
 
@@ -104,16 +104,14 @@ Ruled out during the trace:
 
 ## Recommended fix order
 
-All four are real; here's how to sequence them:
+| # | Fix | Files | Risk | Status |
+|---|---|---|---|---|
+| 1 | Wire `evaluateBadgesUseCase` into `UpdateReflectionUseCase` — mirror what `CreateReflectionUseCase` does | UpdateReflectionUseCase.swift, CreateReflectionInput.swift, ReflectionEditorViewModel.swift, ReflectionEditorViewModel+SaveLogic.swift, DIContainer.swift | Low | ✅ `0ed0a3a` |
+| 2 | Subscribe `ReflectionEditorViewModel` to `.badgesDidUnlock` and set `celebrationTrigger` / `showCelebration` from the payload | ReflectionEditorViewModel.swift | Low | ✅ `7003d96` |
+| 3 | Decide main-screen counter intent: add a `Text("\(totalUnlocked) / \(totalBadges)")` to `achievementEntrySection`, **or** confirm icons-only is intentional and close this | LearningListView.swift | UX decision, then low | ⏳ Open — product question |
+| 4 | Move VM ownership out of the sheet closure: parent holds `@State var achievementVM: BadgeGridViewModel?`, initializes lazily in `.task`, and passes `@Bindable` to `BadgeGridView` | LearningListView.swift, BadgeGridView.swift | Medium (touches SwiftUI lifecycle — verify in simulator) | ⏳ Open |
 
-| # | Fix | Files | Risk |
-|---|---|---|---|
-| 1 | Wire `evaluateBadgesUseCase` into `UpdateReflectionUseCase` — mirror what `CreateReflectionUseCase` does | UpdateReflectionUseCase.swift, ReflectionEditorViewModel.swift (init wiring), DIContainer.swift | Low |
-| 2 | Subscribe `ReflectionEditorViewModel` to `.badgesDidUnlock` and set `celebrationTrigger` / `showCelebration` from the payload | ReflectionEditorViewModel.swift (setupNotificationObservers) | Low |
-| 3 | Decide main-screen counter intent: add a `Text("\(totalUnlocked) / \(totalBadges)")` to `achievementEntrySection`, **or** confirm icons-only is intentional and close this | LearningListView.swift | UX decision, then low |
-| 4 | Move VM ownership out of the sheet closure: parent holds `@State var achievementVM: BadgeGridViewModel?`, initializes lazily in `.task`, and passes `@Bindable` to `BadgeGridView` | LearningListView.swift, BadgeGridView.swift | Medium (touches SwiftUI lifecycle — verify in simulator) |
-
-Fixes 1 and 2 are the highest-leverage. Fix 1 restores correctness for the edit path. Fix 2 restores the visible confirmation loop — without it, even correct unlocks feel like nothing happened.
+Fixes 1 and 2 were the highest-leverage. With them landed, the edit-and-attach-media workflow now produces badge unlocks, and any unlock shows the celebration animation.
 
 ## Open question for the product owner
 
