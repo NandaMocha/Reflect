@@ -57,8 +57,6 @@ struct ReflectionEditorView: View {
     @State var showImagePicker = false
     @State var showMediaPicker = false
     @State var showVoiceRecorder = false
-    @State var showLearningPicker = false
-    @State var showCreateLearning = false
     @State var showDatePicker = false
     @State var selectedPhotoItems: [PhotosPickerItem] = []
     @State var hasChanges = false
@@ -131,8 +129,6 @@ struct ReflectionEditorView: View {
                         Text(errorMessage)
                     }
                 }
-                .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
-                .sheet(isPresented: $showCreateLearning) { createLearningSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
                 .fullScreenCover(isPresented: $showMediaPicker) {
                     mediaPickerSheet

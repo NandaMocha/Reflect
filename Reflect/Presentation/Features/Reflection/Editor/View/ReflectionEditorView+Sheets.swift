@@ -3,21 +3,6 @@ import SwiftUI
 // MARK: - Sheets & Alerts Extension
 
 extension ReflectionEditorView {
-    var learningPickerSheet: some View {
-        LearningPickerSheet(
-            selectedLearning: $selectedLearning,
-            learnings: learnings,
-            onDismiss: {
-                hasChanges = true
-                showLearningPicker = false
-            }
-        )
-    }
-
-    var createLearningSheet: some View {
-        LearningFormView(mode: .create)
-    }
-
     var datePickerSheet: some View {
         DatePickerSheet(
             selectedDate: $selectedDate,

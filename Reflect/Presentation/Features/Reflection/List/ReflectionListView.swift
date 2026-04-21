@@ -64,7 +64,7 @@ struct ReflectionListView: View {
             cameraPickerView
         }
         .fullScreenCover(isPresented: $showEditor) {
-            ReflectionEditorView(mode: .create, onDismiss: {
+            ReflectionEditorView(mode: .create, preselectedLearning: learning, onDismiss: {
                 showEditor = false
                 Task {
                     await viewModel?.loadReflections()
