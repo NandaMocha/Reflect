@@ -54,15 +54,6 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    sortingMenu
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                }
-            }
-        }
         .searchable(text:Binding(
             get: { viewModel?.searchQuery ?? "" },
             set: { newValue in
@@ -74,6 +65,7 @@ struct ReflectionListView: View {
         }
         .fullScreenCover(isPresented: $showEditor) {
             ReflectionEditorView(mode: .create, onDismiss: {
+                showEditor = false
                 Task {
                     await viewModel?.loadReflections()
                 }
@@ -108,8 +100,17 @@ struct ReflectionListView: View {
                 await viewModel?.loadReflections()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .init("ReflectionDidSave"))) { _ in
+            // Reload reflections when a notification is received after saving
+            Task {
+                await viewModel?.loadReflections()
+            }
+        }
         .onChange(of: widgetAction) { _, action in
             handleWidgetAction(action)
+        }
+        .navigationDestination(for: Reflection.self) { reflection in
+            ReflectionDetailView(reflection: reflection)
         }
     }
 
@@ -203,7 +204,10 @@ struct ReflectionListView: View {
     // MARK: - Voice Recorder Sheet
 
     private var voiceRecorderSheet: some View {
-        VoiceRecorderView(isPresented: $showVoiceRecorder) { recording in
+        VoiceRecorderView(
+            isPresented: $showVoiceRecorder,
+            fromWidget: widgetAction == .voice  // Detect widget origin
+        ) { recording in
             Task {
                 await handleVoiceRecording(recording)
             }
@@ -252,6 +256,9 @@ struct ReflectionListView: View {
         // Save
         modelContext.insert(reflection)
         try? modelContext.save()
+
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -305,6 +312,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+
         // Reload reflections
         await viewModel?.loadReflections()
 
@@ -348,6 +358,9 @@ struct ReflectionListView: View {
         // Save
         modelContext.insert(reflection)
         try? modelContext.save()
+
+        // Post notification to refresh reflection list
+        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -416,7 +429,10 @@ struct ReflectionListView: View {
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
                         ForEach(reflections) { reflection in
-                            NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
+                            ZStack {
+                                NavigationLink(value: reflection) { EmptyView() }
+                                    .opacity(.zero)
+                                
                                 ReflectionCard(reflection: reflection) {}
                             }
                             .buttonStyle(.plain)

@@ -185,4 +185,10 @@ extension ReflectionEditorView {
         let asset = AVAsset(url: url)
         return CMTimeGetSeconds(asset.duration)
     }
+
+    // MARK: - Notification Observers
+
+    func setupNotificationObservers() {
+        // No streak notifications needed
+    }
 }

@@ -30,6 +30,22 @@ final class DIContainer {
         return ReflectionRepository(modelContext: context)
     }
 
+    // MARK: - Repositories - Achievement
+
+    func makeBadgeRepository() -> BadgeRepositoryProtocol {
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured. Call configure(with:) first.")
+        }
+        return BadgeRepository(modelContext: context)
+    }
+
+    func makeMonthlyAchievementRepository() -> MonthlyAchievementRepositoryProtocol {
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured. Call configure(with:) first.")
+        }
+        return MonthlyAchievementRepository(modelContext: context)
+    }
+
     // MARK: - Use Cases - Learning
 
     func makeCreateLearningUseCase() -> CreateLearningUseCaseProtocol {
@@ -54,7 +70,8 @@ final class DIContainer {
         CreateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            imageService: makeImageProcessingService()
+            imageService: makeImageProcessingService(),
+            evaluateBadgesUseCase: makeEvaluateBadgesUseCase()
         )
     }
 
@@ -98,6 +115,21 @@ final class DIContainer {
 
     func makeCloudSyncService() -> CloudSyncServiceProtocol {
         CloudSyncService()
+    }
+
+    // MARK: - Services - Achievement
+
+    func makeBadgeEvaluationService() -> BadgeEvaluationService {
+        BadgeEvaluationService()
+    }
+
+    // MARK: - Use Cases - Achievement
+
+    func makeEvaluateBadgesUseCase() -> EvaluateBadgesUseCaseProtocol {
+        EvaluateBadgesUseCase(
+            badgeEvaluationService: makeBadgeEvaluationService(),
+            badgeRepository: makeBadgeRepository()
+        )
     }
 
     // MARK: - ViewModels

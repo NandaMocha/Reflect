@@ -19,12 +19,19 @@ struct LearningListView: View {
     @State var showDeleteAlert = false
     @State var showSettings = false
     @State var isRestoringState = true
+    @State var showAchievementGallery = false
+
+    // Achievement State
+    @State private var badges: [Badge] = []
 
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
 
     // Navigation to specific learning for widget
     @State private var navigateToLearningId: UUID?
+
+    // Track if we're navigating from widget (skip restoreState)
+    @State private var isNavigatingFromWidget = false
 
     init(widgetAction: Binding<WidgetAction?> = .constant(nil)) {
         self._widgetAction = widgetAction
@@ -62,7 +69,7 @@ struct LearningListView: View {
                         HapticManager.shared.lightImpact()
                         showSettings = true
                     } label: {
-                        Image(systemName: "person.circle")
+                        Image(systemName: "gearshape")
                             .font(.title3)
                     }
                 }
@@ -85,6 +92,24 @@ struct LearningListView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showAchievementGallery) {
+                let viewModel = BadgeGridViewModel(modelContext: modelContext)
+                NavigationView {
+                    BadgeGridView(viewModel: viewModel)
+                        .navigationTitle("Achievements")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") {
+                                    showAchievementGallery = false
+                                }
+                            }
+                        }
+                }
+            }
+            .onDisappear {
+                // Observers are automatically cleaned up when view is deallocated
+            }
             .deleteConfirmationAlert(
                 itemName: "Learning",
                 isPresented: $showDeleteAlert,
@@ -98,7 +123,20 @@ struct LearningListView: View {
             }
         }
         .onAppear {
+            loadBadges()
             restoreState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .badgeProgressDidUpdate)) { _ in
+            loadBadges()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .badgesDidUnlock)) { _ in
+            loadBadges()
+        }
+        .onChange(of: showAchievementGallery) { _, newValue in
+            if !newValue {
+                // Reload badges when gallery is dismissed
+                loadBadges()
+            }
         }
         .onChange(of: widgetAction) { _, action in
             handleWidgetAction(action)
@@ -120,13 +158,24 @@ struct LearningListView: View {
             return
         }
 
+        // Clear any existing navigation to prevent duplicates
+        navigationPath.removeLast(navigationPath.count)
+
+        // Disable restoration to prevent it from interfering
+        isRestoringState = false
+
+        // Set flag to prevent restoreState from interfering
+        isNavigatingFromWidget = true
+
         // Navigate to the learning's reflection list
         navigationPath.append(learning)
 
         // Small delay to ensure navigation completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             // The action will be handled by ReflectionListView
             widgetAction = nil
+            // Reset flag after widget flow completes
+            isNavigatingFromWidget = false
         }
     }
 
@@ -142,6 +191,11 @@ struct LearningListView: View {
     }
 
     func restoreState() {
+        // Skip restoration if we're navigating from widget OR if widget action is pending
+        if isNavigatingFromWidget || widgetAction != nil {
+            return
+        }
+
         guard isRestoringState, let learningIdString = lastOpenedLearningId, let learningId = UUID(uuidString: learningIdString) else {
             return
         }
@@ -166,6 +220,9 @@ struct LearningListView: View {
 
     var learningList: some View {
         List {
+            // Achievement Entry Section
+            achievementEntrySection
+
             ForEach(filteredLearnings) { learning in
                 ZStack {
                     NavigationLink(value: learning) { EmptyView() }
@@ -202,6 +259,71 @@ struct LearningListView: View {
             try? modelContext.save()
             HapticManager.shared.success()
         }
+    }
+
+    // MARK: - Achievement Entry Section
+
+    private var achievementEntrySection: some View {
+        Section {
+            VStack {
+                Button {
+                    HapticManager.shared.lightImpact()
+                    showAchievementGallery = true
+                } label: {
+                    HStack(spacing: 16) {
+                        // Achievement Title & Count
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Achievements")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                        }
+                        
+                        Spacer()
+                        
+                        // Latest 4 Achievement Icons
+                        if !latestAchievements.isEmpty {
+                            HStack(spacing: 8) {
+                                ForEach(latestAchievements.prefix(4)) { badge in
+                                    Image(systemName: badge.icon)
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundStyle(.blue)
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.blue.opacity(0.1))
+                                        .clipShape(Circle())
+                                }
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                
+                Divider()
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+
+    private var latestAchievements: [Badge] {
+        badges.filter { $0.isUnlocked }
+            .sorted { ($0.unlockedAt ?? .distantPast) > ($1.unlockedAt ?? .distantPast) }
+    }
+
+    // MARK: - Load Badges
+
+    private func loadBadges() {
+        let descriptor = FetchDescriptor<Badge>()
+        badges = (try? modelContext.fetch(descriptor)) ?? []
     }
 }
 

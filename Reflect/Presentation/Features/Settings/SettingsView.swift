@@ -31,24 +31,24 @@ struct SettingsView: View {
                     Text("Sync")
                 }
 
-                Section {
-                    Picker("Theme", selection: $selectedTheme) {
-                        Text("System").tag("system")
-                        Text("Light").tag("light")
-                        Text("Dark").tag("dark")
-                    }
-                } header: {
-                    Text("Appearance")
-                }
+//                Section {
+//                    Picker("Theme", selection: $selectedTheme) {
+//                        Text("System").tag("system")
+//                        Text("Light").tag("light")
+//                        Text("Dark").tag("dark")
+//                    }
+//                } header: {
+//                    Text("Appearance")
+//                }
 
-                Section {
-                    Picker("Default Voice Language", selection: $defaultLanguage) {
-                        Text("English").tag("en-US")
-                        Text("Indonesian").tag("id-ID")
-                    }
-                } header: {
-                    Text("Preferences")
-                }
+//                Section {
+//                    Picker("Default Voice Language", selection: $defaultLanguage) {
+//                        Text("English").tag("en-US")
+//                        Text("Indonesian").tag("id-ID")
+//                    }
+//                } header: {
+//                    Text("Preferences")
+//                }
 
                 Section {
                     Button {
@@ -78,54 +78,54 @@ struct SettingsView: View {
                     Text("Clearing data will permanently delete all learnings, reflections, and attachments.")
                 }
 
-                Section {
-                    NavigationLink(destination: SettingsAboutView()) {
-                        HStack {
-                            Image(systemName: "info.circle")
-                                .foregroundColor(.primaryDefault)
-                                .frame(width: 28)
-                            Text("About ReflectLearn")
-                        }
-                    }
-
-                    Link(destination: URL(string: "https://example.com/privacy")!) {
-                        HStack {
-                            Image(systemName: "hand.raised")
-                                .foregroundColor(.primaryDefault)
-                                .frame(width: 28)
-                            Text("Privacy Policy")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    Link(destination: URL(string: "https://example.com/terms")!) {
-                        HStack {
-                            Image(systemName: "doc.text")
-                                .foregroundColor(.primaryDefault)
-                                .frame(width: 28)
-                            Text("Terms of Service")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("About")
-                } footer: {
-                    VStack(spacing: 4) {
-                        Text("ReflectLearn v\(Bundle.main.appVersion)")
-                        Text("Build \(Bundle.main.buildNumber)")
-                    }
-                    .font(.caption)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Constants.Spacing.lg)
-                }
+//                Section {
+//                    NavigationLink(destination: SettingsAboutView()) {
+//                        HStack {
+//                            Image(systemName: "info.circle")
+//                                .foregroundColor(.primaryDefault)
+//                                .frame(width: 28)
+//                            Text("About ReflectLearn")
+//                        }
+//                    }
+//
+//                    Link(destination: URL(string: "https://example.com/privacy")!) {
+//                        HStack {
+//                            Image(systemName: "hand.raised")
+//                                .foregroundColor(.primaryDefault)
+//                                .frame(width: 28)
+//                            Text("Privacy Policy")
+//                                .foregroundColor(.primary)
+//                            Spacer()
+//                            Image(systemName: "arrow.up.right")
+//                                .font(.caption)
+//                                .foregroundColor(.secondary)
+//                        }
+//                    }
+//
+//                    Link(destination: URL(string: "https://example.com/terms")!) {
+//                        HStack {
+//                            Image(systemName: "doc.text")
+//                                .foregroundColor(.primaryDefault)
+//                                .frame(width: 28)
+//                            Text("Terms of Service")
+//                                .foregroundColor(.primary)
+//                            Spacer()
+//                            Image(systemName: "arrow.up.right")
+//                                .font(.caption)
+//                                .foregroundColor(.secondary)
+//                        }
+//                    }
+//                } header: {
+//                    Text("About")
+//                } footer: {
+//                    VStack(spacing: 4) {
+//                        Text("ReflectLearn v\(Bundle.main.appVersion)")
+//                        Text("Build \(Bundle.main.buildNumber)")
+//                    }
+//                    .font(.caption)
+//                    .frame(maxWidth: .infinity)
+//                    .padding(.top, Constants.Spacing.lg)
+//                }
             }
             .navigationTitle("Settings")
             .toolbar {

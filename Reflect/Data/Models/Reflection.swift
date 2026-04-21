@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import SwiftData
+import CoreLocation
 
 @preconcurrency @Model
 final class Reflection {
@@ -22,6 +23,15 @@ final class Reflection {
 
     @Relationship(deleteRule: .cascade, inverse: \VideoAttachment.reflection)
     var videos: [VideoAttachment] = []
+
+    // MARK: - Location Properties
+
+    var locationLatitude: Double?
+    var locationLongitude: Double?
+    var locationName: String?
+
+    var submittedDate: Date? = nil
+    var promptID: String? = nil  // ID of the prompt if reflection was created from a prompt
 
     init(
         id: UUID = UUID(),
@@ -78,5 +88,17 @@ final class Reflection {
             return thumbnail
         }
         return firstVideo?.thumbnail
+    }
+
+    // MARK: - Streak Computed Properties
+
+    var isSubmittedToday: Bool {
+        guard let submitted = submittedDate else { return false }
+        return Calendar.current.isDateInToday(submitted)
+    }
+
+    var isFirstDayOfMonth: Bool {
+        guard let submitted = submittedDate else { return false }
+        return Calendar.current.component(.day, from: submitted) == 1
     }
 }

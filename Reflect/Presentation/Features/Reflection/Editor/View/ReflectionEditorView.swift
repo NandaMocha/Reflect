@@ -2,6 +2,9 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import OSLog
+#if canImport(JournalingSuggestions)
+import JournalingSuggestions
+#endif
 
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
@@ -37,6 +40,19 @@ struct ReflectionEditorView: View {
     @State var selectedVideoIndex: Int?
     @State var selectedImageIndex: Int?
 
+    // Journaling Suggestions State
+    @State var showJournalingPicker = false
+    @State var capturedLocation: CapturedLocation?
+    @State var showTemplatePicker = false
+
+    // Error handling
+    @State var errorMessage: String?
+    @State var showErrorAlert = false
+
+    // Celebration state
+    @State var showCelebration = false
+    @State var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
+
     @FocusState var focusedField: ReflectionEditorField?
 
     var isEditing: Bool {
@@ -60,6 +76,14 @@ struct ReflectionEditorView: View {
         selectedLearning != nil
     }
 
+    var isIOS17_2OrNewer: Bool {
+        if #available(iOS 17.2, *) {
+            return true
+        } else {
+            return false
+        }
+    }
+
     var body: some View {
         NavigationStack {
             contentView
@@ -76,6 +100,15 @@ struct ReflectionEditorView: View {
                 ) {
                     dismiss()
                 }
+                .alert("Error", isPresented: $showErrorAlert) {
+                    Button("OK", role: .cancel) {
+                        errorMessage = nil
+                    }
+                } message: {
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                    }
+                }
                 .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
                 .sheet(isPresented: $showCreateLearning) { createLearningSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
@@ -84,6 +117,14 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
+                .sheet(isPresented: $showTemplatePicker) { templatePickerSheet }
+                #if canImport(JournalingSuggestions)
+                .if(isIOS17_2OrNewer) { view in
+                    view.journalingSuggestionsPicker(isPresented: $showJournalingPicker) { suggestion in
+                        handleJournalingSuggestion(suggestion)
+                    }
+                }
+                #endif
                 .sheet(isPresented: Binding(
                     get: { selectedVideoIndex != nil },
                     set: { if !$0 { selectedVideoIndex = nil } }
@@ -105,8 +146,10 @@ struct ReflectionEditorView: View {
                     let viewStartTime = CFAbsoluteTimeGetCurrent()
                     os_log("📱 [PERF] ReflectionEditorView onAppear started", log: .default, type: .info)
                     loadExistingData()
+                    setupNotificationObservers()
                     os_log("📱 [PERF] ReflectionEditorView onAppear completed in %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - viewStartTime) * 1000)
                 }
+                .celebration(isPresented: $showCelebration, trigger: celebrationTrigger)
         }
     }
 }

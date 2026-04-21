@@ -29,10 +29,27 @@ extension ReflectionEditorView {
     }
 
     var voiceRecorderSheet: some View {
-        VoiceRecorderView(isPresented: $showVoiceRecorder) { recording in
+        VoiceRecorderView(
+            isPresented: $showVoiceRecorder,
+            fromWidget: false  // Explicitly false for editor
+        ) { recording in
             voiceRecordings.append(recording)
             hasChanges = true
         }
+    }
+
+    var templatePickerSheet: some View {
+        ReflectionTemplateSheet(
+            isPresented: $showTemplatePicker,
+            onTemplateSelected: { templateText in
+                // Append template to content
+                if !content.isEmpty {
+                    content += "\n\n"
+                }
+                content += templateText
+                hasChanges = true
+            }
+        )
     }
 
     @ViewBuilder

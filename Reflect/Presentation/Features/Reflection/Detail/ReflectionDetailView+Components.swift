@@ -53,7 +53,7 @@ extension ReflectionDetailView {
     var voiceNotesSection: some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
             ForEach(reflection.voiceRecordings.sorted(by: { $0.sortOrder < $1.sortOrder })) { recording in
-                VoiceNotePlayer(voiceRecording: recording)
+                VoiceRecordingListItemView(voiceRecording: recording)
             }
         }
     }
