@@ -66,6 +66,25 @@ open Reflect.xcodeproj
 
 **No test target exists yet.** See [docs/reviews/achievement-counter-review.md](docs/reviews/achievement-counter-review.md) — setting up Swift Testing is a noted follow-up.
 
+## Build-and-verify workflow
+
+**Standing rule: after finishing code changes, run `xcodebuild` in the terminal before declaring the task done.** Iterate until the build is green. Tests aren't wired up yet, so the build is the fastest full-repo sanity check we have.
+
+```bash
+xcodebuild -project Reflect.xcodeproj -scheme Reflect \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -configuration Debug build 2>&1 | grep "error:"
+```
+
+- If the grep prints any line → a compile error. Read the file:line, fix it, rebuild. Loop until grep is empty.
+- When grep is empty, spot-check `tail -5` of the unfiltered output for `** BUILD SUCCEEDED **`.
+- Pick a simulator name that appears in `xcrun simctl list devices available`. The Reflect scheme currently targets iOS 26 simulators (iPhone 17 family), so use `iPhone 17`, `iPhone 17 Pro`, etc.
+- Swift 6 concurrency warnings (non-Sendable types being passed across actor boundaries) are **warnings, not errors** — they exist in the codebase today and don't block the build. Don't chase them unless the task asks for it.
+
+This comes *before* the commit step, not after. A red build is a task that isn't finished — don't commit claiming success and then let the build break.
+
+`xcodebuild` is pre-allowed in [.claude/settings.json](.claude/settings.json) so this runs without a permission prompt.
+
 ## Commit workflow
 
 **Standing rule: commit when a change is complete.** After finishing a logical unit of work (bug fix, feature, doc update, refactor), don't leave uncommitted changes in the working tree — stage the relevant files and create a commit. No need to ask the user first.
