@@ -88,6 +88,13 @@ final class DIContainer {
         DeleteReflectionUseCase(reflectionRepository: makeReflectionRepository())
     }
 
+    func makeMoveReflectionUseCase() -> MoveReflectionUseCaseProtocol {
+        MoveReflectionUseCase(
+            reflectionRepository: makeReflectionRepository(),
+            learningRepository: makeLearningRepository()
+        )
+    }
+
     func makeFetchReflectionsUseCase() -> FetchReflectionsUseCaseProtocol {
         FetchReflectionsUseCase(repository: makeReflectionRepository())
     }

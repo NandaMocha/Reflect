@@ -3,9 +3,11 @@ import Foundation
 // MARK: - Validation
 
 extension ReflectionEditorViewModel {
-    /// Matches the view's gate: a reflection is valid when it has a learning selected
-    /// and at least one of: non-empty content, images, videos, or voice recordings.
-    /// (Title is optional — the view substitutes a date-based default when empty.)
+    /// A reflection is valid when it has at least one of non-empty content, images, videos,
+    /// or voice recordings. The learning assignment is guaranteed by the caller — the
+    /// editor is always opened from a specific learning's list — so it's not part of the
+    /// gate here. `selectedLearning == nil` is still checked as a last-mile safety net
+    /// because the use case requires a learningId.
     var isValid: Bool {
         let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
         let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
@@ -21,9 +23,6 @@ extension ReflectionEditorViewModel {
         let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
         if !hasContent && !hasMedia {
             errors.append("Add text or media before saving")
-        }
-        if selectedLearning == nil {
-            errors.append("Please select a learning")
         }
         if images.count > Constants.Limits.maxImagesPerReflection {
             errors.append("Too many images (max \(Constants.Limits.maxImagesPerReflection))")

@@ -18,6 +18,7 @@ struct ReflectionListView: View {
     @State private var showVoiceRecorder = false
     @State private var showNoLearningAlert = false
     @State private var showEditor = false
+    @State private var reflectionToMove: Reflection?
 
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
@@ -64,7 +65,7 @@ struct ReflectionListView: View {
             cameraPickerView
         }
         .fullScreenCover(isPresented: $showEditor) {
-            ReflectionEditorView(mode: .create, onDismiss: {
+            ReflectionEditorView(mode: .create, preselectedLearning: learning, onDismiss: {
                 showEditor = false
                 Task {
                     await viewModel?.loadReflections()
@@ -73,6 +74,18 @@ struct ReflectionListView: View {
         }
         .sheet(isPresented: $showVoiceRecorder) {
             voiceRecorderSheet
+        }
+        .sheet(item: $reflectionToMove) { reflection in
+            LearningPickerSheet(
+                title: "Move to Learning",
+                learnings: learnings.filter { $0.id != reflection.learning?.id },
+                currentSelection: nil,
+                onSelect: { target in
+                    Task {
+                        await viewModel?.moveReflection(reflection, to: target)
+                    }
+                }
+            )
         }
         .alert("No Learning", isPresented: $showNoLearningAlert) {
             Button("OK", role: .cancel) {}
@@ -429,11 +442,8 @@ struct ReflectionListView: View {
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
                         ForEach(reflections) { reflection in
-                            ZStack {
-                                NavigationLink(value: reflection) { EmptyView() }
-                                    .opacity(.zero)
-                                
-                                ReflectionCard(reflection: reflection) {}
+                            NavigationLink(value: reflection) {
+                                ReflectionCard(reflection: reflection)
                             }
                             .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -444,6 +454,12 @@ struct ReflectionListView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                Button {
+                                    reflectionToMove = reflection
+                                } label: {
+                                    Label("Move", systemImage: "folder")
+                                }
+                                .tint(.blue)
                             }
                             .listRowSeparator(.hidden)
                         }

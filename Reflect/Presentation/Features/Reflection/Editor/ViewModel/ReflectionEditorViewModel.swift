@@ -83,9 +83,7 @@ final class ReflectionEditorViewModel {
 
         switch mode {
         case .create:
-            if let learningId = learningId {
-                loadLearning(learningId)
-            }
+            break  // Learning is supplied by the view via preselectedLearning + the save bridge.
         case .edit(let reflection):
             configure(with: reflection)
         }
@@ -156,10 +154,4 @@ extension ReflectionEditorViewModel {
             }
     }
 
-    private func loadLearning(_ id: UUID) {
-        let descriptor = FetchDescriptor<Learning>(
-            predicate: #Predicate { $0.id == id }
-        )
-        selectedLearning = try? modelContext.fetch(descriptor).first
-    }
 }

@@ -50,7 +50,6 @@ struct QuickActionsWidgetView: View {
             // Top section - Write button
             writeButton
 
-
             // Bottom section - Camera and Voice buttons
             HStack(spacing: 20) {
                 cameraButton

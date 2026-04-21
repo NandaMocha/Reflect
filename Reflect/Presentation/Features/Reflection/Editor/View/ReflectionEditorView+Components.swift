@@ -82,14 +82,6 @@ extension ReflectionEditorView {
         ReflectionEditorHeaderView(
             selectedLearning: selectedLearning,
             selectedDate: selectedDate,
-            learningsCount: learnings.count,
-            onSelectLearning: {
-                if learnings.isEmpty {
-                    showCreateLearning = true
-                } else {
-                    showLearningPicker = true
-                }
-            },
             onSelectDate: { showDatePicker = true }
         )
     }
