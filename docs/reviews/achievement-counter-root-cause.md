@@ -10,6 +10,18 @@
 
 Every achievement-system commit on this branch — including the two just landed (`0ed0a3a`, `7003d96`) — has been **patching dead code**.
 
+## Resolved
+
+**Option B landed in commit `133ceb0`.** The view now owns a `ReflectionEditorViewModel` via `@State` and delegates save to it. `CreateReflectionUseCase` / `UpdateReflectionUseCase` run on every create and edit, followed by `EvaluateBadgesUseCase`. Badge notifications fire, `BadgeGridView.achievementCountHeader` updates, and the celebration overlay now shows when a badge unlocks.
+
+Also fixed along the way (latent bugs the root-cause trace exposed):
+- `DIContainer.shared.configure(with:)` was never called anywhere in the app, so every factory would have fatalError'd. `ReflectApp.init` now configures it on the main context.
+- The view's `isValid` had an operator-precedence bug that let saves pass without a learning selected when voice recordings existed. Fixed in both the view and the VM.
+- `UpdateReflectionUseCase` was missing video handling. Rewritten to reconcile images/videos/voice uniformly.
+- `CapturedLocation` was defined in the Presentation layer and referenced from a Domain input — layer violation. Moved to Domain.
+
+Open follow-up (documented but not blocking the counter): migrate the view's form `@State` fields onto the VM so bindings flow through `$viewModel.title` etc. directly, and remove the copy-over bridge in `ReflectionEditorView+Save.swift`.
+
 ## Evidence
 
 ### The view never uses the VM
