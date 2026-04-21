@@ -292,6 +292,57 @@ struct AudioWaveform: View {
     }
 }
 
+// MARK: - Mirror Style (used by the voice recorder screen)
+
+extension AudioWaveform {
+    /// Mirrored waveform: each bar is drawn twice — a full-opacity bar above the centerline
+    /// and a dimmer copy below. Exclusively used by the voice recorder screen so the existing
+    /// non-mirrored callers (`progress`, `compact`, `minimal`) are untouched.
+    static func mirror(
+        audioLevels: [CGFloat],
+        color: Color = .primaryDefault,
+        height: CGFloat = 100,
+        barCount: Int = 60
+    ) -> some View {
+        MirrorWaveformView(levels: audioLevels, color: color, height: height, barCount: barCount)
+    }
+}
+
+private struct MirrorWaveformView: View {
+    let levels: [CGFloat]
+    let color: Color
+    let height: CGFloat
+    let barCount: Int
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<barCount, id: \.self) { index in
+                bar(at: index)
+            }
+        }
+        .frame(height: height)
+    }
+
+    @ViewBuilder
+    private func bar(at index: Int) -> some View {
+        let level = index < levels.count ? levels[index] : 0.05
+        let halfHeight = max(1.5, level * (height * 0.42))
+
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color.opacity(0.2 + level * 0.8))
+                .frame(width: 4, height: halfHeight)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color.opacity(0.12 + level * 0.5))
+                .frame(width: 4, height: halfHeight)
+            Spacer(minLength: 0)
+        }
+        .frame(width: 4)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: level)
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
