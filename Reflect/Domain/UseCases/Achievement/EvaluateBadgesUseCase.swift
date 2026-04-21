@@ -193,17 +193,19 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
     }
 
     private func getMediaReflectionCount(_ modelContext: ModelContext) async -> Int {
-        let descriptor = FetchDescriptor<Reflection>()
-        let reflections = (try? modelContext.fetch(descriptor)) ?? []
-        return reflections.filter { reflection in
-            !reflection.images.isEmpty || !reflection.videos.isEmpty || !reflection.voiceRecordings.isEmpty
-        }.count
+        let descriptor = FetchDescriptor<Reflection>(
+            predicate: #Predicate<Reflection> {
+                !$0.images.isEmpty || !$0.videos.isEmpty || !$0.voiceRecordings.isEmpty
+            }
+        )
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
     }
 
     private func getPromptReflectionCount(_ modelContext: ModelContext) async -> Int {
-        let descriptor = FetchDescriptor<Reflection>()
-        let reflections = (try? modelContext.fetch(descriptor)) ?? []
-        return reflections.filter { $0.promptID != nil }.count
+        let descriptor = FetchDescriptor<Reflection>(
+            predicate: #Predicate<Reflection> { $0.promptID != nil }
+        )
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
     }
 
 }
