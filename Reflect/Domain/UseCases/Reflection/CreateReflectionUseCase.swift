@@ -3,7 +3,9 @@ import SwiftData
 import UIKit
 
 protocol CreateReflectionUseCaseProtocol {
-    func execute(input: CreateReflectionInput) async throws -> Reflection
+    /// Returns the saved reflection and any badges newly unlocked by the save so the caller
+    /// can drive celebration UI synchronously, without racing an async notification observer.
+    func execute(input: CreateReflectionInput) async throws -> (Reflection, [BadgeID])
 }
 
 final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
@@ -24,7 +26,7 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
         self.evaluateBadgesUseCase = evaluateBadgesUseCase
     }
 
-    func execute(input: CreateReflectionInput) async throws -> Reflection {
+    func execute(input: CreateReflectionInput) async throws -> (Reflection, [BadgeID]) {
         guard input.isValid else {
             throw ReflectionError.invalidInput(input.validationErrors.first ?? "Invalid input")
         }
@@ -89,26 +91,20 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
 
         try await reflectionRepository.create(reflection)
 
-        // Evaluate badges after reflection is created
+        var newlyUnlockedBadges: [BadgeID] = []
         if let evaluateBadgesUseCase = evaluateBadgesUseCase,
            let modelContext = input.modelContext {
-            let newlyUnlockedBadges = try? await evaluateBadgesUseCase.execute(
+            newlyUnlockedBadges = (try? await evaluateBadgesUseCase.execute(
                 input: EvaluateBadgesInput(modelContext: modelContext, newReflection: reflection)
-            )
+            )) ?? []
 
-            // Post notification for newly unlocked badges
-            if let unlockedBadges = newlyUnlockedBadges, !unlockedBadges.isEmpty {
-                NotificationCenter.default.post(
-                    name: .badgesDidUnlock,
-                    object: unlockedBadges
-                )
+            if !newlyUnlockedBadges.isEmpty {
+                NotificationCenter.default.post(name: .badgesDidUnlock, object: newlyUnlockedBadges)
             }
-
-            // Post notification for progress update
             NotificationCenter.default.post(name: .badgeProgressDidUpdate, object: nil)
         }
 
-        return reflection
+        return (reflection, newlyUnlockedBadges)
     }
 }
 

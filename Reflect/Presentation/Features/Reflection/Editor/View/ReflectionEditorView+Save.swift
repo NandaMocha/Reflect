@@ -32,8 +32,17 @@ extension ReflectionEditorView {
                 UserDefaults.standard.setLastUsedLearningId(learning.id)
             }
             NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
-            onDismiss?()
-            dismiss()
+
+            if viewModel.showCelebration {
+                // Hand off dismissal to the .onChange(of: viewModel.showCelebration) in the
+                // view body so the user sees the celebration animation play before the editor
+                // dismisses. If we dismiss synchronously here, the overlay renders for one
+                // frame then disappears with the view.
+                dismissAfterCelebration = true
+            } else {
+                onDismiss?()
+                dismiss()
+            }
         } else {
             os_log("⚠️ [EDITOR] Save failed: %@", log: .default, type: .error, viewModel.errorMessage ?? "unknown")
             errorMessage = viewModel.errorMessage ?? "Failed to save reflection"
