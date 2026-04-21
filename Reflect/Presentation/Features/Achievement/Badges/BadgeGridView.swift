@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 
 struct BadgeGridView: View {
     @State private var viewModel: BadgeGridViewModel
@@ -27,15 +28,13 @@ struct BadgeGridView: View {
         .task {
             await viewModel.loadBadges()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .badgeProgressDidUpdate)) { _ in
-            Task {
-                await viewModel.loadBadges()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .badgesDidUnlock)) { _ in
-            Task {
-                await viewModel.loadBadges()
-            }
+        .onReceive(
+            Publishers.Merge(
+                NotificationCenter.default.publisher(for: .badgeProgressDidUpdate),
+                NotificationCenter.default.publisher(for: .badgesDidUnlock)
+            )
+        ) { _ in
+            Task { await viewModel.loadBadges() }
         }
         .sheet(item: $selectedBadge) { badge in
             BadgeDetailView(badge: badge)

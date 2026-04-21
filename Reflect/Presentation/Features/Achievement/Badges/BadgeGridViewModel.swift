@@ -66,12 +66,6 @@ final class BadgeGridViewModel {
         self.badgeRepository = BadgeRepository(modelContext: modelContext)
     }
 
-    init(badgeRepository: BadgeRepositoryProtocol) {
-        // For testing purposes - create a temporary context
-        // This should not be used in production
-        fatalError("Use init(modelContext:) instead")
-    }
-
     // MARK: - Actions
 
     func loadBadges() async {
