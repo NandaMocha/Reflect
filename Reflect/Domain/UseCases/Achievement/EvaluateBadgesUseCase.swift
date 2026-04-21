@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import os
 
 protocol EvaluateBadgesUseCaseProtocol {
     func execute(input: EvaluateBadgesInput) async throws -> [BadgeID]
@@ -13,6 +14,7 @@ struct EvaluateBadgesInput {
 final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
     private let badgeEvaluationService: BadgeEvaluationService
     private let badgeRepository: BadgeRepositoryProtocol
+    private let logger = Logger(subsystem: "com.reflectlearn.app", category: "Achievement")
 
     init(
         badgeEvaluationService: BadgeEvaluationService = BadgeEvaluationService(),
@@ -123,16 +125,9 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
     ) async {
         let allBadges = (try? modelContext.fetch(FetchDescriptor<Badge>())) ?? []
 
-        print("🔄 Updating badge progress:")
-        print("   Total reflections: \(totalReflections)")
-        print("   Media reflections: \(mediaCount)")
-        print("   Prompt reflections: \(promptCount)")
-        print("   Badges found: \(allBadges.count)")
-
         for badge in allBadges {
             guard let badgeID = BadgeID(rawValue: badge.id) else { continue }
 
-            let oldCount = badge.unlockedCount
             switch badgeID.badgeCategory {
             case .reflections:
                 badge.unlockedCount = totalReflections
@@ -143,32 +138,22 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
             case .special:
                 badge.unlockedCount = totalReflections
             }
-
-            if oldCount != badge.unlockedCount {
-                print("   ✅ \(badge.name): \(oldCount) → \(badge.unlockedCount)")
-            }
         }
 
-        try? modelContext.save()
-        print("   ✅ Badge progress saved")
+        save(modelContext)
     }
 
     private func unlockBadge(_ badgeID: BadgeID, modelContext: ModelContext, count: Int) async {
-        // Check if badge already exists
         let allBadges = (try? modelContext.fetch(FetchDescriptor<Badge>())) ?? []
         let existingBadges = allBadges.filter { $0.id == badgeID.rawValue }
 
         if let existingBadge = existingBadges.first {
-            // Update existing badge
             if !existingBadge.isUnlocked {
-                print("🏆 UNLOCKING: \(existingBadge.name)")
                 existingBadge.isUnlocked = true
                 existingBadge.unlockedAt = Date()
                 existingBadge.unlockedCount = count
             }
         } else {
-            // Create new badge
-            print("🏆 CREATING & UNLOCKING: \(badgeID.displayName)")
             let newBadge = Badge(from: badgeID)
             newBadge.isUnlocked = true
             newBadge.unlockedAt = Date()
@@ -176,7 +161,15 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
             modelContext.insert(newBadge)
         }
 
-        try? modelContext.save()
+        save(modelContext)
+    }
+
+    private func save(_ modelContext: ModelContext) {
+        do {
+            try modelContext.save()
+        } catch {
+            logger.error("Badge save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func getCountForBadge(_ badgeID: BadgeID, total: Int, media: Int, prompt: Int) -> Int {
