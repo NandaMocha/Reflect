@@ -1,149 +1,88 @@
 import SwiftUI
 
+/// Single full-screen celebration view shown after a badge unlocks. Replaces the earlier
+/// variant-per-tier (Confetti/Sparkles/Fireworks/Maximum) approach — one layout,
+/// confetti always, haptic rhythm plays on appear, user dismisses explicitly.
 struct CelebrationView: View {
-    let trigger: BadgeUnlockEvent.CelebrationTrigger
-    let badgeName: String
-    let onDismiss: () -> Void
-
-    @State private var showCelebration = false
-    @State private var autoDismissTask: Task<Void, Never>?
-
-    init(
-        trigger: BadgeUnlockEvent.CelebrationTrigger,
-        badgeName: String = "Achievement Unlocked!",
-        onDismiss: @escaping () -> Void = {}
-    ) {
-        self.trigger = trigger
-        self.badgeName = badgeName
-        self.onDismiss = onDismiss
-    }
+    let badgeID: BadgeID
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
-            switch trigger {
-            case .confetti:
-                celebrationContent {
-                    AnyView(ConfettiView())
-                }
-            case .sparkles:
-                celebrationContent {
-                    AnyView(SparklesView())
-                }
-            case .fireworks:
-                celebrationContent {
-                    AnyView(FireworksView())
-                }
-            case .maximum:
-                celebrationContent {
-                    AnyView(MaximumCelebrationView())
-                }
-            case .none:
-                EmptyView()
-            }
-        }
-        .onAppear {
-            showCelebration = true
-            scheduleAutoDismiss()
-        }
-        .onDisappear {
-            autoDismissTask?.cancel()
-        }
-    }
-
-    @ViewBuilder
-    private func celebrationContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        ZStack {
-            Color.black.opacity(0.3)
+            // Background
+            Color(.systemBackground)
                 .ignoresSafeArea()
-                .onTapGesture {
-                    dismiss()
-                }
 
-            content()
+            // Confetti layer — sits behind content so the tap target is the dismiss button.
+            ConfettiView()
+                .allowsHitTesting(false)
+                .ignoresSafeArea()
+
+            // Content
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 8) {
+                        Text("New Achievement Unlocked!")
+                            .font(.title.bold())
+                            .multilineTextAlignment(.center)
+
+                        Text("You did it great! Keep going!")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.top, 24)
+
+                    badgeIcon
+
+                    VStack(spacing: 8) {
+                        Text(badgeID.displayName)
+                            .font(.title2.bold())
+                            .multilineTextAlignment(.center)
+
+                        Text(badgeID.badgeDescription)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    HowToAchieveCard(badgeID: badgeID)
+
+                    Spacer(minLength: 16)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity)
+            }
 
             VStack {
                 Spacer()
-
-                HStack {
-                    Spacer()
-
-                    Button(action: dismiss) {
-                        Text("Continue")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                    }
-                    .padding(.bottom, 40)
-                }
-            }
-        }
-    }
-
-    private func dismiss() {
-        autoDismissTask?.cancel()
-        withAnimation(.easeOut(duration: 0.3)) {
-            showCelebration = false
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            onDismiss()
-        }
-    }
-
-    private func scheduleAutoDismiss() {
-        let duration: Double
-        switch trigger {
-        case .confetti:
-            duration = 3.0
-        case .sparkles:
-            duration = 3.5
-        case .fireworks:
-            duration = 4.0
-        case .maximum:
-            duration = 5.0
-        case .none:
-            return
-        }
-
-        autoDismissTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-            if !Task.isCancelled {
-                await MainActor.run {
+                PrimaryButton("Continue", icon: "checkmark") {
                     dismiss()
                 }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
         }
+        .onAppear {
+            Task { await HapticManager.shared.playAchievementRhythm() }
+        }
+    }
+
+    private var badgeIcon: some View {
+        ZStack {
+            Circle()
+                .fill(Color.blue.opacity(0.15))
+                .frame(width: 140, height: 140)
+
+            Image(systemName: badgeID.icon)
+                .font(.system(size: 60))
+                .foregroundStyle(Color.blue)
+        }
+        .shadow(color: Color.blue.opacity(0.3), radius: 12)
     }
 }
 
-// MARK: - Preview
-
-#Preview("Confetti") {
-    CelebrationView(
-        trigger: .confetti,
-        badgeName: "3-Day Streak"
-    )
-}
-
-#Preview("Sparkles") {
-    CelebrationView(
-        trigger: .sparkles,
-        badgeName: "7-Day Streak"
-    )
-}
-
-#Preview("Fireworks") {
-    CelebrationView(
-        trigger: .fireworks,
-        badgeName: "14-Day Streak"
-    )
-}
-
-#Preview("Maximum") {
-    CelebrationView(
-        trigger: .maximum,
-        badgeName: "30-Day Streak"
-    )
+#Preview {
+    CelebrationView(badgeID: .fiveReflections)
 }

@@ -25,11 +25,6 @@ final class ReflectionEditorViewModel {
     var showImagePicker: Bool = false
     var selectedPhotoItems: [PhotosPickerItem] = []
 
-    // MARK: - Celebration State
-    var showCelebration: Bool = false
-    var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
-    var unlockedBadges: [BadgeID] = []
-
     // MARK: - Mode
     enum Mode {
         case create
@@ -93,23 +88,6 @@ final class ReflectionEditorViewModel {
             }
         case .edit(let reflection):
             configure(with: reflection)
-        }
-    }
-
-    /// Pick the badge whose celebration tier is most dramatic when several unlock at once.
-    static func headlineBadge(from badges: [BadgeID]) -> BadgeID? {
-        badges.max { a, b in
-            celebrationRank(a.celebration) < celebrationRank(b.celebration)
-        }
-    }
-
-    private static func celebrationRank(_ trigger: BadgeUnlockEvent.CelebrationTrigger) -> Int {
-        switch trigger {
-        case .none: return 0
-        case .confetti: return 1
-        case .sparkles: return 2
-        case .fireworks: return 3
-        case .maximum: return 4
         }
     }
 

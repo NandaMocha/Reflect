@@ -3,9 +3,7 @@ import SwiftData
 import UIKit
 
 protocol CreateReflectionUseCaseProtocol {
-    /// Returns the saved reflection and any badges newly unlocked by the save so the caller
-    /// can drive celebration UI synchronously, without racing an async notification observer.
-    func execute(input: CreateReflectionInput) async throws -> (Reflection, [BadgeID])
+    func execute(input: CreateReflectionInput) async throws -> Reflection
 }
 
 final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
@@ -26,7 +24,7 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
         self.evaluateBadgesUseCase = evaluateBadgesUseCase
     }
 
-    func execute(input: CreateReflectionInput) async throws -> (Reflection, [BadgeID]) {
+    func execute(input: CreateReflectionInput) async throws -> Reflection {
         guard input.isValid else {
             throw ReflectionError.invalidInput(input.validationErrors.first ?? "Invalid input")
         }
@@ -91,20 +89,19 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
 
         try await reflectionRepository.create(reflection)
 
-        var newlyUnlockedBadges: [BadgeID] = []
         if let evaluateBadgesUseCase = evaluateBadgesUseCase,
            let modelContext = input.modelContext {
-            newlyUnlockedBadges = (try? await evaluateBadgesUseCase.execute(
+            let unlocked = (try? await evaluateBadgesUseCase.execute(
                 input: EvaluateBadgesInput(modelContext: modelContext, newReflection: reflection)
             )) ?? []
 
-            if !newlyUnlockedBadges.isEmpty {
-                NotificationCenter.default.post(name: .badgesDidUnlock, object: newlyUnlockedBadges)
+            if !unlocked.isEmpty {
+                NotificationCenter.default.post(name: .badgesDidUnlock, object: unlocked)
             }
             NotificationCenter.default.post(name: .badgeProgressDidUpdate, object: nil)
         }
 
-        return (reflection, newlyUnlockedBadges)
+        return reflection
     }
 }
 

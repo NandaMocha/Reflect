@@ -2,9 +2,7 @@ import Foundation
 import UIKit
 
 protocol UpdateReflectionUseCaseProtocol {
-    /// Returns the updated reflection and any badges newly unlocked by the save so the caller
-    /// can drive celebration UI synchronously.
-    func execute(input: UpdateReflectionInput) async throws -> (Reflection, [BadgeID])
+    func execute(input: UpdateReflectionInput) async throws -> Reflection
 }
 
 final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
@@ -25,7 +23,7 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
         self.evaluateBadgesUseCase = evaluateBadgesUseCase
     }
 
-    func execute(input: UpdateReflectionInput) async throws -> (Reflection, [BadgeID]) {
+    func execute(input: UpdateReflectionInput) async throws -> Reflection {
         guard input.isValid else {
             throw ReflectionError.invalidInput("Invalid input")
         }
@@ -61,20 +59,19 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
 
         try await reflectionRepository.update(reflection)
 
-        var newlyUnlockedBadges: [BadgeID] = []
         if let evaluateBadgesUseCase = evaluateBadgesUseCase,
            let modelContext = input.modelContext {
-            newlyUnlockedBadges = (try? await evaluateBadgesUseCase.execute(
+            let unlocked = (try? await evaluateBadgesUseCase.execute(
                 input: EvaluateBadgesInput(modelContext: modelContext, newReflection: reflection)
             )) ?? []
 
-            if !newlyUnlockedBadges.isEmpty {
-                NotificationCenter.default.post(name: .badgesDidUnlock, object: newlyUnlockedBadges)
+            if !unlocked.isEmpty {
+                NotificationCenter.default.post(name: .badgesDidUnlock, object: unlocked)
             }
             NotificationCenter.default.post(name: .badgeProgressDidUpdate, object: nil)
         }
 
-        return (reflection, newlyUnlockedBadges)
+        return reflection
     }
 
     // MARK: - Reconciliation helpers

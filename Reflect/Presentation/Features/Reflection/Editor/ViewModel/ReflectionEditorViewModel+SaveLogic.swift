@@ -18,7 +18,6 @@ extension ReflectionEditorViewModel {
         let trimmedContent = content.trimmingCharacters(in: .whitespaces)
 
         do {
-            let newlyUnlockedBadges: [BadgeID]
             switch mode {
             case .create:
                 let input = CreateReflectionInput(
@@ -33,8 +32,7 @@ extension ReflectionEditorViewModel {
                     capturedLocation: capturedLocation,
                     modelContext: modelContext
                 )
-                let (_, unlocked) = try await createUseCase.execute(input: input)
-                newlyUnlockedBadges = unlocked
+                _ = try await createUseCase.execute(input: input)
 
             case .edit(let reflection):
                 let input = UpdateReflectionInput(
@@ -51,20 +49,12 @@ extension ReflectionEditorViewModel {
                     voiceRecordings: voiceRecordings,
                     modelContext: modelContext
                 )
-                let (_, unlocked) = try await updateUseCase.execute(input: input)
-                newlyUnlockedBadges = unlocked
+                _ = try await updateUseCase.execute(input: input)
             }
 
-            // Drive celebration from the use-case result synchronously so the view sees
-            // showCelebration=true before it reads .showCelebration to decide whether to
-            // defer dismissal. Relying on the async .badgesDidUnlock observer was unreliable
-            // because SwiftUI's dismiss would fire before the observer's main-queue block.
-            if !newlyUnlockedBadges.isEmpty,
-               let headline = Self.headlineBadge(from: newlyUnlockedBadges) {
-                unlockedBadges = newlyUnlockedBadges
-                celebrationTrigger = headline.celebration
-                showCelebration = true
-            }
+            // The use case already posted `.badgesDidUnlock` for any crossed thresholds.
+            // MainTabView observes that notification and presents CelebrationView as a
+            // fullScreenCover, independently of this view model's lifecycle.
 
             isLoading = false
             HapticManager.shared.success()

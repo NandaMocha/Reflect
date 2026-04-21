@@ -75,12 +75,6 @@ struct ReflectionEditorView: View {
     @State var errorMessage: String?
     @State var showErrorAlert = false
 
-    /// True once a save has populated viewModel.showCelebration. Used so the `.onChange`
-    /// handler on `viewModel.showCelebration` only dismisses the editor when the
-    /// celebration ending is the *result of* a just-completed save, not e.g. some other
-    /// accidental toggle.
-    @State var dismissAfterCelebration = false
-
     @FocusState var focusedField: ReflectionEditorField?
 
     var isEditing: Bool {
@@ -176,20 +170,6 @@ struct ReflectionEditorView: View {
                     loadExistingData()
                     setupNotificationObservers()
                     os_log("📱 [PERF] ReflectionEditorView onAppear completed in %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - viewStartTime) * 1000)
-                }
-                .celebration(
-                    isPresented: Binding(
-                        get: { viewModel.showCelebration },
-                        set: { viewModel.showCelebration = $0 }
-                    ),
-                    trigger: viewModel.celebrationTrigger
-                )
-                .onChange(of: viewModel.showCelebration) { wasShowing, isShowing in
-                    if dismissAfterCelebration && wasShowing && !isShowing {
-                        dismissAfterCelebration = false
-                        onDismiss?()
-                        dismiss()
-                    }
                 }
         }
     }

@@ -249,6 +249,24 @@ enum BadgeType: String, Codable {
     case permanent = "permanent"  // Earned once, kept forever
 }
 
+extension BadgeID {
+    /// When several badges unlock at once, pick the one with the most dramatic celebration
+    /// tier so the UI reflects the biggest achievement.
+    static func headline(from badges: [BadgeID]) -> BadgeID? {
+        badges.max { a, b in celebrationRank(a.celebration) < celebrationRank(b.celebration) }
+    }
+
+    private static func celebrationRank(_ trigger: BadgeUnlockEvent.CelebrationTrigger) -> Int {
+        switch trigger {
+        case .none: return 0
+        case .confetti: return 1
+        case .sparkles: return 2
+        case .fireworks: return 3
+        case .maximum: return 4
+        }
+    }
+}
+
 enum BadgeCategory: String, Codable {
     case reflections = "reflections"  // Total reflection count
     case media = "media"               // Reflections with media
