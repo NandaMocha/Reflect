@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Full-screen celebration shown after a badge unlocks. Deliberately minimal —
 /// small overline, large icon, badge name as the hero, one line of description,
-/// and a Continue button. The confetti + haptic carry the celebration energy;
-/// the layout stays out of their way.
+/// and a "Next up" teaser pointing at the next milestone in the same category.
+/// Confetti + haptic carry the celebration energy.
 struct CelebrationView: View {
     let badgeID: BadgeID
     @Environment(\.dismiss) private var dismiss
@@ -18,31 +18,34 @@ struct CelebrationView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer(minLength: 24)
+                Spacer()
 
-                Text("Achievement Unlocked")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(1.5)
-
-                Spacer(minLength: 24)
-
-                badgeIcon
-
-                Spacer(minLength: 24)
-
-                VStack(spacing: 12) {
-                    Text(badgeID.displayName)
-                        .font(.largeTitle.bold())
-                        .multilineTextAlignment(.center)
-
-                    Text(badgeID.badgeDescription)
-                        .font(.body)
+                VStack(spacing: 24) {
+                    Text("Achievement Unlocked")
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
+                        .textCase(.uppercase)
+                        .tracking(1.5)
+
+                    badgeIcon
+
+                    VStack(spacing: 8) {
+                        Text(badgeID.displayName)
+                            .font(.largeTitle.bold())
+                            .multilineTextAlignment(.center)
+
+                        Text(badgeID.badgeDescription)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    if let next = badgeID.nextInCategory {
+                        NextUpCard(next: next, justUnlocked: badgeID)
+                            .padding(.top, 8)
+                    }
                 }
+                .padding(.horizontal, 24)
 
                 Spacer()
 
@@ -72,6 +75,62 @@ struct CelebrationView: View {
     }
 }
 
-#Preview {
+// MARK: - Next Up Card
+
+private struct NextUpCard: View {
+    let next: BadgeID
+    let justUnlocked: BadgeID
+
+    private var more: Int {
+        max(next.requiredCount - justUnlocked.requiredCount, 0)
+    }
+
+    private var subtext: String {
+        let unit: String
+        switch next.badgeCategory {
+        case .reflections: unit = more == 1 ? "reflection" : "reflections"
+        case .media: unit = more == 1 ? "more with media" : "more reflections with media"
+        case .prompts: unit = more == 1 ? "more with a prompt" : "more reflections with a prompt"
+        case .special: unit = more == 1 ? "reflection" : "reflections"
+        }
+        return "\(more) more \(unit) to go"
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color(.tertiarySystemFill))
+                    .frame(width: 44, height: 44)
+                Image(systemName: next.icon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("NEXT UP")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .tracking(1.0)
+                Text(next.displayName)
+                    .font(.headline)
+                Text(subtext)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+#Preview("First Step") {
     CelebrationView(badgeID: .firstReflection)
+}
+
+#Preview("Last milestone (no next-up)") {
+    CelebrationView(badgeID: .thousandReflections)
 }

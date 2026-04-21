@@ -271,6 +271,15 @@ extension BadgeID {
         case .maximum: return 4
         }
     }
+
+    /// The next higher-threshold badge in the same category, if any. `nil` means this
+    /// badge is the last one in its category (e.g. 1000-reflections) — the CelebrationView
+    /// uses that to skip the "Next up" teaser in that case.
+    var nextInCategory: BadgeID? {
+        BadgeID.allCases
+            .filter { $0.badgeCategory == self.badgeCategory && $0.requiredCount > self.requiredCount }
+            .min { $0.requiredCount < $1.requiredCount }
+    }
 }
 
 enum BadgeCategory: String, Codable {
