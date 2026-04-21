@@ -47,6 +47,9 @@ struct ReflectApp: App {
                 for: schema,
                 configurations: [modelConfiguration]
             )
+            // Wire the DIContainer with the live ModelContext so make...() factories work
+            // (ReflectionEditorView's init relies on makeReflectionEditorViewModel).
+            DIContainer.shared.configure(with: modelContainer.mainContext)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }

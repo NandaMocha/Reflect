@@ -9,6 +9,7 @@ final class BadgeEvaluationService {
         var unlockedBadges: [BadgeID] = []
 
         let milestones: [(BadgeID, Int)] = [
+            (.firstReflection, 1),
             (.fiveReflections, 5),
             (.tenReflections, 10),
             (.twentyFiveReflections, 25),
@@ -72,32 +73,13 @@ final class BadgeEvaluationService {
 
     // MARK: - Special Achievements
 
-    /// Checks if user has completed their first full month of journaling
-    func checkMonthlyChampion(totalReflections: Int, hasUnlockedBefore: Bool) -> Bool {
-        !hasUnlockedBefore && totalReflections >= 30
-    }
-
-    /// Checks if user has maintained 90 total reflections
+    /// Checks if user has reached 90 total reflections
     func checkQuarterlyChampion(totalReflections: Int, hasUnlockedBefore: Bool) -> Bool {
         !hasUnlockedBefore && totalReflections >= 90
     }
 
-    /// Checks if user has maintained 180 total reflections
+    /// Checks if user has reached 180 total reflections
     func checkHalfYearHero(totalReflections: Int, hasUnlockedBefore: Bool) -> Bool {
         !hasUnlockedBefore && totalReflections >= 180
-    }
-
-    /// Checks if user has reflected every single day for a full month (30/30 days)
-    /// This is repeatable each month
-    func checkPerfectionist(monthlyAchievement: MonthlyAchievement) -> Bool {
-        // Use the existing hasFullMonth flag which tracks 30+ reflections
-        monthlyAchievement.hasFullMonth
-    }
-
-    /// Checks if perfectionist badge should be awarded for a specific month
-    func checkPerfectionistForMonth(month: Int, year: Int, monthlyData: MonthlyAchievement?) -> Bool {
-        guard let data = monthlyData else { return false }
-        // Check if this month has 30+ reflections
-        return data.hasFullMonth
     }
 }

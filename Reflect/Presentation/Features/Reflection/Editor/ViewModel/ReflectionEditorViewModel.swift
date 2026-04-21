@@ -14,6 +14,8 @@ final class ReflectionEditorViewModel {
     var images: [ImageInput] = []
     var videos: [VideoInput] = []
     var voiceRecordings: [VoiceRecordingInput] = []
+    var selectedDate: Date = Date()
+    var capturedLocation: CapturedLocation?
 
     // MARK: - UI State
     var isLoading: Bool = false
@@ -22,11 +24,6 @@ final class ReflectionEditorViewModel {
     var showVoiceRecorder: Bool = false
     var showImagePicker: Bool = false
     var selectedPhotoItems: [PhotosPickerItem] = []
-
-    // MARK: - Celebration State
-    var showCelebration: Bool = false
-    var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
-    var unlockedBadges: [BadgeID] = []
 
     // MARK: - Mode
     enum Mode {
@@ -44,6 +41,7 @@ final class ReflectionEditorViewModel {
     let createUseCase: CreateReflectionUseCaseProtocol
     let updateUseCase: UpdateReflectionUseCaseProtocol
     let imageService: ImageProcessingServiceProtocol
+
 
     // MARK: - Initialization
 
@@ -78,7 +76,8 @@ final class ReflectionEditorViewModel {
         self.updateUseCase = updateUseCase ?? UpdateReflectionUseCase(
             reflectionRepository: reflectionRepo,
             learningRepository: learningRepo,
-            imageService: ImageProcessingService.shared
+            imageService: ImageProcessingService.shared,
+            evaluateBadgesUseCase: evaluateBadgesUseCase
         )
         self.imageService = imageService ?? ImageProcessingService.shared
 
@@ -90,15 +89,6 @@ final class ReflectionEditorViewModel {
         case .edit(let reflection):
             configure(with: reflection)
         }
-
-        // Listen for streak updates
-        setupNotificationObservers()
-    }
-
-    // MARK: - Notification Observers
-
-    private func setupNotificationObservers() {
-        // No streak notifications needed
     }
 
     deinit {
@@ -114,6 +104,10 @@ extension ReflectionEditorViewModel {
         title = reflection.title
         content = reflection.plainTextContent
         selectedLearning = reflection.learning
+        selectedDate = reflection.createdAt
+        if let lat = reflection.locationLatitude, let lon = reflection.locationLongitude {
+            capturedLocation = CapturedLocation(latitude: lat, longitude: lon, name: reflection.locationName)
+        }
 
         // Load existing images
         images = reflection.images

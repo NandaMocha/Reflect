@@ -14,50 +14,47 @@ extension ReflectionEditorViewModel {
         isLoading = true
         errorMessage = nil
 
+        let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
+        let trimmedContent = content.trimmingCharacters(in: .whitespaces)
+
         do {
             switch mode {
             case .create:
                 let input = CreateReflectionInput(
-                    title: title.trimmingCharacters(in: .whitespaces),
-                    content: content.trimmingCharacters(in: .whitespaces),
+                    title: trimmedTitle,
+                    content: trimmedContent,
                     learningId: selectedLearning?.id,
                     promptID: promptID,
                     images: images,
+                    videos: videos,
+                    voiceRecordings: voiceRecordings,
+                    createdAt: selectedDate,
+                    capturedLocation: capturedLocation,
+                    modelContext: modelContext
+                )
+                _ = try await createUseCase.execute(input: input)
+
+            case .edit(let reflection):
+                let input = UpdateReflectionInput(
+                    reflectionId: reflection.id,
+                    title: trimmedTitle,
+                    content: trimmedContent,
+                    learningId: selectedLearning?.id,
+                    createdAt: selectedDate,
+                    capturedLocation: capturedLocation,
+                    images: images,
+                    existingImageIds: existingImageIds,
+                    videos: videos,
+                    existingVideoIds: existingVideoIds,
                     voiceRecordings: voiceRecordings,
                     modelContext: modelContext
                 )
-                try await createUseCase.execute(input: input)
-
-            case .edit(let reflection):
-                let newImages = images.filter { !existingImageIds.contains($0.id) }
-                let removedImageIds = reflection.images
-                    .filter { !images.map { $0.id }.contains($0.id) }
-                    .map { $0.id }
-
-                let newVideos = videos.filter { !existingVideoIds.contains($0.id) }
-                let removedVideoIds = reflection.videos
-                    .filter { !videos.map { $0.id }.contains($0.id) }
-                    .map { $0.id }
-
-                let newRecordings = voiceRecordings.filter { $0.existingId == nil }
-                let removedRecordingIds = reflection.voiceRecordings
-                    .filter { !voiceRecordings.compactMap { $0.existingId }.contains($0.id) }
-                    .map { $0.id }
-
-                let input = UpdateReflectionInput(
-                    reflectionId: reflection.id,
-                    title: title.trimmingCharacters(in: .whitespaces),
-                    content: content.trimmingCharacters(in: .whitespaces),
-                    learningId: selectedLearning?.id,
-                    imagesToAdd: newImages,
-                    imageIdsToRemove: removedImageIds,
-                    videosToAdd: newVideos,
-                    videoIdsToRemove: removedVideoIds,
-                    voiceRecordingsToAdd: newRecordings,
-                    voiceRecordingIdsToRemove: removedRecordingIds
-                )
-                try await updateUseCase.execute(input: input)
+                _ = try await updateUseCase.execute(input: input)
             }
+
+            // The use case already posted `.badgesDidUnlock` for any crossed thresholds.
+            // MainTabView observes that notification and presents CelebrationView as a
+            // fullScreenCover, independently of this view model's lifecycle.
 
             isLoading = false
             HapticManager.shared.success()

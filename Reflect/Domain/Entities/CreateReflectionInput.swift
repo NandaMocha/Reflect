@@ -6,10 +6,13 @@ struct CreateReflectionInput {
     var title: String
     var content: String
     var learningId: UUID?
-    var promptID: String?  // ID of the prompt if reflection was created from a prompt
+    var promptID: String?
     var images: [ImageInput]
+    var videos: [VideoInput]
     var voiceRecordings: [VoiceRecordingInput]
-    var modelContext: ModelContext?  // Context for badge evaluation
+    var createdAt: Date
+    var capturedLocation: CapturedLocation?
+    var modelContext: ModelContext?
 
     init(
         title: String = "",
@@ -17,7 +20,10 @@ struct CreateReflectionInput {
         learningId: UUID? = nil,
         promptID: String? = nil,
         images: [ImageInput] = [],
+        videos: [VideoInput] = [],
         voiceRecordings: [VoiceRecordingInput] = [],
+        createdAt: Date = Date(),
+        capturedLocation: CapturedLocation? = nil,
         modelContext: ModelContext? = nil
     ) {
         self.title = title
@@ -25,7 +31,10 @@ struct CreateReflectionInput {
         self.learningId = learningId
         self.promptID = promptID
         self.images = images
+        self.videos = videos
         self.voiceRecordings = voiceRecordings
+        self.createdAt = createdAt
+        self.capturedLocation = capturedLocation
         self.modelContext = modelContext
     }
 
@@ -120,16 +129,28 @@ struct UpdateReflectionInput {
     var title: String
     var content: String
     var learningId: UUID?
-    var imagesToAdd: [ImageInput]
-    var imageIdsToRemove: [UUID]
-    var videosToAdd: [VideoInput]
-    var videoIdsToRemove: [UUID]
-    var voiceRecordingsToAdd: [VoiceRecordingInput]
-    var voiceRecordingIdsToRemove: [UUID]
+    var createdAt: Date
+    var capturedLocation: CapturedLocation?
+    /// All images the user wants on the saved reflection after this update. The use case diffs
+    /// against the current SwiftData state to decide what to add, keep, or remove.
+    var images: [ImageInput]
+    /// IDs among `images` that already exist in the database (so the use case treats them as
+    /// updates-in-place rather than new attachments to compress).
+    var existingImageIds: Set<UUID>
+    var videos: [VideoInput]
+    var existingVideoIds: Set<UUID>
+    var voiceRecordings: [VoiceRecordingInput]
+    var modelContext: ModelContext?
 
     var isValid: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !content.trimmingCharacters(in: .whitespaces).isEmpty &&
         learningId != nil
     }
+}
+
+struct CapturedLocation {
+    let latitude: Double
+    let longitude: Double
+    let name: String?
 }

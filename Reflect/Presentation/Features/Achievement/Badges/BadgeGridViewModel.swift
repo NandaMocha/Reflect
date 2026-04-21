@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import Observation
 
+@MainActor
 @Observable
 final class BadgeGridViewModel {
     private let badgeRepository: BadgeRepositoryProtocol
@@ -65,12 +66,6 @@ final class BadgeGridViewModel {
         self.badgeRepository = BadgeRepository(modelContext: modelContext)
     }
 
-    init(badgeRepository: BadgeRepositoryProtocol) {
-        // For testing purposes - create a temporary context
-        // This should not be used in production
-        fatalError("Use init(modelContext:) instead")
-    }
-
     // MARK: - Actions
 
     func loadBadges() async {
@@ -78,7 +73,8 @@ final class BadgeGridViewModel {
         errorMessage = nil
 
         do {
-            badges = try await badgeRepository.fetchAll()
+            let fetched = try await badgeRepository.fetchAll()
+            badges = fetched.filter { BadgeID(rawValue: $0.id) != nil }
         } catch {
             errorMessage = error.localizedDescription
         }

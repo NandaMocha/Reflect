@@ -3,22 +3,24 @@ import Foundation
 // MARK: - Validation
 
 extension ReflectionEditorViewModel {
+    /// Matches the view's gate: a reflection is valid when it has a learning selected
+    /// and at least one of: non-empty content, images, videos, or voice recordings.
+    /// (Title is optional — the view substitutes a date-based default when empty.)
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !content.trimmingCharacters(in: .whitespaces).isEmpty &&
-        selectedLearning != nil
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        return (hasContent || hasMedia) && selectedLearning != nil
     }
 
     var validationErrors: [String] {
         var errors: [String] = []
-        if title.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Title is required")
-        }
         if title.count > Constants.Limits.reflectionTitleMaxLength {
             errors.append("Title is too long")
         }
-        if content.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Content is required")
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        if !hasContent && !hasMedia {
+            errors.append("Add text or media before saving")
         }
         if selectedLearning == nil {
             errors.append("Please select a learning")

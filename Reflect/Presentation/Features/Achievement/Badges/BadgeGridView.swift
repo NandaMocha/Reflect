@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 
 struct BadgeGridView: View {
     @State private var viewModel: BadgeGridViewModel
@@ -27,15 +28,13 @@ struct BadgeGridView: View {
         .task {
             await viewModel.loadBadges()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .badgeProgressDidUpdate)) { _ in
-            Task {
-                await viewModel.loadBadges()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .badgesDidUnlock)) { _ in
-            Task {
-                await viewModel.loadBadges()
-            }
+        .onReceive(
+            Publishers.Merge(
+                NotificationCenter.default.publisher(for: .badgeProgressDidUpdate),
+                NotificationCenter.default.publisher(for: .badgesDidUnlock)
+            )
+        ) { _ in
+            Task { await viewModel.loadBadges() }
         }
         .sheet(item: $selectedBadge) { badge in
             BadgeDetailView(badge: badge)
@@ -127,53 +126,16 @@ struct BadgeGridView: View {
     // MARK: - Sorting
 
     private var sortedAchievements: [Badge] {
-        let badges = viewModel.badges
-
-        // Separate into unlocked and locked
-        let unlocked = badges.filter { $0.isUnlocked }
-        let locked = badges.filter { !$0.isUnlocked }
-
-        // Sort unlocked by unlocked date (most recent first)
-        let sortedUnlocked = unlocked.sorted { badge1, badge2 in
-            (badge1.unlockedAt ?? .distantPast) > (badge2.unlockedAt ?? .distantPast)
+        viewModel.badges.sorted { lhs, rhs in
+            let lhsReq = BadgeID(rawValue: lhs.id)?.requiredCount ?? .max
+            let rhsReq = BadgeID(rawValue: rhs.id)?.requiredCount ?? .max
+            if lhsReq != rhsReq { return lhsReq < rhsReq }
+            return enumOrder(lhs) < enumOrder(rhs)
         }
-
-        // Sort locked by difficulty (easiest first)
-        let sortedLocked = locked.sorted { badge1, badge2 in
-            badgeDifficultyOrder(badge1) < badgeDifficultyOrder(badge2)
-        }
-
-        // Return: all unlocked first (by recency), then locked (by difficulty)
-        return sortedUnlocked + sortedLocked
     }
 
-    // Badge difficulty order: easiest (1) to hardest (10)
-    private func badgeDifficultyOrder(_ badge: Badge) -> Int {
-        let difficultyMap: [String: Int] = [
-            // Special achievements
-            "monthly-champion": 6,
-            "perfectionist": 7,
-            "quarterly-champion": 8,
-            "half-year-hero": 9,
-            // Reflection milestones (easiest first)
-            "5-reflections": 1,
-            "10-reflections": 2,
-            "25-reflections": 3,
-            "50-reflections": 4,
-            "100-reflections": 5,
-            "250-reflections": 6,
-            "500-reflections": 7,
-            "1000-reflections": 8,
-            // Media milestones
-            "10-media": 2,
-            "50-media": 5,
-            "100-media": 7,
-            // Prompt milestones
-            "10-prompts": 2,
-            "50-prompts": 5,
-            "100-prompts": 7
-        ]
-        return difficultyMap[badge.id] ?? 999
+    private func enumOrder(_ badge: Badge) -> Int {
+        BadgeID.allCases.firstIndex { $0.rawValue == badge.id } ?? .max
     }
 
     // MARK: - Empty States
@@ -232,8 +194,12 @@ struct AchievementCard: View {
         return 1 // Default fallback
     }
 
+    /// Cap at the badge's threshold so an achieved milestone displays as `N/N`, not a running
+    /// total (e.g. `10/5`). `Badge.unlockedCount` gets overwritten to the current lifetime
+    /// total on every save — the raw value is fine for the progress-bar fill (which already
+    /// clamps to 1.0), but the numeric label would otherwise overshoot.
     private var currentProgress: Int {
-        badge.unlockedCount
+        min(badge.unlockedCount, requiredCount)
     }
 
     var body: some View {
