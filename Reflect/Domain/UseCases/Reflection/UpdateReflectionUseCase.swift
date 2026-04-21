@@ -39,40 +39,22 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
         reflection.title = input.title.trimmingCharacters(in: .whitespaces)
         reflection.plainTextContent = input.content
         reflection.learning = learning
+        reflection.createdAt = input.createdAt
+        reflection.updatedAt = Date()
 
-        // Remove images
-        reflection.images.removeAll { input.imageIdsToRemove.contains($0.id) }
-
-        // Add new images (async)
-        let startIndex = reflection.images.count
-        for (index, imageInput) in input.imagesToAdd.enumerated() {
-            let imageData = await imageService.compressImage(imageInput.image, quality: .high)
-            let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
-
-            let attachment = ImageAttachment(
-                imageData: imageData,
-                thumbnailData: thumbnailData,
-                caption: imageInput.caption,
-                sortOrder: startIndex + index
-            )
-            reflection.images.append(attachment)
+        if let location = input.capturedLocation {
+            reflection.locationLatitude = location.latitude
+            reflection.locationLongitude = location.longitude
+            reflection.locationName = location.name
+        } else {
+            reflection.locationLatitude = nil
+            reflection.locationLongitude = nil
+            reflection.locationName = nil
         }
 
-        // Remove voice recordings
-        reflection.voiceRecordings.removeAll { input.voiceRecordingIdsToRemove.contains($0.id) }
-
-        // Add new voice recordings
-        let voiceStartIndex = reflection.voiceRecordings.count
-        for (index, voiceInput) in input.voiceRecordingsToAdd.enumerated() {
-            let recording = VoiceRecording(
-                audioData: voiceInput.audioData,
-                transcription: voiceInput.transcription,
-                language: voiceInput.language,
-                duration: voiceInput.duration,
-                sortOrder: voiceStartIndex + index
-            )
-            reflection.voiceRecordings.append(recording)
-        }
+        try await reconcileImages(reflection: reflection, desired: input.images, existingIds: input.existingImageIds)
+        reconcileVideos(reflection: reflection, desired: input.videos, existingIds: input.existingVideoIds)
+        reconcileVoiceRecordings(reflection: reflection, desired: input.voiceRecordings)
 
         try await reflectionRepository.update(reflection)
 
@@ -90,5 +72,102 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
         }
 
         return reflection
+    }
+
+    // MARK: - Reconciliation helpers
+
+    private func reconcileImages(
+        reflection: Reflection,
+        desired: [ImageInput],
+        existingIds: Set<UUID>
+    ) async throws {
+        let desiredIds = Set(desired.map { $0.id })
+        let toDelete = reflection.images.filter { !desiredIds.contains($0.id) }
+        for attachment in toDelete {
+            if let idx = reflection.images.firstIndex(where: { $0.id == attachment.id }) {
+                reflection.images.remove(at: idx)
+            }
+        }
+
+        for (index, input) in desired.enumerated() {
+            if existingIds.contains(input.id),
+               let existing = reflection.images.first(where: { $0.id == input.id }) {
+                existing.sortOrder = index
+                existing.caption = input.caption
+            } else {
+                let imageData = await imageService.compressImage(input.image, quality: .high)
+                let thumbnailData = await imageService.generateThumbnail(input.image, size: CGSize(width: 200, height: 200))
+                let attachment = ImageAttachment(
+                    id: input.id,
+                    imageData: imageData,
+                    thumbnailData: thumbnailData,
+                    caption: input.caption,
+                    sortOrder: index
+                )
+                reflection.images.append(attachment)
+            }
+        }
+    }
+
+    private func reconcileVideos(
+        reflection: Reflection,
+        desired: [VideoInput],
+        existingIds: Set<UUID>
+    ) {
+        let desiredIds = Set(desired.map { $0.id })
+        let toDelete = reflection.videos.filter { !desiredIds.contains($0.id) }
+        for attachment in toDelete {
+            if let idx = reflection.videos.firstIndex(where: { $0.id == attachment.id }) {
+                reflection.videos.remove(at: idx)
+            }
+        }
+
+        for (index, input) in desired.enumerated() {
+            if existingIds.contains(input.id),
+               let existing = reflection.videos.first(where: { $0.id == input.id }) {
+                existing.sortOrder = index
+                existing.caption = input.caption
+            } else {
+                let thumbnailData = input.thumbnailImage.jpegData(compressionQuality: 0.8)
+                let attachment = VideoAttachment(
+                    id: input.id,
+                    videoData: input.videoData,
+                    thumbnailData: thumbnailData,
+                    caption: input.caption,
+                    duration: input.duration,
+                    sortOrder: index
+                )
+                reflection.videos.append(attachment)
+            }
+        }
+    }
+
+    private func reconcileVoiceRecordings(
+        reflection: Reflection,
+        desired: [VoiceRecordingInput]
+    ) {
+        let keptIds = Set(desired.compactMap { $0.existingId })
+        let toDelete = reflection.voiceRecordings.filter { !keptIds.contains($0.id) }
+        for recording in toDelete {
+            if let idx = reflection.voiceRecordings.firstIndex(where: { $0.id == recording.id }) {
+                reflection.voiceRecordings.remove(at: idx)
+            }
+        }
+
+        for (index, input) in desired.enumerated() {
+            if let existingId = input.existingId,
+               let existing = reflection.voiceRecordings.first(where: { $0.id == existingId }) {
+                existing.sortOrder = index
+            } else {
+                let recording = VoiceRecording(
+                    audioData: input.audioData,
+                    transcription: input.transcription,
+                    language: input.language,
+                    duration: input.duration,
+                    sortOrder: index
+                )
+                reflection.voiceRecordings.append(recording)
+            }
+        }
     }
 }

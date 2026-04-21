@@ -5,14 +5,6 @@ import JournalingSuggestions
 import OSLog
 import CoreLocation
 
-// MARK: - Captured Location Model
-
-struct CapturedLocation {
-    let latitude: Double
-    let longitude: Double
-    let name: String?
-}
-
 // MARK: - Journaling Suggestions Extension
 
 #if canImport(JournalingSuggestions)

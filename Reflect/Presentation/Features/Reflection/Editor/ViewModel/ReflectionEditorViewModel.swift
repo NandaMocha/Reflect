@@ -14,6 +14,8 @@ final class ReflectionEditorViewModel {
     var images: [ImageInput] = []
     var videos: [VideoInput] = []
     var voiceRecordings: [VoiceRecordingInput] = []
+    var selectedDate: Date = Date()
+    var capturedLocation: CapturedLocation?
 
     // MARK: - UI State
     var isLoading: Bool = false
@@ -148,6 +150,10 @@ extension ReflectionEditorViewModel {
         title = reflection.title
         content = reflection.plainTextContent
         selectedLearning = reflection.learning
+        selectedDate = reflection.createdAt
+        if let lat = reflection.locationLatitude, let lon = reflection.locationLongitude {
+            capturedLocation = CapturedLocation(latitude: lat, longitude: lon, name: reflection.locationName)
+        }
 
         // Load existing images
         images = reflection.images
