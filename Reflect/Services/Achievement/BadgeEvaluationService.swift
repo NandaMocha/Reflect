@@ -9,6 +9,7 @@ final class BadgeEvaluationService {
         var unlockedBadges: [BadgeID] = []
 
         let milestones: [(BadgeID, Int)] = [
+            (.firstReflection, 1),
             (.fiveReflections, 5),
             (.tenReflections, 10),
             (.twentyFiveReflections, 25),

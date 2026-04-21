@@ -16,14 +16,15 @@ When a user creates a reflection, the system:
 
 The Achievements screen shows a big number (`totalUnlocked`), the most recent badge, and a 2-column grid of all badges (unlocked first, then locked by difficulty).
 
-## The 16 badges
+## The 17 badges
 
 All badges are **permanent**: once a user crosses the threshold, the badge stays unlocked forever. Progress is based on **lifetime totals**, not streaks or monthly bursts. The two previously monthly-tied badges (Monthly Champion, Perfectionist) were removed — see [../reviews/streak-docs-vs-implementation.md](../reviews/streak-docs-vs-implementation.md) for the product decision.
 
-### Reflection milestones — 8 badges, `BadgeCategory.reflections`
+### Reflection milestones — 9 badges, `BadgeCategory.reflections`
 
 | ID | Name | Threshold |
 |---|---|---|
+| `first-reflection` | First Step | 1 |
 | `5-reflections` | Curious Mind | 5 |
 | `10-reflections` | Dedicated Learner | 10 |
 | `25-reflections` | Consistent Creator | 25 |

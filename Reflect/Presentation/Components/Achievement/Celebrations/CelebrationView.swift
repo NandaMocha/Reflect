@@ -1,62 +1,51 @@
 import SwiftUI
 
-/// Single full-screen celebration view shown after a badge unlocks. Replaces the earlier
-/// variant-per-tier (Confetti/Sparkles/Fireworks/Maximum) approach — one layout,
-/// confetti always, haptic rhythm plays on appear, user dismisses explicitly.
+/// Full-screen celebration shown after a badge unlocks. Deliberately minimal —
+/// small overline, large icon, badge name as the hero, one line of description,
+/// and a Continue button. The confetti + haptic carry the celebration energy;
+/// the layout stays out of their way.
 struct CelebrationView: View {
     let badgeID: BadgeID
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
-            // Background
             Color(.systemBackground)
                 .ignoresSafeArea()
 
-            // Confetti layer — sits behind content so the tap target is the dismiss button.
             ConfettiView()
                 .allowsHitTesting(false)
                 .ignoresSafeArea()
 
-            // Content
-            ScrollView {
-                VStack(spacing: 24) {
-                    VStack(spacing: 8) {
-                        Text("New Achievement Unlocked!")
-                            .font(.title.bold())
-                            .multilineTextAlignment(.center)
+            VStack(spacing: 0) {
+                Spacer(minLength: 24)
 
-                        Text("You did it great! Keep going!")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.top, 24)
+                Text("Achievement Unlocked")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(1.5)
 
-                    badgeIcon
+                Spacer(minLength: 24)
 
-                    VStack(spacing: 8) {
-                        Text(badgeID.displayName)
-                            .font(.title2.bold())
-                            .multilineTextAlignment(.center)
+                badgeIcon
 
-                        Text(badgeID.badgeDescription)
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
+                Spacer(minLength: 24)
 
-                    HowToAchieveCard(badgeID: badgeID)
+                VStack(spacing: 12) {
+                    Text(badgeID.displayName)
+                        .font(.largeTitle.bold())
+                        .multilineTextAlignment(.center)
 
-                    Spacer(minLength: 16)
+                    Text(badgeID.badgeDescription)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
-                .frame(maxWidth: .infinity)
-            }
 
-            VStack {
                 Spacer()
+
                 PrimaryButton("Continue", icon: "checkmark") {
                     dismiss()
                 }
@@ -73,16 +62,16 @@ struct CelebrationView: View {
         ZStack {
             Circle()
                 .fill(Color.blue.opacity(0.15))
-                .frame(width: 140, height: 140)
+                .frame(width: 160, height: 160)
 
             Image(systemName: badgeID.icon)
-                .font(.system(size: 60))
+                .font(.system(size: 72))
                 .foregroundStyle(Color.blue)
         }
-        .shadow(color: Color.blue.opacity(0.3), radius: 12)
+        .shadow(color: Color.blue.opacity(0.3), radius: 16)
     }
 }
 
 #Preview {
-    CelebrationView(badgeID: .fiveReflections)
+    CelebrationView(badgeID: .firstReflection)
 }

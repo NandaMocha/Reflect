@@ -4,6 +4,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
     // MARK: - Achievement Badges - Reflection Milestones (Permanent)
 
+    case firstReflection = "first-reflection"
     case fiveReflections = "5-reflections"
     case tenReflections = "10-reflections"
     case twentyFiveReflections = "25-reflections"
@@ -35,6 +36,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         // Reflection Milestones
+        case .firstReflection: return "First Step"
         case .fiveReflections: return "Curious Mind"
         case .tenReflections: return "Dedicated Learner"
         case .twentyFiveReflections: return "Consistent Creator"
@@ -63,6 +65,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var badgeDescription: String {
         switch self {
         // Reflection Milestones
+        case .firstReflection: return "Your journey begins with a single reflection!"
         case .fiveReflections: return "Every journey begins with a single step. You've started yours!"
         case .tenReflections: return "Building momentum, one reflection at a time"
         case .twentyFiveReflections: return "Making reflection your daily superpower"
@@ -91,6 +94,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var requirementDescription: String {
         switch self {
         // Reflection Milestones
+        case .firstReflection: return "Complete your first reflection"
         case .fiveReflections: return "5 reflections completed"
         case .tenReflections: return "10 reflections completed"
         case .twentyFiveReflections: return "25 reflections completed"
@@ -119,6 +123,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
             // Reflection Milestones
+            case .firstReflection: return "star"
             case .fiveReflections: return "star.fill"
             case .tenReflections: return "star.circle.fill"
             case .twentyFiveReflections: return "sparkles"
@@ -152,7 +157,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var badgeCategory: BadgeCategory {
         switch self {
         // Reflection Milestones
-        case .fiveReflections, .tenReflections, .twentyFiveReflections, .fiftyReflections,
+        case .firstReflection, .fiveReflections, .tenReflections, .twentyFiveReflections, .fiftyReflections,
              .hundredReflections, .twoHundredFiftyReflections, .fiveHundredReflections, .thousandReflections:
             return .reflections
 
@@ -172,6 +177,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
     var requiredCount: Int {
         switch self {
+        case .firstReflection: return 1
         case .fiveReflections: return 5
         case .tenReflections, .tenMedia, .tenPrompts: return 10
         case .twentyFiveReflections: return 25
@@ -205,7 +211,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var celebration: BadgeUnlockEvent.CelebrationTrigger {
         switch self {
         // First reflection milestone
-        case .fiveReflections:
+        case .firstReflection, .fiveReflections:
             return .confetti
 
         // Higher reflection milestones
