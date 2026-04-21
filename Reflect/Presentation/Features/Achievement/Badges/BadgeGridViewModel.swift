@@ -78,7 +78,8 @@ final class BadgeGridViewModel {
         errorMessage = nil
 
         do {
-            badges = try await badgeRepository.fetchAll()
+            let fetched = try await badgeRepository.fetchAll()
+            badges = fetched.filter { BadgeID(rawValue: $0.id) != nil }
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -94,16 +94,6 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
     ) async throws -> [BadgeID] {
         var unlockedBadges: [BadgeID] = []
 
-        // Check Monthly Champion
-        let monthlyChampionBadge = existingBadges.first { $0.id == "monthly-champion" }
-        if badgeEvaluationService.checkMonthlyChampion(
-            totalReflections: totalReflections,
-            hasUnlockedBefore: monthlyChampionBadge?.isUnlocked ?? false
-        ) {
-            unlockedBadges.append(.monthlyChampion)
-        }
-
-        // Check Quarterly Champion
         let quarterlyChampionBadge = existingBadges.first { $0.id == "quarterly-champion" }
         if badgeEvaluationService.checkQuarterlyChampion(
             totalReflections: totalReflections,
@@ -112,34 +102,12 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
             unlockedBadges.append(.quarterlyChampion)
         }
 
-        // Check Half Year Hero
         let halfYearHeroBadge = existingBadges.first { $0.id == "half-year-hero" }
         if badgeEvaluationService.checkHalfYearHero(
             totalReflections: totalReflections,
             hasUnlockedBefore: halfYearHeroBadge?.isUnlocked ?? false
         ) {
             unlockedBadges.append(.halfYearHero)
-        }
-
-        // Check Perfectionist (monthly achievement)
-        let calendar = Calendar.current
-        let now = Date()
-        let components = calendar.dateComponents([.month, .year], from: now)
-
-        if let month = components.month, let year = components.year {
-            let monthlyAchievement = await getMonthlyAchievement(modelContext, month: month, year: year)
-            if badgeEvaluationService.checkPerfectionist(monthlyAchievement: monthlyAchievement) {
-                // Check if perfectionist badge already exists
-                let allBadges = (try? modelContext.fetch(FetchDescriptor<Badge>())) ?? []
-                let existingPerfectionistBadges = allBadges.filter { $0.id == "perfectionist" }
-
-                // Check if we have an unlocked perfectionist badge
-                let hasUnlockedPerfectionist = existingPerfectionistBadges.contains(where: { $0.isUnlocked })
-
-                if !hasUnlockedPerfectionist {
-                    unlockedBadges.append(.perfectionist)
-                }
-            }
         }
 
         return unlockedBadges
@@ -171,12 +139,7 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
             case .prompts:
                 badge.unlockedCount = promptCount
             case .special:
-                // Special badges have their own logic
-                if badgeID == .monthlyChampion || badgeID == .quarterlyChampion || badgeID == .halfYearHero {
-                    badge.unlockedCount = totalReflections
-                }
-                // Perfectionist is handled separately
-                break
+                badge.unlockedCount = totalReflections
             }
 
             if oldCount != badge.unlockedCount {
@@ -248,22 +211,4 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
         return reflections.filter { $0.promptID != nil }.count
     }
 
-    private func getMonthlyAchievement(_ modelContext: ModelContext, month: Int, year: Int) async -> MonthlyAchievement {
-        let id = String(format: "%04d-%02d", year, month)
-
-        // Try to fetch existing
-        let descriptor = FetchDescriptor<MonthlyAchievement>(
-            predicate: #Predicate<MonthlyAchievement> { $0.id == id }
-        )
-
-        if let existing = try? modelContext.fetch(descriptor).first {
-            return existing
-        }
-
-        // Create new if doesn't exist
-        let newAchievement = MonthlyAchievement(year: year, month: month)
-        modelContext.insert(newAchievement)
-        try? modelContext.save()
-        return newAchievement
-    }
 }

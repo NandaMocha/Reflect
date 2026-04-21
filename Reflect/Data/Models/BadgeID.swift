@@ -25,12 +25,10 @@ enum BadgeID: String, CaseIterable, Identifiable {
     case fiftyPrompts = "50-prompts"
     case hundredPrompts = "100-prompts"
 
-    // MARK: - Achievement Badges - Special (Permanent except Perfectionist)
+    // MARK: - Achievement Badges - Special (Permanent)
 
-    case monthlyChampion = "monthly-champion"
     case quarterlyChampion = "quarterly-champion"
     case halfYearHero = "half-year-hero"
-    case perfectionist = "perfectionist" // Repeatable monthly
 
     var id: String { rawValue }
 
@@ -57,10 +55,8 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .hundredPrompts: return "Philosopher's Path"
 
         // Special
-        case .monthlyChampion: return "Monthly Champion"
         case .quarterlyChampion: return "Quarterly Champion"
         case .halfYearHero: return "Half-Year Hero"
-        case .perfectionist: return "Perfectionist"
         }
     }
 
@@ -87,10 +83,8 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .hundredPrompts: return "Mastering the art of self-discovery"
 
         // Special
-        case .monthlyChampion: return "Completed your first full month of journaling"
         case .quarterlyChampion: return "90 total reflections"
         case .halfYearHero: return "180 total reflections"
-        case .perfectionist: return "30+ reflections in a single month"
         }
     }
 
@@ -117,10 +111,8 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .hundredPrompts: return "100 reflections with guided prompts"
 
         // Special
-        case .monthlyChampion: return "Complete 30 reflections in a single month"
         case .quarterlyChampion: return "Complete 90 total reflections"
         case .halfYearHero: return "Complete 180 total reflections"
-        case .perfectionist: return "Achieve 30+ reflections in a single month"
         }
     }
 
@@ -147,10 +139,8 @@ enum BadgeID: String, CaseIterable, Identifiable {
             case .hundredPrompts: return "building.columns.fill"
 
             // Special
-            case .monthlyChampion: return "trophy.fill"
             case .quarterlyChampion: return "medal.fill"
             case .halfYearHero: return "figure.run"
-            case .perfectionist: return "diamond.fill"
         }
     }
 
@@ -175,7 +165,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
             return .prompts
 
         // Special
-        case .monthlyChampion, .quarterlyChampion, .halfYearHero, .perfectionist:
+        case .quarterlyChampion, .halfYearHero:
             return .special
         }
     }
@@ -190,10 +180,8 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .twoHundredFiftyReflections: return 250
         case .fiveHundredReflections: return 500
         case .thousandReflections: return 1000
-        case .monthlyChampion: return 1
         case .quarterlyChampion: return 90
         case .halfYearHero: return 180
-        case .perfectionist: return 30
         }
     }
 
@@ -249,13 +237,9 @@ enum BadgeID: String, CaseIterable, Identifiable {
             return .fireworks
 
         // Special achievements
-        case .monthlyChampion:
-            return .sparkles
         case .quarterlyChampion:
             return .fireworks
         case .halfYearHero:
-            return .maximum
-        case .perfectionist:
             return .maximum
         }
     }

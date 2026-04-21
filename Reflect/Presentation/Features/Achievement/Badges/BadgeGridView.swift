@@ -127,53 +127,16 @@ struct BadgeGridView: View {
     // MARK: - Sorting
 
     private var sortedAchievements: [Badge] {
-        let badges = viewModel.badges
-
-        // Separate into unlocked and locked
-        let unlocked = badges.filter { $0.isUnlocked }
-        let locked = badges.filter { !$0.isUnlocked }
-
-        // Sort unlocked by unlocked date (most recent first)
-        let sortedUnlocked = unlocked.sorted { badge1, badge2 in
-            (badge1.unlockedAt ?? .distantPast) > (badge2.unlockedAt ?? .distantPast)
+        viewModel.badges.sorted { lhs, rhs in
+            let lhsReq = BadgeID(rawValue: lhs.id)?.requiredCount ?? .max
+            let rhsReq = BadgeID(rawValue: rhs.id)?.requiredCount ?? .max
+            if lhsReq != rhsReq { return lhsReq < rhsReq }
+            return enumOrder(lhs) < enumOrder(rhs)
         }
-
-        // Sort locked by difficulty (easiest first)
-        let sortedLocked = locked.sorted { badge1, badge2 in
-            badgeDifficultyOrder(badge1) < badgeDifficultyOrder(badge2)
-        }
-
-        // Return: all unlocked first (by recency), then locked (by difficulty)
-        return sortedUnlocked + sortedLocked
     }
 
-    // Badge difficulty order: easiest (1) to hardest (10)
-    private func badgeDifficultyOrder(_ badge: Badge) -> Int {
-        let difficultyMap: [String: Int] = [
-            // Special achievements
-            "monthly-champion": 6,
-            "perfectionist": 7,
-            "quarterly-champion": 8,
-            "half-year-hero": 9,
-            // Reflection milestones (easiest first)
-            "5-reflections": 1,
-            "10-reflections": 2,
-            "25-reflections": 3,
-            "50-reflections": 4,
-            "100-reflections": 5,
-            "250-reflections": 6,
-            "500-reflections": 7,
-            "1000-reflections": 8,
-            // Media milestones
-            "10-media": 2,
-            "50-media": 5,
-            "100-media": 7,
-            // Prompt milestones
-            "10-prompts": 2,
-            "50-prompts": 5,
-            "100-prompts": 7
-        ]
-        return difficultyMap[badge.id] ?? 999
+    private func enumOrder(_ badge: Badge) -> Int {
+        BadgeID.allCases.firstIndex { $0.rawValue == badge.id } ?? .max
     }
 
     // MARK: - Empty States
