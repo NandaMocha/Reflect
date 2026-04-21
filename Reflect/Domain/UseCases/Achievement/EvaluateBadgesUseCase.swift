@@ -32,7 +32,9 @@ final class EvaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol {
 
         // Get previous counts from badges
         let allBadges = try await badgeRepository.fetchAll()
-        let previousTotal = allBadges.first(where: { BadgeID(rawValue: $0.id) != nil })?.unlockedCount ?? 0
+        let previousTotal = allBadges
+            .first(where: { BadgeID(rawValue: $0.id)?.badgeCategory == .reflections })?
+            .unlockedCount ?? 0
 
         // Evaluate reflection milestones
         let reflectionBadges = badgeEvaluationService.evaluateReflectionMilestoneBadges(

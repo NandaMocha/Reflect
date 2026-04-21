@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import Observation
 
+@MainActor
 @Observable
 final class BadgeGridViewModel {
     private let badgeRepository: BadgeRepositoryProtocol
