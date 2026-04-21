@@ -45,6 +45,9 @@ final class ReflectionEditorViewModel {
     let updateUseCase: UpdateReflectionUseCaseProtocol
     let imageService: ImageProcessingServiceProtocol
 
+    // MARK: - Private State
+    private var badgeUnlockObserver: NSObjectProtocol?
+
     // MARK: - Initialization
 
     init(
@@ -92,17 +95,47 @@ final class ReflectionEditorViewModel {
             configure(with: reflection)
         }
 
-        // Listen for streak updates
         setupNotificationObservers()
     }
 
     // MARK: - Notification Observers
 
     private func setupNotificationObservers() {
-        // No streak notifications needed
+        badgeUnlockObserver = NotificationCenter.default.addObserver(
+            forName: .badgesDidUnlock,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let badgeIDs = notification.object as? [BadgeID],
+                  let headline = Self.headlineBadge(from: badgeIDs) else { return }
+            self.unlockedBadges = badgeIDs
+            self.celebrationTrigger = headline.celebration
+            self.showCelebration = true
+        }
+    }
+
+    /// Pick the badge whose celebration tier is most dramatic when several unlock at once.
+    private static func headlineBadge(from badges: [BadgeID]) -> BadgeID? {
+        badges.max { a, b in
+            celebrationRank(a.celebration) < celebrationRank(b.celebration)
+        }
+    }
+
+    private static func celebrationRank(_ trigger: BadgeUnlockEvent.CelebrationTrigger) -> Int {
+        switch trigger {
+        case .none: return 0
+        case .confetti: return 1
+        case .sparkles: return 2
+        case .fireworks: return 3
+        case .maximum: return 4
+        }
     }
 
     deinit {
+        if let observer = badgeUnlockObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
         NotificationCenter.default.removeObserver(self)
     }
 }
