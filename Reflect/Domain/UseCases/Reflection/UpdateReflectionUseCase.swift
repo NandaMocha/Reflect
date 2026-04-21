@@ -8,15 +8,18 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
     private let reflectionRepository: ReflectionRepositoryProtocol
     private let learningRepository: LearningRepositoryProtocol
     private let imageService: ImageProcessingServiceProtocol
+    private let evaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol?
 
     init(
         reflectionRepository: ReflectionRepositoryProtocol,
         learningRepository: LearningRepositoryProtocol,
-        imageService: ImageProcessingServiceProtocol
+        imageService: ImageProcessingServiceProtocol,
+        evaluateBadgesUseCase: EvaluateBadgesUseCaseProtocol? = nil
     ) {
         self.reflectionRepository = reflectionRepository
         self.learningRepository = learningRepository
         self.imageService = imageService
+        self.evaluateBadgesUseCase = evaluateBadgesUseCase
     }
 
     func execute(input: UpdateReflectionInput) async throws -> Reflection {
@@ -72,6 +75,19 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
         }
 
         try await reflectionRepository.update(reflection)
+
+        if let evaluateBadgesUseCase = evaluateBadgesUseCase,
+           let modelContext = input.modelContext {
+            let newlyUnlockedBadges = try? await evaluateBadgesUseCase.execute(
+                input: EvaluateBadgesInput(modelContext: modelContext, newReflection: reflection)
+            )
+
+            if let unlockedBadges = newlyUnlockedBadges, !unlockedBadges.isEmpty {
+                NotificationCenter.default.post(name: .badgesDidUnlock, object: unlockedBadges)
+            }
+
+            NotificationCenter.default.post(name: .badgeProgressDidUpdate, object: nil)
+        }
 
         return reflection
     }

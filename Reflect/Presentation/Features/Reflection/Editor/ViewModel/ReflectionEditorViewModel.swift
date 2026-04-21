@@ -78,7 +78,8 @@ final class ReflectionEditorViewModel {
         self.updateUseCase = updateUseCase ?? UpdateReflectionUseCase(
             reflectionRepository: reflectionRepo,
             learningRepository: learningRepo,
-            imageService: ImageProcessingService.shared
+            imageService: ImageProcessingService.shared,
+            evaluateBadgesUseCase: evaluateBadgesUseCase
         )
         self.imageService = imageService ?? ImageProcessingService.shared
 

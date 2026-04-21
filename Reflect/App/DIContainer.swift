@@ -79,7 +79,8 @@ final class DIContainer {
         UpdateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            imageService: makeImageProcessingService()
+            imageService: makeImageProcessingService(),
+            evaluateBadgesUseCase: makeEvaluateBadgesUseCase()
         )
     }
 

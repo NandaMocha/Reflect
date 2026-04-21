@@ -54,7 +54,8 @@ extension ReflectionEditorViewModel {
                     videosToAdd: newVideos,
                     videoIdsToRemove: removedVideoIds,
                     voiceRecordingsToAdd: newRecordings,
-                    voiceRecordingIdsToRemove: removedRecordingIds
+                    voiceRecordingIdsToRemove: removedRecordingIds,
+                    modelContext: modelContext
                 )
                 try await updateUseCase.execute(input: input)
             }

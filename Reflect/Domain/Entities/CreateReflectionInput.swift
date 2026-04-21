@@ -126,6 +126,7 @@ struct UpdateReflectionInput {
     var videoIdsToRemove: [UUID]
     var voiceRecordingsToAdd: [VoiceRecordingInput]
     var voiceRecordingIdsToRemove: [UUID]
+    var modelContext: ModelContext?
 
     var isValid: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
