@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UIKit
 
 protocol CreateReflectionUseCaseProtocol {
     func execute(input: CreateReflectionInput) async throws -> Reflection

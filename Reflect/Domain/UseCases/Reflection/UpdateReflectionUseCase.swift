@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 protocol UpdateReflectionUseCaseProtocol {
     func execute(input: UpdateReflectionInput) async throws -> Reflection
