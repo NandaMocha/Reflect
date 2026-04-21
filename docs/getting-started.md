@@ -36,7 +36,7 @@ On first launch the app:
 2. Configures `DIContainer.shared` with the main `ModelContext`.
 3. Shows the onboarding flow (`Presentation/Features/Onboarding/`).
 
-If you're testing with an empty database and want badge unlock celebrations to fire, create reflections in quick succession until you hit a milestone (5, 10, 25, …). See [features/achievement.md](features/achievement.md) for the full list.
+If you're testing with an empty database and want badge unlock celebrations to fire, create reflections until you hit a milestone. The first reflection alone unlocks "First Step" (threshold 1). Next: Curious Mind (5), Dedicated Learner (10), … See [features/achievement.md](features/achievement.md) for the full 17-badge list.
 
 ## Testing
 

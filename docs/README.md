@@ -21,10 +21,13 @@ docs/
 ├── getting-started.md     # setup, build, run
 ├── conventions.md         # coding rules cheat sheet
 ├── features/
-│   └── achievement.md     # what the current achievement system actually does
+│   ├── achievement.md     # 17 badges, evaluation flow, celebration UI
+│   └── reflection.md      # create / edit / move / delete flow, learning model
 ├── reviews/
-│   ├── achievement-counter-review.md
-│   └── streak-docs-vs-implementation.md
+│   ├── achievement-counter-review.md        # static-analysis findings + fix priorities
+│   ├── achievement-counter-deep-dive.md     # runtime trace of the counter bug
+│   ├── achievement-counter-root-cause.md    # orphaned VM analysis + Option-B refactor
+│   └── streak-docs-vs-implementation.md     # doc↔code drift for removed streak system
 └── archive/
     ├── refactoring-2025-01.md
     ├── access-control-fixes.md
