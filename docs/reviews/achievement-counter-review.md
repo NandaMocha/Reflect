@@ -1,10 +1,27 @@
 # Achievement Counter — Code Review
 
-**Date**: 2026-04-21
+**Date**: 2026-04-21 (findings list) / updated same day with resolution markers
 **Branch**: `fix/achievement-counter`
 **Scope**: The "achievement counter" — the feature that tallies how many badges a user has unlocked and drives the Achievements screen.
 
-This review is **analysis only**. No code was changed in this pass.
+## Resolution status (2026-04-21)
+
+| Finding | Status |
+|---|---|
+| H1 — `previousTotal` category bug | ✅ Fixed — commit `8359133` |
+| H2 — missing `@MainActor` on VM | ✅ Fixed — commit `8359133` |
+| H3 — no test coverage | ⏳ Open — needs a new test target (separate scope) |
+| M1 — inefficient predicate-less counts | ✅ Fixed — commit `03cba6f` |
+| M2 — `print()` debug noise | ✅ Fixed — commit `25a9749` (prints removed entirely) |
+| M3 — silenced save errors | ✅ Fixed — commit `25a9749` (now logged via `os.Logger`) |
+| M4 — `@State` wrapping `@Observable` VM | ⏳ Open — medium-risk refactor, defer behind manual UI test |
+| M5 — redundant filter calls | ⏳ Open — low impact at current scale |
+| L1 — dead initializer | ✅ Fixed — commit `2b45b8e` |
+| L2 — `execute()` does too much | ⏳ Open — deferred until H3 lands |
+| L3 — duplicated `onReceive` handlers | ✅ Fixed — commit `2b45b8e` |
+| L4 — Perfectionist gate inconsistency | ✅ Resolved — badge removed, commit `8eb23a2` |
+
+The full narrative findings below are kept as-is for historical reference.
 
 ## Files reviewed
 
@@ -246,17 +263,17 @@ This finding is closed — the code at `EvaluateBadgesUseCase.swift:136-141` no 
 
 Group by effort and risk. Each group is a small PR.
 
-| # | PR | Contains | Risk |
-|---|---|---|---|
-| 1 | **Correctness: previousTotal bug** | H1 | Low — one-line change, matches existing pattern |
-| 2 | **Concurrency: @MainActor** | H2 | Low — compiler will flag any resulting issues |
-| 3 | **Noise: logger + silenced errors** | M2 + M3 | Very low |
-| 4 | **Perf: predicate-based counts** | M1 | Low — well-scoped |
-| 5 | **Cleanup: dead init, onReceive merge** | L1 + L3 | Trivial |
-| ~~6~~ | ~~**Perfectionist decision**~~ | ~~L4~~ | Resolved — badge removed 2026-04-21 |
-| 7 | **VM lifetime refactor** | M4 | Medium — touches parent & child; gate behind manual UI test |
-| 8 | **Tests target + first tests** | H3 | Medium setup, low ongoing |
-| 9 | **Execute refactor** | L2 | Defer until #8 lands, then this becomes straightforward |
+| # | PR | Contains | Risk | Status |
+|---|---|---|---|---|
+| 1 | Correctness: previousTotal bug | H1 | Low | ✅ `8359133` |
+| 2 | Concurrency: @MainActor | H2 | Low | ✅ `8359133` |
+| 3 | Noise + errors: remove prints, log via os.Logger | M2 + M3 | Very low | ✅ `25a9749` |
+| 4 | Perf: predicate-based counts | M1 | Low | ✅ `03cba6f` |
+| 5 | Cleanup: dead init, onReceive merge | L1 + L3 | Trivial | ✅ `2b45b8e` |
+| ~~6~~ | ~~Perfectionist decision~~ | ~~L4~~ | Resolved | ✅ `8eb23a2` |
+| 7 | VM lifetime refactor | M4 | Medium | ⏳ Open |
+| 8 | Tests target + first tests | H3 | Medium setup | ⏳ Open |
+| 9 | Execute refactor | L2 | Low after #8 | ⏳ Open |
 
 ## Follow-ups beyond this review
 
