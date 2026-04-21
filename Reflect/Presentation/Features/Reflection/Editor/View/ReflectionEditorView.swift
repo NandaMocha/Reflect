@@ -2,7 +2,9 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import OSLog
+#if canImport(JournalingSuggestions)
 import JournalingSuggestions
+#endif
 
 struct ReflectionEditorView: View {
     let mode: ReflectionEditorMode
@@ -41,10 +43,15 @@ struct ReflectionEditorView: View {
     // Journaling Suggestions State
     @State var showJournalingPicker = false
     @State var capturedLocation: CapturedLocation?
+    @State var showTemplatePicker = false
 
     // Error handling
     @State var errorMessage: String?
     @State var showErrorAlert = false
+
+    // Celebration state
+    @State var showCelebration = false
+    @State var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
 
     @FocusState var focusedField: ReflectionEditorField?
 
@@ -110,11 +117,14 @@ struct ReflectionEditorView: View {
                 }
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
+                .sheet(isPresented: $showTemplatePicker) { templatePickerSheet }
+                #if canImport(JournalingSuggestions)
                 .if(isIOS17_2OrNewer) { view in
                     view.journalingSuggestionsPicker(isPresented: $showJournalingPicker) { suggestion in
                         handleJournalingSuggestion(suggestion)
                     }
                 }
+                #endif
                 .sheet(isPresented: Binding(
                     get: { selectedVideoIndex != nil },
                     set: { if !$0 { selectedVideoIndex = nil } }
@@ -136,8 +146,10 @@ struct ReflectionEditorView: View {
                     let viewStartTime = CFAbsoluteTimeGetCurrent()
                     os_log("📱 [PERF] ReflectionEditorView onAppear started", log: .default, type: .info)
                     loadExistingData()
+                    setupNotificationObservers()
                     os_log("📱 [PERF] ReflectionEditorView onAppear completed in %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - viewStartTime) * 1000)
                 }
+                .celebration(isPresented: $showCelebration, trigger: celebrationTrigger)
         }
     }
 }

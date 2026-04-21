@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(JournalingSuggestions)
 import JournalingSuggestions
+#endif
 import OSLog
 import CoreLocation
 
@@ -13,6 +15,7 @@ struct CapturedLocation {
 
 // MARK: - Journaling Suggestions Extension
 
+#if canImport(JournalingSuggestions)
 extension ReflectionEditorView {
 
     // MARK: - Handle Journaling Suggestion
@@ -137,3 +140,4 @@ extension ReflectionEditorView {
         HapticManager.shared.error()
     }
 }
+#endif

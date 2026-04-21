@@ -11,8 +11,10 @@ protocol MediaGridItemProtocol: Identifiable {
 }
 
 // MARK: - Extensions for conformance
+// Note: Using static helper methods instead of protocol extensions to avoid
+// duplicate symbol linker errors with SwiftData @Model types
 
-extension ImageAttachment: MediaGridItemProtocol {
+extension ImageAttachment {
     var gridThumbnailImage: UIImage? {
         if let thumbnailData = thumbnailData {
             return UIImage(data: thumbnailData)
@@ -24,7 +26,7 @@ extension ImageAttachment: MediaGridItemProtocol {
     var gridDuration: TimeInterval? { nil }
 }
 
-extension VideoAttachment: MediaGridItemProtocol {
+extension VideoAttachment {
     var gridThumbnailImage: UIImage? {
         guard let thumbnailData = thumbnailData else { return nil }
         return UIImage(data: thumbnailData)
@@ -44,7 +46,7 @@ extension VideoInput: MediaGridItemProtocol {
 
 // MARK: - Type Erased Wrapper
 
-struct AnyMediaGridItem: Identifiable, MediaGridItemProtocol {
+struct AnyMediaGridItem: Identifiable {
     let id: UUID
     let _thumbnailImage: UIImage?
     let _duration: TimeInterval?
@@ -52,8 +54,30 @@ struct AnyMediaGridItem: Identifiable, MediaGridItemProtocol {
     var gridThumbnailImage: UIImage? { _thumbnailImage }
     var gridDuration: TimeInterval? { _duration }
 
-    init<T: MediaGridItemProtocol>(_ item: T) {
-        self.id = item.id as? UUID ?? UUID()
+    // Initialize from ImageAttachment
+    init(_ item: ImageAttachment) {
+        self.id = item.id
+        self._thumbnailImage = item.gridThumbnailImage
+        self._duration = item.gridDuration
+    }
+
+    // Initialize from VideoAttachment
+    init(_ item: VideoAttachment) {
+        self.id = item.id
+        self._thumbnailImage = item.gridThumbnailImage
+        self._duration = item.gridDuration
+    }
+
+    // Initialize from ImageInput
+    init(_ item: ImageInput) {
+        self.id = item.id
+        self._thumbnailImage = item.gridThumbnailImage
+        self._duration = item.gridDuration
+    }
+
+    // Initialize from VideoInput
+    init(_ item: VideoInput) {
+        self.id = item.id
         self._thumbnailImage = item.gridThumbnailImage
         self._duration = item.gridDuration
     }

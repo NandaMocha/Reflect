@@ -54,15 +54,6 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    sortingMenu
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                }
-            }
-        }
         .searchable(text:Binding(
             get: { viewModel?.searchQuery ?? "" },
             set: { newValue in
@@ -117,6 +108,9 @@ struct ReflectionListView: View {
         }
         .onChange(of: widgetAction) { _, action in
             handleWidgetAction(action)
+        }
+        .navigationDestination(for: Reflection.self) { reflection in
+            ReflectionDetailView(reflection: reflection)
         }
     }
 
@@ -435,7 +429,10 @@ struct ReflectionListView: View {
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
                         ForEach(reflections) { reflection in
-                            NavigationLink(destination: ReflectionDetailView(reflection: reflection)) {
+                            ZStack {
+                                NavigationLink(value: reflection) { EmptyView() }
+                                    .opacity(.zero)
+                                
                                 ReflectionCard(reflection: reflection) {}
                             }
                             .buttonStyle(.plain)

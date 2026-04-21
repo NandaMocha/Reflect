@@ -64,6 +64,10 @@ extension ReflectionEditorView {
             Button { showVoiceRecorder = true } label: {
                 Image(systemName: "waveform").font(.callout)
             }
+
+            Button { showTemplatePicker = true } label: {
+                Image(systemName: "doc.text").font(.callout)
+            }
         }
         .padding(Constants.Spacing.xxs)
     }

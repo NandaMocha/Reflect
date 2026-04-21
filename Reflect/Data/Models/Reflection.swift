@@ -30,6 +30,9 @@ final class Reflection {
     var locationLongitude: Double?
     var locationName: String?
 
+    var submittedDate: Date? = nil
+    var promptID: String? = nil  // ID of the prompt if reflection was created from a prompt
+
     init(
         id: UUID = UUID(),
         title: String,
@@ -85,5 +88,17 @@ final class Reflection {
             return thumbnail
         }
         return firstVideo?.thumbnail
+    }
+
+    // MARK: - Streak Computed Properties
+
+    var isSubmittedToday: Bool {
+        guard let submitted = submittedDate else { return false }
+        return Calendar.current.isDateInToday(submitted)
+    }
+
+    var isFirstDayOfMonth: Bool {
+        guard let submitted = submittedDate else { return false }
+        return Calendar.current.component(.day, from: submitted) == 1
     }
 }

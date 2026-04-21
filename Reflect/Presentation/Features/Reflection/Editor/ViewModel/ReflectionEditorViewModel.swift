@@ -10,6 +10,7 @@ final class ReflectionEditorViewModel {
     var title: String = ""
     var content: String = ""
     var selectedLearning: Learning?
+    var promptID: String? = nil  // ID of the prompt if reflection was created from a prompt
     var images: [ImageInput] = []
     var videos: [VideoInput] = []
     var voiceRecordings: [VoiceRecordingInput] = []
@@ -21,6 +22,11 @@ final class ReflectionEditorViewModel {
     var showVoiceRecorder: Bool = false
     var showImagePicker: Bool = false
     var selectedPhotoItems: [PhotosPickerItem] = []
+
+    // MARK: - Celebration State
+    var showCelebration: Bool = false
+    var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
+    var unlockedBadges: [BadgeID] = []
 
     // MARK: - Mode
     enum Mode {
@@ -34,7 +40,7 @@ final class ReflectionEditorViewModel {
     var existingVideoIds: Set<UUID> = []
 
     // MARK: - Dependencies
-    private let modelContext: ModelContext
+    let modelContext: ModelContext  // Made internal for use in extensions
     let createUseCase: CreateReflectionUseCaseProtocol
     let updateUseCase: UpdateReflectionUseCaseProtocol
     let imageService: ImageProcessingServiceProtocol
@@ -55,10 +61,19 @@ final class ReflectionEditorViewModel {
         let reflectionRepo = ReflectionRepository(modelContext: modelContext)
         let learningRepo = LearningRepository(modelContext: modelContext)
 
+        // Create badge evaluation service
+        let badgeEvaluationService = BadgeEvaluationService()
+        let badgeRepo = BadgeRepository(modelContext: modelContext)
+        let evaluateBadgesUseCase = EvaluateBadgesUseCase(
+            badgeEvaluationService: badgeEvaluationService,
+            badgeRepository: badgeRepo
+        )
+
         self.createUseCase = createUseCase ?? CreateReflectionUseCase(
             reflectionRepository: reflectionRepo,
             learningRepository: learningRepo,
-            imageService: ImageProcessingService.shared
+            imageService: ImageProcessingService.shared,
+            evaluateBadgesUseCase: evaluateBadgesUseCase
         )
         self.updateUseCase = updateUseCase ?? UpdateReflectionUseCase(
             reflectionRepository: reflectionRepo,
@@ -75,6 +90,19 @@ final class ReflectionEditorViewModel {
         case .edit(let reflection):
             configure(with: reflection)
         }
+
+        // Listen for streak updates
+        setupNotificationObservers()
+    }
+
+    // MARK: - Notification Observers
+
+    private func setupNotificationObservers() {
+        // No streak notifications needed
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
 

@@ -38,6 +38,20 @@ extension ReflectionEditorView {
         }
     }
 
+    var templatePickerSheet: some View {
+        ReflectionTemplateSheet(
+            isPresented: $showTemplatePicker,
+            onTemplateSelected: { templateText in
+                // Append template to content
+                if !content.isEmpty {
+                    content += "\n\n"
+                }
+                content += templateText
+                hasChanges = true
+            }
+        )
+    }
+
     @ViewBuilder
     var mediaPickerSheet: some View {
         ImagePickerView(

