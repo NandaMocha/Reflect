@@ -1,4 +1,6 @@
-# Reflect - Project Foundation Knowledge
+# Architecture
+
+> **Note**: This file was previously `SKILLS.md` at the repo root. It is now the canonical architecture reference. For a quick entry point, see [/CLAUDE.md](../CLAUDE.md); for per-feature behavior, see [features/](features/); for quick rules, see [conventions.md](conventions.md).
 
 ## Project Overview
 
