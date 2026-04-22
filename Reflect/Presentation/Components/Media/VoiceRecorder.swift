@@ -325,11 +325,33 @@ struct VoiceRecorderView: View {
 
 // MARK: - Wrapper Classes
 
+/// Forwards `AudioRecorderService` publishers to `@Published` properties so SwiftUI
+/// `.onChange` modifiers can observe them. Without the subscriptions the published
+/// properties stay at their initial zero values and the waveform never animates.
 class AudioRecorderWrapper: ObservableObject {
     @Published var currentTime: TimeInterval = 0
     @Published var audioLevel: Float = 0
 
     private let service = AudioRecorderService()
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        service.audioLevelPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] level in
+                self?.audioLevel = level
+            }
+            .store(in: &cancellables)
+
+        service.recordingStatePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                if let duration = state.currentDuration {
+                    self?.currentTime = duration
+                }
+            }
+            .store(in: &cancellables)
+    }
 
     func startRecording() async throws {
         try await service.startRecording()
@@ -344,10 +366,23 @@ class AudioRecorderWrapper: ObservableObject {
     }
 }
 
+/// Forwards `SpeechRecognitionService.transcribedTextPublisher` to a `@Published`
+/// property so the live transcription surfaces in the UI while the user speaks
+/// (rather than only showing up after `stopRecording`).
 class SpeechRecognizerWrapper: ObservableObject {
     @Published var transcription: String = ""
 
     private let service = SpeechRecognitionService()
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        service.transcribedTextPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] text in
+                self?.transcription = text
+            }
+            .store(in: &cancellables)
+    }
 
     func startRecording(language: SpeechLanguage) async throws {
         try await service.startRecording(language: language)

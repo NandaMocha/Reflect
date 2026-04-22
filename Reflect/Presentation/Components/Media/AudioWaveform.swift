@@ -315,16 +315,23 @@ private struct MirrorWaveformView: View {
     let barCount: Int
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<barCount, id: \.self) { index in
-                bar(at: index)
+        GeometryReader { geo in
+            let spacing: CGFloat = 2
+            let totalSpacing = CGFloat(barCount - 1) * spacing
+            let barWidth = max(1, (geo.size.width - totalSpacing) / CGFloat(barCount))
+
+            HStack(spacing: spacing) {
+                ForEach(0..<barCount, id: \.self) { index in
+                    bar(at: index, width: barWidth)
+                }
             }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
         }
         .frame(height: height)
     }
 
     @ViewBuilder
-    private func bar(at index: Int) -> some View {
+    private func bar(at index: Int, width: CGFloat) -> some View {
         let level = index < levels.count ? levels[index] : 0.05
         let halfHeight = max(1.5, level * (height * 0.42))
 
@@ -332,13 +339,13 @@ private struct MirrorWaveformView: View {
             Spacer(minLength: 0)
             RoundedRectangle(cornerRadius: 2)
                 .fill(color.opacity(0.2 + level * 0.8))
-                .frame(width: 4, height: halfHeight)
+                .frame(width: width, height: halfHeight)
             RoundedRectangle(cornerRadius: 2)
                 .fill(color.opacity(0.12 + level * 0.5))
-                .frame(width: 4, height: halfHeight)
+                .frame(width: width, height: halfHeight)
             Spacer(minLength: 0)
         }
-        .frame(width: 4)
+        .frame(width: width)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: level)
     }
 }
