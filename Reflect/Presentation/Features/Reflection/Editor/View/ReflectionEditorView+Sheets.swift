@@ -26,8 +26,8 @@ extension ReflectionEditorView {
     var templatePickerSheet: some View {
         ReflectionTemplateSheet(
             isPresented: $showTemplatePicker,
-            onTemplateSelected: { templateText in
-                // Append template to content
+            onTemplateSelected: { promptID, templateText in
+                viewModel.promptID = promptID
                 if !content.isEmpty {
                     content += "\n\n"
                 }
