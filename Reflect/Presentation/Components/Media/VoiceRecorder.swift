@@ -42,7 +42,7 @@ struct VoiceRecorderView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.backgroundPrimaryDark.ignoresSafeArea()
+                Color.backgroundPrimaryLight.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     WaveformCard(
@@ -84,7 +84,7 @@ struct VoiceRecorderView: View {
                         } else {
                             Text("Tap to start recording")
                                 .font(.subheadline)
-                                .foregroundColor(Color.white.opacity(0.25))
+                                .foregroundColor(.secondary)
                                 .padding(.vertical, 24)
                         }
                     }
@@ -111,14 +111,12 @@ struct VoiceRecorderView: View {
             }
             .navigationTitle("Voice Note")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         cancelRecording()
                         isPresented = false
                     }
-                    .tint(.white.opacity(0.85))
                 }
 
                 if showReplay {
@@ -411,11 +409,11 @@ private struct WaveformCard: View {
             .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.025))
+                    .fill(Color.secondary.opacity(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
             )
     }
 }
@@ -435,7 +433,7 @@ private struct TimerLabel: View {
         Text(formatted)
             .font(.system(size: 64, weight: .light, design: .monospaced))
             .monospacedDigit()
-            .foregroundColor(.white)
+            .foregroundColor(.primary)
             .kerning(-1)
     }
 }
@@ -457,7 +455,7 @@ private struct ScrubberView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.1))
+                        .fill(Color.secondary.opacity(0.2))
                         .frame(height: 3)
 
                     Capsule()
@@ -489,11 +487,11 @@ private struct ScrubberView: View {
             HStack {
                 Text(formatShort(elapsed))
                     .font(.caption2.monospacedDigit())
-                    .foregroundColor(Color.white.opacity(0.35))
+                    .foregroundColor(.secondary)
                 Spacer()
                 Text(formatShort(total))
                     .font(.caption2.monospacedDigit())
-                    .foregroundColor(Color.white.opacity(0.35))
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -519,7 +517,7 @@ private struct RecordingIndicator: View {
 
             Text("Recording...")
                 .font(.footnote)
-                .foregroundColor(Color.white.opacity(0.5))
+                .foregroundColor(.secondary)
                 .tracking(0.5)
         }
         .onAppear { pulse = true }
@@ -577,7 +575,7 @@ private struct TranscriptionCard: View {
 
             Text(text.isEmpty ? "Tap play to listen. Transcription will appear here once recognized." : text)
                 .font(.subheadline)
-                .foregroundColor(Color.white.opacity(text.isEmpty ? 0.45 : 0.8))
+                .foregroundColor(text.isEmpty ? .secondary : .primary)
                 .lineSpacing(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
