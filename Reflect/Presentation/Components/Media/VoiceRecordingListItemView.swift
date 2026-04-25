@@ -40,7 +40,7 @@ struct VoiceRecordingListItemView: View {
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showPlayerPopup) {
-            VoicePlayerPopup(voiceRecording: voiceRecording.toInput())
+            VoiceAudioView(mode: .play(voiceRecording.toInput()), isPresented: $showPlayerPopup)
         }
     }
 
