@@ -42,7 +42,7 @@ struct VoiceRecorderView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.backgroundPrimaryDark.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     WaveformCard(
