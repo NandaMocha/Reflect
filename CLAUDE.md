@@ -100,16 +100,20 @@ Git permissions for `git status`, `diff`, `log`, `add`, `commit` are pre-allowed
 
 ## Feature docs
 
-- [Achievement / Badges](docs/features/achievement.md) — what's currently implemented
+- [Reflection](docs/features/reflection.md) — create / edit / move / delete flow, learning-assignment model
+- [Achievement / Badges](docs/features/achievement.md) — the 17 badges, evaluation flow, celebration UI
 
 ## Reviews / known issues
 
-- [Achievement counter code review](docs/reviews/achievement-counter-review.md) — bugs and improvements in the current achievement counter
-- [Streak docs vs. implementation](docs/reviews/streak-docs-vs-implementation.md) — doc–code drift analysis
+- [Achievement counter code review](docs/reviews/achievement-counter-review.md) — static-analysis findings and prioritized fixes
+- [Achievement counter deep-dive](docs/reviews/achievement-counter-deep-dive.md) — runtime trace of why the counter didn't update
+- [Achievement counter root cause](docs/reviews/achievement-counter-root-cause.md) — orphaned ViewModel analysis and Option B refactor record
+- [Streak docs vs. implementation](docs/reviews/streak-docs-vs-implementation.md) — doc–code drift analysis for the removed streak system
 
 ## Non-obvious gotchas
 
-- `DIContainer.shared.configure(with:)` **must** be called before any `make…()` call or they `fatalError`. This happens in `ReflectApp.swift` after the `ModelContainer` initializes.
-- The achievement UI refreshes via two `NotificationCenter` names: `.badgesDidUnlock` and `.badgeProgressDidUpdate`. `CreateReflectionUseCase` posts them after `EvaluateBadgesUseCase` runs; `BadgeGridView.onReceive(...)` reacts.
+- `DIContainer.shared.configure(with:)` **must** be called before any `make…()` call or they `fatalError`. This happens in `ReflectApp.init` right after the `ModelContainer` initializes.
+- Badge lifecycle uses two `NotificationCenter` names: `.badgesDidUnlock` (payload: `[BadgeID]`) and `.badgeProgressDidUpdate`. Both `CreateReflectionUseCase` and `UpdateReflectionUseCase` post them after `EvaluateBadgesUseCase` runs. Observers: `MainTabView` presents the full-screen `CelebrationView` on `.badgesDidUnlock`; `BadgeGridView` and `LearningListView` refresh on both.
+- A reflection's `Learning` is **fixed at creation** from the list's filter — no picker in the editor. To reassign, use the row's swipe → Move action in `ReflectionListView`, which goes through `MoveReflectionUseCase`.
 - Markdown docs live under `/docs` at repo root — **not** under `Reflect/Resources/`. Resources are shipped with the app; dev docs are not.
 - The `docs/archive/streak-original-spec/` folder describes an earlier "streak" badge design that was intentionally removed. It's kept for reference but does not reflect current code. See the reconciliation review linked above.

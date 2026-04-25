@@ -166,7 +166,7 @@ struct BadgeDetailView: View {
                     Image(systemName: "repeat")
                         .foregroundStyle(.secondary)
 
-                    Text("Earned \(badge.unlockedCount) times")
+                    Text("Earned after: \(badge.unlockedCount) reflections")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 

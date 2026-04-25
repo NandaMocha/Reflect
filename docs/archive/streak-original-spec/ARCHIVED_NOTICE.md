@@ -26,7 +26,7 @@ Evidence in the current code:
 - [`BadgeGridViewModel.swift:43-46`](../../../Reflect/Presentation/Features/Achievement/Badges/BadgeGridViewModel.swift) comment reads "All badges are permanent now after removing streaks".
 - `BadgeType` enum in [`BadgeID.swift:264-266`](../../../Reflect/Data/Models/BadgeID.swift) has only `case permanent` — the `repeatable` / `monthly` cases described in `02_BADGES.md` do not exist.
 - `StreakData.swift`, `StreakRepository.swift`, `StreakCalculationService.swift` described in `IMPLEMENTATION_STATUS.md` no longer exist anywhere in the repo.
-- The current `BadgeID` enum defines 16 badges (reflection milestones 5→1000, media 10/50/100, prompt 10/50/100, plus 2 special — Quarterly Champion and Half-Year Hero). A later product decision also removed the two monthly-tied special badges (Monthly Champion, Perfectionist). None of these match the streak badges described here.
+- The current `BadgeID` enum defines 17 badges (reflection milestones 1→1000, media 10/50/100, prompt 10/50/100, plus 2 special — Quarterly Champion and Half-Year Hero). A later product decision also removed the two monthly-tied special badges (Monthly Champion, Perfectionist) and added a First Step badge for the very first reflection. None of these match the streak badges described here.
 
 ## Where to look instead
 

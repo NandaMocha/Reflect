@@ -41,36 +41,94 @@ struct VoiceRecorderView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: Constants.Spacing.lg) {
-                Spacer()
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-                // Unified recording UI - same layout for recording and playback
-                unifiedRecordingView
+                VStack(spacing: 0) {
+                    WaveformCard(
+                        levels: audioLevels.isEmpty ? defaultWaveformLevels : audioLevels,
+                        height: showReplay ? 90 : 110
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
 
-                Spacer()
+                    TimerLabel(duration: displayedDuration)
+                        .padding(.top, 12)
 
-                controlButtons
+                    ScrubberView(
+                        elapsed: showReplay ? replayCurrentTime : duration,
+                        total: showReplay ? duration : duration,
+                        canSeek: showReplay
+                    ) { newTime in
+                        seekToTime(newTime)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                    // Middle content varies by state
+                    Group {
+                        if isRecording {
+                            RecordingIndicator()
+                                .padding(.vertical, 12)
+                        } else if showReplay {
+                            PlaybackControlsRow(
+                                isPlaying: isPlayingReplay,
+                                onSkipBack: rewindPlayback,
+                                onTogglePlay: toggleReplayPlayback,
+                                onSkipForward: forwardPlayback
+                            )
+                            .padding(.vertical, 16)
+
+                            TranscriptionCard(text: transcription)
+                                .padding(.horizontal, 20)
+                        } else {
+                            Text("Tap to start recording")
+                                .font(.subheadline)
+                                .foregroundColor(Color.white.opacity(0.25))
+                                .padding(.vertical, 24)
+                        }
+                    }
+
+                    Spacer()
+
+                    // Bottom primary action
+                    Group {
+                        if showReplay {
+                            // Done is in the toolbar during replay.
+                            Color.clear.frame(height: 72)
+                        } else if isRecording {
+                            StopButton {
+                                Task { await stopRecording() }
+                            }
+                        } else {
+                            RecordButton {
+                                Task { await startRecording() }
+                            }
+                        }
+                    }
+                    .padding(.bottom, 16)
+                }
             }
-            .padding(Constants.Spacing.lg)
             .navigationTitle("Voice Note")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         cancelRecording()
                         isPresented = false
                     }
+                    .tint(.white.opacity(0.85))
                 }
 
-                // Save button in toolbar (visible only in replay mode)
                 if showReplay {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             completeRecording()
                         } label: {
-                            Text("Save")
-                                .fontWeight(.medium)
+                            Text("Done").fontWeight(.medium)
                         }
+                        .tint(.primaryDefault)
                     }
                 }
             }
@@ -81,7 +139,6 @@ struct VoiceRecorderView: View {
             }
             .onChange(of: audioRecorder.audioLevel) { _, newValue in
                 audioLevel = newValue
-                // Capture audio levels for waveform visualization
                 if isRecording && !isPaused {
                     let level = CGFloat(newValue)
                     if audioLevels.count >= waveformBarCount {
@@ -99,206 +156,13 @@ struct VoiceRecorderView: View {
         }
     }
 
-    // MARK: - Unified Recording View
+    // MARK: - Computed helpers
 
-    private var unifiedRecordingView: some View {
-        VStack(spacing: Constants.Spacing.xl) {
-            // Waveform (live during recording, progress during playback)
-            AudioWaveform.progress(
-                audioLevels: audioLevels.isEmpty ? defaultWaveformLevels : audioLevels,
-                progress: showReplay ? replayProgress : 0
-            )
-            .frame(height: 80)
-            .animation(.linear(duration: 0.1), value: replayProgress)
-
-            // Timer display
-            Text(formatDuration(isRecording ? duration : (showReplay && isPlayingReplay ? replayCurrentTime : duration)))
-                .font(.system(size: 48, weight: .light, design: .monospaced))
-                .foregroundColor(.primary)
-
-            // Progress bar (visible during recording and after)
-            if duration > 0 {
-                progressBarView
-            }
-
-            // Playback controls (visible during recording and after)
-            if duration > 0 || isRecording {
-                playbackControlsView
-            }
-
-            // Status text (only when idle)
-            if !isRecording && !isPlayingReplay && duration == 0 {
-                Text("Tap to Record")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
-    // MARK: - Progress Bar View
-
-    private var progressBarView: some View {
-        VStack(spacing: Constants.Spacing.xs) {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.secondary.opacity(0.2))
-                        .frame(height: 6)
-
-                    Capsule()
-                        .fill(Color.primaryDefault)
-                        .frame(width: geometry.size.width * currentProgress, height: 6)
-
-                    // Progress knob (only during playback)
-                    if showReplay {
-                        Circle()
-                            .fill(Color.primaryDefault)
-                            .frame(width: 14, height: 14)
-                            .offset(x: geometry.size.width * currentProgress - 7)
-                    }
-                }
-                .contentShape(Rectangle())
-                .gesture(
-                    showReplay ? DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let newTime = Double(max(0, min(1, value.location.x / geometry.size.width))) * duration
-                            seekToTime(newTime)
-                        }
-                    : nil
-                )
-            }
-            .frame(height: 6)
-
-            HStack {
-                Text(formatDuration(showReplay ? replayCurrentTime : 0))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                Text(formatDuration(duration))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.horizontal, Constants.Spacing.md)
-    }
-
-    // MARK: - Playback Controls View
-
-    private var playbackControlsView: some View {
-        HStack(spacing: Constants.Spacing.xl) {
-            if showReplay {
-                // Rewind 15 seconds
-                Button {
-                    rewindPlayback()
-                } label: {
-                    Image(systemName: "gobackward.15")
-                        .font(.title3)
-                        .foregroundColor(.primaryDefault)
-                }
-                
-                // Retake button
-                Button {
-                    retakeRecording()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Play/Pause button
-                Button {
-                    toggleReplayPlayback()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color.primaryDefault)
-                            .frame(width: 56, height: 56)
-
-                        Image(systemName: isPlayingReplay ? "pause.fill" : "play.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-                }
-
-                // Forward 15 seconds
-                Button {
-                    forwardPlayback()
-                } label: {
-                    Image(systemName: "goforward.15")
-                        .font(.title3)
-                        .foregroundColor(.primaryDefault)
-                }
-            } else {
-                // During recording - show centered mic/stop indicator
-                Spacer()
-
-                if isRecording {
-                    // Recording indicator
-                    Text("● Recording...")
-                        .font(.subheadline)
-                        .foregroundColor(.error)
-                }
-
-                Spacer()
-            }
-        }
-    }
-
-    // MARK: - Control Buttons
-
-    private var controlButtons: some View {
-        HStack(spacing: Constants.Spacing.xl) {
-            if showReplay {
-                // Empty - controls are now in playbackControlsView
-                // Save is in toolbar
-                Spacer()
-            } else {
-                // Main record/stop button
-                Button {
-                    Task {
-                        if isRecording {
-                            await stopRecording()
-                        } else {
-                            await startRecording()
-                        }
-                    }
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(isRecording ? Color.error : Color.primaryDefault)
-                            .frame(width: 72, height: 72)
-
-                        if isRecording {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.white)
-                                .frame(width: 24, height: 24)
-                        } else {
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 24, height: 24)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(.bottom, Constants.Spacing.lg)
-    }
-
-    // MARK: - Computed Properties
-
-    private var currentProgress: CGFloat {
-        if showReplay {
-            return replayProgress
-        } else {
-            return duration > 0 ? 1.0 : 0
-        }
-    }
-
-    private var replayProgress: CGFloat {
-        guard duration > 0 else { return 0 }
-        return CGFloat(replayCurrentTime / duration)
+    /// What the big timer label should show in each state.
+    private var displayedDuration: TimeInterval {
+        if isRecording { return duration }
+        if showReplay { return replayCurrentTime }
+        return 0
     }
 
     // MARK: - Methods
@@ -461,11 +325,33 @@ struct VoiceRecorderView: View {
 
 // MARK: - Wrapper Classes
 
+/// Forwards `AudioRecorderService` publishers to `@Published` properties so SwiftUI
+/// `.onChange` modifiers can observe them. Without the subscriptions the published
+/// properties stay at their initial zero values and the waveform never animates.
 class AudioRecorderWrapper: ObservableObject {
     @Published var currentTime: TimeInterval = 0
     @Published var audioLevel: Float = 0
 
     private let service = AudioRecorderService()
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        service.audioLevelPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] level in
+                self?.audioLevel = level
+            }
+            .store(in: &cancellables)
+
+        service.recordingStatePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                if let duration = state.currentDuration {
+                    self?.currentTime = duration
+                }
+            }
+            .store(in: &cancellables)
+    }
 
     func startRecording() async throws {
         try await service.startRecording()
@@ -480,10 +366,23 @@ class AudioRecorderWrapper: ObservableObject {
     }
 }
 
+/// Forwards `SpeechRecognitionService.transcribedTextPublisher` to a `@Published`
+/// property so the live transcription surfaces in the UI while the user speaks
+/// (rather than only showing up after `stopRecording`).
 class SpeechRecognizerWrapper: ObservableObject {
     @Published var transcription: String = ""
 
     private let service = SpeechRecognitionService()
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        service.transcribedTextPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] text in
+                self?.transcription = text
+            }
+            .store(in: &cancellables)
+    }
 
     func startRecording(language: SpeechLanguage) async throws {
         try await service.startRecording(language: language)
@@ -497,6 +396,268 @@ class SpeechRecognizerWrapper: ObservableObject {
         service.cancelRecording()
     }
 }
+
+// MARK: - Subviews (private to this file)
+
+/// Bordered rounded card wrapping a mirrored waveform.
+private struct WaveformCard: View {
+    let levels: [CGFloat]
+    let height: CGFloat
+
+    var body: some View {
+        AudioWaveform.mirror(audioLevels: levels, color: .primaryDefault, height: height)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.025))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+            )
+    }
+}
+
+/// Big monospaced timer in `M:SS` form. Uses system-monospaced design rather than bundling
+/// DM Mono — the design's intent is a clean monospaced look, which the system font delivers.
+private struct TimerLabel: View {
+    let duration: TimeInterval
+
+    private var formatted: String {
+        let m = Int(duration) / 60
+        let s = Int(duration) % 60
+        return String(format: "%d:%02d", m, s)
+    }
+
+    var body: some View {
+        Text(formatted)
+            .font(.system(size: 64, weight: .light, design: .monospaced))
+            .monospacedDigit()
+            .foregroundColor(.white)
+            .kerning(-1)
+    }
+}
+
+/// Track + fill + thumb + timestamps. Tap-or-drag to seek when `canSeek` is true.
+private struct ScrubberView: View {
+    let elapsed: TimeInterval
+    let total: TimeInterval
+    let canSeek: Bool
+    let onSeek: (TimeInterval) -> Void
+
+    private var fraction: CGFloat {
+        guard total > 0 else { return 0 }
+        return CGFloat(min(max(elapsed / total, 0), 1))
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(height: 3)
+
+                    Capsule()
+                        .fill(Color.primaryDefault)
+                        .frame(width: geo.size.width * fraction, height: 3)
+
+                    if canSeek || total > 0 {
+                        Circle()
+                            .fill(Color.primaryDefault)
+                            .frame(width: 12, height: 12)
+                            .shadow(color: Color.primaryDefault.opacity(0.6), radius: 4)
+                            .offset(x: geo.size.width * fraction - 6)
+                    }
+                }
+                .frame(height: 12)
+                .contentShape(Rectangle())
+                .gesture(
+                    canSeek
+                        ? DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let p = max(0, min(1, value.location.x / geo.size.width))
+                                onSeek(Double(p) * total)
+                            }
+                        : nil
+                )
+            }
+            .frame(height: 12)
+
+            HStack {
+                Text(formatShort(elapsed))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundColor(Color.white.opacity(0.35))
+                Spacer()
+                Text(formatShort(total))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundColor(Color.white.opacity(0.35))
+            }
+        }
+    }
+
+    private func formatShort(_ t: TimeInterval) -> String {
+        let m = Int(t) / 60
+        let s = Int(t) % 60
+        return String(format: "%d:%02d", m, s)
+    }
+}
+
+/// Blinking red dot + "Recording…" caption.
+private struct RecordingIndicator: View {
+    @State private var pulse = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(Color(hex: "FF6060"))
+                .frame(width: 8, height: 8)
+                .opacity(pulse ? 0.2 : 1.0)
+                .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: pulse)
+
+            Text("Recording...")
+                .font(.footnote)
+                .foregroundColor(Color.white.opacity(0.5))
+                .tracking(0.5)
+        }
+        .onAppear { pulse = true }
+    }
+}
+
+/// Skip-15-back · Play/Pause · Skip-15-forward — arranged per the design.
+private struct PlaybackControlsRow: View {
+    let isPlaying: Bool
+    let onSkipBack: () -> Void
+    let onTogglePlay: () -> Void
+    let onSkipForward: () -> Void
+
+    var body: some View {
+        HStack(spacing: 32) {
+            Button(action: onSkipBack) {
+                Image(systemName: "gobackward.15")
+                    .font(.system(size: 26, weight: .regular))
+                    .foregroundColor(.primaryDefault)
+            }
+
+            Button(action: onTogglePlay) {
+                ZStack {
+                    Circle()
+                        .fill(Color.primaryDefault)
+                        .frame(width: 68, height: 68)
+                        .shadow(color: Color.primaryDefault.opacity(0.4), radius: 12, x: 0, y: 4)
+
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundColor(.white)
+                        .offset(x: isPlaying ? 0 : 2)  // optical centering for the play triangle
+                }
+            }
+
+            Button(action: onSkipForward) {
+                Image(systemName: "goforward.15")
+                    .font(.system(size: 26, weight: .regular))
+                    .foregroundColor(.primaryDefault)
+            }
+        }
+    }
+}
+
+/// Green-tinted transcription card shown in replay state.
+private struct TranscriptionCard: View {
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("TRANSCRIPTION")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(Color.primaryDefault.opacity(0.8))
+                .tracking(0.8)
+
+            Text(text.isEmpty ? "Tap play to listen. Transcription will appear here once recognized." : text)
+                .font(.subheadline)
+                .foregroundColor(Color.white.opacity(text.isEmpty ? 0.45 : 0.8))
+                .lineSpacing(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.primaryDefault.opacity(0.13))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.primaryDefault.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+/// Coral stop button with two expanding ripple rings.
+private struct StopButton: View {
+    let action: () -> Void
+    private let coral = Color(hex: "FF6060")
+
+    var body: some View {
+        ZStack {
+            RippleRing(color: coral, delay: 0)
+            RippleRing(color: coral, delay: 1.0)
+
+            Button(action: action) {
+                ZStack {
+                    Circle()
+                        .fill(coral)
+                        .frame(width: 72, height: 72)
+                        .shadow(color: coral.opacity(0.45), radius: 12, x: 0, y: 4)
+
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.white)
+                        .frame(width: 24, height: 24)
+                }
+            }
+        }
+    }
+}
+
+private struct RippleRing: View {
+    let color: Color
+    let delay: Double
+    @State private var animating = false
+
+    var body: some View {
+        Circle()
+            .stroke(color.opacity(animating ? 0 : 0.45), lineWidth: 1.5)
+            .frame(width: 72, height: 72)
+            .scaleEffect(animating ? 2.1 : 1.0)
+            .animation(
+                .easeOut(duration: 2).repeatForever(autoreverses: false).delay(delay),
+                value: animating
+            )
+            .onAppear { animating = true }
+    }
+}
+
+/// Primary-green start-record button with a white mic icon.
+private struct RecordButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(Color.primaryDefault)
+                    .frame(width: 72, height: 72)
+                    .shadow(color: Color.primaryDefault.opacity(0.4), radius: 14, x: 0, y: 4)
+
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundColor(.white)
+            }
+        }
+    }
+}
+
+// MARK: - Preview
 
 #Preview {
     VoiceRecorderView(isPresented: .constant(true)) { recording in
