@@ -48,17 +48,19 @@ struct ReflectionListView: View {
                 }
             }
 
-            // Expanding camera + voice buttons above compose button
-            if let viewModel = viewModel, !viewModel.isEmpty, showActionMenu {
-                expandingActionButtons
-            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            if viewModel != nil {
-                bottomBar
+            // FAB with quick actions
+            if let viewModel = viewModel, !viewModel.isEmpty {
+                quickActionMenu
+                    .padding(Constants.Spacing.lg)
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
+        .searchable(text:Binding(
+            get: { viewModel?.searchQuery ?? "" },
+            set: { newValue in
+                viewModel?.updateSearchQuery(newValue)
+            }
+        ), prompt: "Search reflections...")
         .fullScreenCover(isPresented: $showCameraPicker) {
             cameraPickerView
         }
@@ -163,105 +165,32 @@ struct ReflectionListView: View {
         }
     }
 
-    // MARK: - Bottom Bar
+    // MARK: - Quick Action Menu
 
-    private var bottomBar: some View {
-        HStack(spacing: Constants.Spacing.sm) {
-            SearchBar(
-                text: Binding(
-                    get: { viewModel?.searchQuery ?? "" },
-                    set: { viewModel?.updateSearchQuery($0) }
-                ),
-                placeholder: "Search reflections..."
-            )
-            composeButton
-        }
-        .padding(.horizontal, Constants.Spacing.md)
-        .padding(.vertical, Constants.Spacing.sm)
-        .background(.ultraThinMaterial)
-    }
-
-    private var composeButton: some View {
-        ZStack {
-            Circle()
-                .fill(Color.primaryDefault)
-                .shadow(color: Color.primaryDefault.opacity(0.4), radius: 8, x: 0, y: 4)
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.white)
-        }
-        .frame(width: 44, height: 44)
-        .contentShape(Circle())
-        .onTapGesture {
-            if showActionMenu {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    showActionMenu = false
-                }
-            } else {
-                HapticManager.shared.mediumImpact()
+    private var quickActionMenu: some View {
+        FloatingActionMenu(
+            isExpanded: $showActionMenu,
+            onTap: {
+                // Regular tap - navigate to editor
                 showEditor = true
-            }
-        }
-        .onLongPressGesture(minimumDuration: 0.3) {
-            HapticManager.shared.lightImpact()
-            withAnimation(.bouncy(duration: 0.4)) {
-                showActionMenu = true
-            }
-        }
-    }
-
-    private var expandingActionButtons: some View {
-        VStack(spacing: 12) {
-            Button {
-                HapticManager.shared.lightImpact()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { showActionMenu = false }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    guard let _ = getLearningForQuickReflection() else {
-                        showNoLearningAlert = true
-                        return
-                    }
-                    showVoiceRecorder = true
+            },
+            onCameraTap: {
+                // Validate Learning exists before opening camera
+                guard let _ = getLearningForQuickReflection() else {
+                    showNoLearningAlert = true
+                    return
                 }
-            } label: {
-                Image(systemName: "waveform")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        Circle().fill(Color.accentColor)
-                            .shadow(color: Color.accentColor.opacity(0.3), radius: 4, x: 0, y: 2)
-                    )
-            }
-            .buttonStyle(FABButtonStyle())
-
-            Button {
-                HapticManager.shared.lightImpact()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { showActionMenu = false }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    guard let _ = getLearningForQuickReflection() else {
-                        showNoLearningAlert = true
-                        return
-                    }
-                    showCameraPicker = true
+                showCameraPicker = true
+            },
+            onVoiceTap: {
+                // Validate Learning exists before opening voice recorder
+                guard let _ = getLearningForQuickReflection() else {
+                    showNoLearningAlert = true
+                    return
                 }
-            } label: {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        Circle().fill(Color.accentColor)
-                            .shadow(color: Color.accentColor.opacity(0.3), radius: 4, x: 0, y: 2)
-                    )
+                showVoiceRecorder = true
             }
-            .buttonStyle(FABButtonStyle())
-        }
-        .padding(.trailing, Constants.Spacing.md)
-        .padding(.bottom, 72)
-        .transition(.asymmetric(
-            insertion: .scale(scale: 0.5).combined(with: .opacity),
-            removal: .scale(scale: 0.5).combined(with: .opacity)
-        ))
+        )
     }
 
     // MARK: - Camera Picker
