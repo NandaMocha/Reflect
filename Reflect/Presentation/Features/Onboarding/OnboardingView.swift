@@ -23,6 +23,12 @@ struct OnboardingView: View {
             title: "Speak Your Thoughts",
             subtitle: "Dictate in Indonesian or English and get an instant transcript.",
             color: .warning
+        ),
+        OnboardingPage(
+            icon: "widget.small.badge.plus",
+            title: "Very Accessible",
+            subtitle: "Ready to do reflection since you open your screen.",
+            color: .warning
         )
     ]
 
@@ -64,7 +70,7 @@ struct OnboardingView: View {
                     .foregroundColor(.primaryDefault)
             }
             VStack(spacing: Constants.Spacing.xs) {
-                Text("Welcome to ReflectLearn")
+                Text("Welcome to \(Constants.App.name)")
                     .font(.largeTitle.weight(.bold))
                     .multilineTextAlignment(.center)
                 Text("Your personal learning companion")
