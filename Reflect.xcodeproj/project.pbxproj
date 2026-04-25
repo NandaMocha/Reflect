@@ -12,9 +12,6 @@
 		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
-/* Begin PBXBuildRule section */
-																										/* End PBXBuildRule section */
-
 /* Begin PBXContainerItemProxy section */
 		04F2607C2F33602C00BF5E99 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -216,9 +213,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXShellScriptBuildPhase section */
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		042635EE2F288EA100BB939D /* Resources */ = {
