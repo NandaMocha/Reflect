@@ -90,7 +90,7 @@ final class SettingsViewModel {
             let jsonData = try encoder.encode(exportData)
 
             // Save to temp file
-            let fileName = "ReflectLearn_Export_\(Date().exportFileName).json"
+            let fileName = "\(Constants.App.name)_Export_\(Date().exportFileName).json"
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             try jsonData.write(to: tempURL)
 

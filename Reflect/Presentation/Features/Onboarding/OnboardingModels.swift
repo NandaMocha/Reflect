@@ -1,6 +1,7 @@
 import SwiftUI
 
-struct OnboardingPage {
+struct OnboardingPage: Identifiable {
+    let id = UUID()
     let icon: String
     let title: String
     let subtitle: String

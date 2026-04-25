@@ -1,37 +1,29 @@
 import SwiftUI
 
-struct OnboardingPageView: View {
+struct FeatureRowView: View {
     let page: OnboardingPage
 
     var body: some View {
-        VStack(spacing: Constants.Spacing.xl) {
-            Spacer()
-
+        HStack(alignment: .top, spacing: Constants.Spacing.md) {
             ZStack {
-                Circle()
-                    .fill(page.color.opacity(0.1))
-                    .frame(width: 160, height: 160)
-
+                RoundedRectangle(cornerRadius: Constants.CornerRadius.small)
+                    .fill(page.color.opacity(0.15))
+                    .frame(width: 44, height: 44)
                 Image(systemName: page.icon)
-                    .font(.system(size: 70))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundColor(page.color)
             }
-
-            VStack(spacing: Constants.Spacing.sm) {
+            VStack(alignment: .leading, spacing: Constants.Spacing.xxs) {
                 Text(page.title)
-                    .font(.title.weight(.bold))
-                    .multilineTextAlignment(.center)
-
+                    .font(.body.weight(.semibold))
                 Text(page.subtitle)
-                    .font(.body)
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer()
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(Constants.Spacing.xl)
+        .padding(.vertical, Constants.Spacing.sm)
     }
 }
 
