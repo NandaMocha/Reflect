@@ -80,6 +80,11 @@
 			path = "Quick Actions";
 			sourceTree = "<group>";
 		};
+		19A28503CC25FB806F38FF04 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +112,7 @@
 			children = (
 				042635F22F288EA100BB939D /* Reflect */,
 				04F260742F33602B00BF5E99 /* Quick Actions */,
+				19A28503CC25FB806F38FF04 /* Shared */,
 				04F2606F2F33602B00BF5E99 /* Frameworks */,
 				042635F12F288EA100BB939D /* Products */,
 			);
@@ -149,6 +155,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				042635F22F288EA100BB939D /* Reflect */,
+				19A28503CC25FB806F38FF04 /* Shared */,
 			);
 			name = Reflect;
 			packageProductDependencies = (
@@ -171,6 +178,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				04F260742F33602B00BF5E99 /* Quick Actions */,
+				19A28503CC25FB806F38FF04 /* Shared */,
 			);
 			name = "Quick ActionsExtension";
 			packageProductDependencies = (
@@ -455,6 +463,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Quick Actions/Quick_Actions.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
@@ -486,6 +495,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Quick Actions/Quick_Actions.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
