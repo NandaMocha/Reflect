@@ -57,6 +57,15 @@ final class DIContainer {
         FetchInsightsUseCase(repository: makeInsightRepository())
     }
 
+    @MainActor
+    func makeInsightEditorViewModel(mode: InsightEditorViewModel.Mode = .create) -> InsightEditorViewModel {
+        InsightEditorViewModel(
+            mode: mode,
+            createUseCase: makeCreateInsightUseCase(),
+            updateUseCase: makeUpdateInsightUseCase()
+        )
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
