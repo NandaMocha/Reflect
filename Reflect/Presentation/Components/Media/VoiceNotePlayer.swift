@@ -9,6 +9,12 @@ struct VoiceNotePlayer: View {
     @State private var audioPlayer: AVAudioPlayer?
     @State private var progressTimer: Timer?
     @State private var showTranscriptionPopup = false
+    @State private var backfilledSamples: [Float] = []
+
+    /// Stored samples if present, otherwise the ones analyzed on the fly for legacy recordings.
+    private var displaySamples: [Float] {
+        voiceRecording.waveformSamples.isEmpty ? backfilledSamples : voiceRecording.waveformSamples
+    }
 
     var body: some View {
         HStack(spacing: Constants.Spacing.sm) {
@@ -25,7 +31,7 @@ struct VoiceNotePlayer: View {
             // Waveform Preview & Progress
             VStack(spacing: 2) {
                 // Waveform visualization with progress
-                ReflectWaveform(content: .playback(samples: voiceRecording.waveformSamples, progress: Double(progress)), style: .compact)
+                ReflectWaveform(content: .playback(samples: displaySamples, progress: Double(progress)), style: .compact)
                 .frame(height: 20)
                 .animation(.linear(duration: 0.1), value: progress)
 
@@ -64,6 +70,13 @@ struct VoiceNotePlayer: View {
         .onDisappear {
             stopPlayback()
             resetPlayback()
+        }
+        .task {
+            // Legacy recordings have no stored samples — analyze the audio once so the waveform
+            // shows real amplitude instead of a flat baseline.
+            if voiceRecording.waveformSamples.isEmpty, let data = voiceRecording.audioData {
+                backfilledSamples = await WaveformSampleLoader.samples(from: data)
+            }
         }
     }
 

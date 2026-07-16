@@ -109,6 +109,15 @@ struct VoiceAudioView: View {
                 waveformLevels = input.waveformSamples
                 setupPlayback(data: input.audioData, duration: input.duration)
                 screenState = .playback
+
+                // Legacy recordings have no stored samples — analyze the audio on the fly so the
+                // waveform shows real amplitude instead of a flat baseline.
+                if input.waveformSamples.isEmpty, !input.audioData.isEmpty {
+                    Task {
+                        let samples = await WaveformSampleLoader.samples(from: input.audioData)
+                        if !samples.isEmpty { waveformLevels = samples }
+                    }
+                }
             }
         }
         .onDisappear {
