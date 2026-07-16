@@ -30,6 +30,33 @@ final class DIContainer {
         return ReflectionRepository(modelContext: context)
     }
 
+    // MARK: - Insight
+
+    @MainActor
+    func makeInsightRepository() -> InsightRepositoryProtocol {
+        InsightRepository(modelContext: InsightStore.container.mainContext)
+    }
+
+    @MainActor
+    func makeCreateInsightUseCase() -> CreateInsightUseCaseProtocol {
+        CreateInsightUseCase(repository: makeInsightRepository())
+    }
+
+    @MainActor
+    func makeUpdateInsightUseCase() -> UpdateInsightUseCaseProtocol {
+        UpdateInsightUseCase(repository: makeInsightRepository())
+    }
+
+    @MainActor
+    func makeDeleteInsightUseCase() -> DeleteInsightUseCaseProtocol {
+        DeleteInsightUseCase(repository: makeInsightRepository())
+    }
+
+    @MainActor
+    func makeFetchInsightsUseCase() -> FetchInsightsUseCaseProtocol {
+        FetchInsightsUseCase(repository: makeInsightRepository())
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
