@@ -10,8 +10,8 @@
 		04F260712F33602B00BF5E99 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260702F33602B00BF5E99 /* WidgetKit.framework */; };
 		04F260732F33602B00BF5E99 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260722F33602B00BF5E99 /* SwiftUI.framework */; };
 		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		D7C8DFC6E7726E03C07703DE /* DSWaveformImage in Frameworks */ = {isa = PBXBuildFile; productRef = F93A04F213FA82B6592668B6 /* DSWaveformImage */; };
 		153AF6CCD848B91FC767DF7F /* DSWaveformImageViews in Frameworks */ = {isa = PBXBuildFile; productRef = DBB814AFA67536633EFF9DDB /* DSWaveformImageViews */; };
+		D7C8DFC6E7726E03C07703DE /* DSWaveformImage in Frameworks */ = {isa = PBXBuildFile; productRef = F93A04F213FA82B6592668B6 /* DSWaveformImage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -567,15 +567,15 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		F93A04F213FA82B6592668B6 /* DSWaveformImage */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5DCEFB00DD1C7FE31C337CA0 /* XCRemoteSwiftPackageReference "DSWaveformImage" */;
-			productName = DSWaveformImage;
-		};
 		DBB814AFA67536633EFF9DDB /* DSWaveformImageViews */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5DCEFB00DD1C7FE31C337CA0 /* XCRemoteSwiftPackageReference "DSWaveformImage" */;
 			productName = DSWaveformImageViews;
+		};
+		F93A04F213FA82B6592668B6 /* DSWaveformImage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5DCEFB00DD1C7FE31C337CA0 /* XCRemoteSwiftPackageReference "DSWaveformImage" */;
+			productName = DSWaveformImage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
