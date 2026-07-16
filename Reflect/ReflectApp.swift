@@ -14,6 +14,7 @@ enum WidgetAction {
     case write
     case camera
     case voice
+    case insight
 }
 
 @main
@@ -208,6 +209,8 @@ struct ReflectApp: App {
             widgetAction = .camera
         case "voice":
             widgetAction = .voice
+        case "insight":
+            widgetAction = .insight
         default:
             break
         }

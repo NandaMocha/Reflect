@@ -1,6 +1,11 @@
 import SwiftUI
 import SwiftData
 
+enum MainTab {
+    case learnings
+    case insights
+}
+
 struct MainTabView: View {
     @State private var showOnboarding: Bool = false
     @Environment(\.modelContext) private var modelContext
@@ -8,18 +13,36 @@ struct MainTabView: View {
     // Widget action binding
     @Binding var widgetAction: WidgetAction?
 
+    @State private var selectedTab: MainTab = .learnings
+    @State private var insightComposeSignal = false
+
     init(widgetAction: Binding<WidgetAction?> = .constant(nil)) {
         self._widgetAction = widgetAction
     }
 
     var body: some View {
-        LearningListView(widgetAction: $widgetAction)
-            .onAppear {
-                checkOnboardingStatus()
+        TabView(selection: $selectedTab) {
+            Tab("Learnings", systemImage: "book.fill", value: .learnings) {
+                LearningListView(widgetAction: $widgetAction)
             }
-            .sheet(isPresented: $showOnboarding) {
-                OnboardingView(isPresented: $showOnboarding)
+
+            Tab("Insights", systemImage: "lightbulb.fill", value: .insights) {
+                InsightListView(composeSignal: $insightComposeSignal)
+                    .modelContainer(InsightStore.container)
             }
+        }
+        .onAppear {
+            checkOnboardingStatus()
+        }
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(isPresented: $showOnboarding)
+        }
+        .onChange(of: widgetAction) { _, action in
+            guard action == .insight else { return }
+            selectedTab = .insights
+            insightComposeSignal = true
+            widgetAction = nil
+        }
     }
 
     private func checkOnboardingStatus() {

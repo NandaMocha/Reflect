@@ -146,6 +146,8 @@ struct LearningListView: View {
     // MARK: - Widget Action Handling
 
     private func handleWidgetAction(_ action: WidgetAction?) {
+        if action == .insight { return }
+
         guard let action = action else { return }
 
         // Get the target learning

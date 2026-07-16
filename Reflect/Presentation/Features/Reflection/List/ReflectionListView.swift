@@ -133,6 +133,8 @@ struct ReflectionListView: View {
             showCameraPicker = true
         case .voice:
             showVoiceRecorder = true
+        case .insight:
+            break
         }
 
         // Reset action after triggering
