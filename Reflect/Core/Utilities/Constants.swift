@@ -24,6 +24,7 @@ enum Constants {
         static let maxVoiceNotesPerReflection = 5
         static let maxImageSizeMB = 10
         static let maxVoiceDurationMinutes = 5
+        static let insightTextMaxLength = 500
     }
 
     // MARK: - Spacing Tokens
