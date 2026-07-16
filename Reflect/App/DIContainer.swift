@@ -66,6 +66,11 @@ final class DIContainer {
         )
     }
 
+    @MainActor
+    func makeInsightListViewModel() -> InsightListViewModel {
+        InsightListViewModel(deleteUseCase: makeDeleteInsightUseCase())
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
