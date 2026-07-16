@@ -1,20 +1,20 @@
 import SwiftUI
+import DSWaveformImage
+import DSWaveformImageViews
 
-/// Reusable waveform visualization rendered with a custom SwiftUI bar renderer.
+/// Reusable waveform visualization rendered with DSWaveformImage's `Waveform.Style.striped` style
+/// via `WaveformLiveCanvas`.
 ///
-/// **Sample convention:** samples are dB-normalized where `0.0` is the loudest sample and `1.0` is
-/// silence (this is `DSWaveformImage`'s own convention, preserved here since the analysis service
-/// still produces samples in this shape). This view inverts that convention exactly once — via
-/// `amp = 1 - sample` in `amplitudes(from:barCount:)` — when converting a sample into a bar
-/// amplitude. Callers must already provide samples in the `0 = loud, 1 = silent` convention; do not
-/// invert anywhere else.
+/// **Sample convention:** samples are DSWaveformImage's own dB-normalized convention where `0.0` is
+/// the loudest sample and `1.0` is silence. The library renderer inverts internally (`1 - sample`),
+/// so callers must provide samples already in this `0 = loud, 1 = silent` shape. Do not invert here.
 ///
-/// **Why a custom renderer:** `WaveformLiveCanvas` (from `DSWaveformImageViews`) maps one sample to
-/// one device pixel and right-aligns short arrays. Our stored sample arrays are only ~60 values, so
-/// that renderer crammed them into the last few points of the frame, leaving the rest empty and
-/// making playback-progress masking effectively dead. This view instead resamples any input length
-/// (via nearest-neighbor) to exactly the number of bars that fit the available width, so the
-/// waveform always spans the full frame and progress highlighting is deterministic.
+/// **Filling the width:** `WaveformLiveCanvas` → `WaveformImageDrawer` maps samples against
+/// `samplesNeeded = width * scale` and right-aligns arrays shorter than that (`xOffset =
+/// (samplesNeeded - samples.count) / scale`). Our stored arrays are only ~60 values, which would
+/// cram into the last few points of the frame. To make the striped waveform span the full width, we
+/// resample any input length (nearest-neighbor) to exactly `samplesNeeded` so `xOffset` is 0 and the
+/// striped renderer lays a stripe every `(barWidth + spacing) * scale` across the whole frame.
 ///
 /// Fills its proposed frame — callers control size via `.frame(height:)`.
 struct ReflectWaveform: View {
@@ -36,6 +36,7 @@ struct ReflectWaveform: View {
         case compact
         case minimal
 
+        /// Stripe (bar) width.
         var barWidth: CGFloat {
             switch self {
             case .full: return 3
@@ -44,6 +45,7 @@ struct ReflectWaveform: View {
             }
         }
 
+        /// Gap between stripes.
         var barSpacing: CGFloat {
             switch self {
             case .full: return 2
@@ -59,80 +61,73 @@ struct ReflectWaveform: View {
     var style: Style = .full
     var color: Color = .primaryDefault
 
+    @Environment(\.displayScale) private var displayScale
+
     // MARK: - Body
 
     var body: some View {
         GeometryReader { geo in
-            let barCount = resolvedBarCount(for: geo.size.width)
+            let scale = max(displayScale, 1)
+            let samplesNeeded = max(1, Int(geo.size.width * scale))
 
             switch content {
             case .live(let samples):
-                let amps = amplitudes(from: samples, barCount: barCount)
-                bars(amplitudes: amps, height: geo.size.height) { _, amp in
-                    color.opacity(0.4 + Double(amp) * 0.6)
-                }
-                .animation(.spring(response: 0.25, dampingFraction: 0.7), value: amps)
+                stripedCanvas(resample(samples, to: samplesNeeded), color: color, scale: scale)
 
             case .preview(let samples):
-                let amps = amplitudes(from: samples, barCount: barCount)
-                bars(amplitudes: amps, height: geo.size.height) { _, amp in
-                    color.opacity(0.4 + Double(amp) * 0.6)
-                }
+                stripedCanvas(resample(samples, to: samplesNeeded), color: color, scale: scale)
 
             case .playback(let samples, let progress):
-                let amps = amplitudes(from: samples, barCount: barCount)
-                let clampedProgress = min(max(progress, 0), 1)
-                bars(amplitudes: amps, height: geo.size.height) { index, _ in
-                    let fraction = barCount > 0 ? Double(index) / Double(barCount) : 0
-                    return fraction < clampedProgress ? color : color.opacity(0.3)
+                let resampled = resample(samples, to: samplesNeeded)
+                let fraction = CGFloat(min(max(progress, 0), 1))
+                ZStack(alignment: .leading) {
+                    // Unplayed base layer.
+                    stripedCanvas(resampled, color: color.opacity(0.3), scale: scale)
+                    // Played overlay, revealed left-to-right up to the progress fraction. Same samples
+                    // + config as the base, so stripes line up exactly.
+                    stripedCanvas(resampled, color: color, scale: scale)
+                        .mask(alignment: .leading) {
+                            Rectangle().frame(width: geo.size.width * fraction)
+                        }
                 }
+                .animation(.linear(duration: 0.1), value: progress)
             }
         }
     }
 
     // MARK: - Private Helpers
 
-    /// Number of bars that fit the available width at this style's bar width + spacing.
-    private func resolvedBarCount(for width: CGFloat) -> Int {
-        max(1, Int((width + style.barSpacing) / (style.barWidth + style.barSpacing)))
-    }
-
-    /// Resamples `samples` to exactly `barCount` values via nearest-neighbor, substituting a flat
-    /// silent waveform when `samples` is empty (legacy recordings can have no stored samples), then
-    /// converts each sample into a normalized amplitude fraction. `amp = 1 - sample` is applied
-    /// exactly once, here — DSWaveformImage's convention is `0 = loud, 1 = silent`, so the returned
-    /// amplitude is `0 = silent, 1 = loud`.
-    private func amplitudes(from samples: [Float], barCount: Int) -> [Float] {
-        guard barCount > 0 else { return [] }
-        let source = samples.isEmpty ? [Float](repeating: 1.0, count: barCount) : samples
-        guard !source.isEmpty else { return [] }
-
-        return (0..<barCount).map { i in
-            let sourceIndex = min((i * source.count) / barCount, source.count - 1)
-            let sample = source[sourceIndex]
-            return min(max(1 - sample, 0), 1)
-        }
-    }
-
-    /// Lays out one bar per amplitude, mirrored around the vertical centerline (each bar extends
-    /// equally up and down from the row's center, via `HStack`'s default vertical centering).
-    @ViewBuilder
-    private func bars(
-        amplitudes: [Float],
-        height: CGFloat,
-        color colorForBar: @escaping (Int, Float) -> Color
-    ) -> some View {
-        HStack(alignment: .center, spacing: style.barSpacing) {
-            ForEach(Array(amplitudes.enumerated()), id: \.offset) { index, amp in
-                RoundedRectangle(cornerRadius: style.barWidth / 2)
-                    .fill(colorForBar(index, amp))
-                    .frame(
+    /// A `WaveformLiveCanvas` configured with the `.striped` style in `color`.
+    private func stripedCanvas(_ samples: [Float], color: Color, scale: CGFloat) -> some View {
+        WaveformLiveCanvas(
+            samples: samples,
+            configuration: Waveform.Configuration(
+                style: .striped(
+                    .init(
+                        color: UIColor(color),
                         width: style.barWidth,
-                        height: max(1.5, CGFloat(amp) * (height / 2)) * 2
+                        spacing: style.barSpacing,
+                        lineCap: .round
                     )
-            }
+                ),
+                scale: scale,
+                verticalScalingFactor: 0.95
+            ),
+            renderer: LinearWaveformRenderer(),
+            shouldDrawSilencePadding: false
+        )
+    }
+
+    /// Resamples `samples` to exactly `count` values via nearest-neighbor so the striped waveform
+    /// spans the full width (see the type doc for why). Substitutes a flat silent waveform when
+    /// `samples` is empty (legacy recordings can have no stored samples).
+    private func resample(_ samples: [Float], to count: Int) -> [Float] {
+        guard count > 0 else { return [] }
+        let source = samples.isEmpty ? [Float](repeating: 1.0, count: count) : samples
+        guard source.count != count else { return source }
+        return (0..<count).map { i in
+            source[min(i * source.count / count, source.count - 1)]
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -141,8 +136,8 @@ struct ReflectWaveform: View {
 #Preview {
     ScrollView {
         VStack(spacing: 32) {
-            // Sample convention: 0.0 = loud (tall bar), 1.0 = silent (short bar). Includes an
-            // explicit 0.1 (loud → tall) and 0.9 (quiet → short) pair to sanity-check `1 - sample`.
+            // Sample convention: 0.0 = loud (tall stripe), 1.0 = silent (short stripe). Includes an
+            // explicit 0.1 (loud → tall) and 0.9 (quiet → short) pair to sanity-check the convention.
             let sampleWaveform: [Float] = [
                 0.7, 0.4, 0.2, 0.5, 0.1, 0.3, 0.6, 0.2, 0.9, 0.4,
                 0.1, 0.3, 0.5, 0.2, 0.6, 0.3, 0.1, 0.4, 0.7, 0.2,
@@ -185,10 +180,6 @@ struct ReflectWaveform: View {
                 Text("Preview — compact").font(.caption).foregroundStyle(.secondary)
                 ReflectWaveform(content: .preview(samples: sampleWaveform), style: .compact)
                     .frame(height: 32)
-
-                Text("Preview — minimal").font(.caption).foregroundStyle(.secondary)
-                ReflectWaveform(content: .preview(samples: sampleWaveform), style: .minimal)
-                    .frame(height: 20)
 
                 Text("Preview — empty samples fallback").font(.caption).foregroundStyle(.secondary)
                 ReflectWaveform(content: .preview(samples: []), style: .full)
