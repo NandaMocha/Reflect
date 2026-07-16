@@ -45,7 +45,7 @@ struct VoiceRecordingItemView: View {
     }
 
     private var waveformPreview: some View {
-        AudioWaveform.compact()
+        ReflectWaveform(content: .preview(samples: recording.waveformSamples), style: .compact)
             .frame(height: 20)
     }
 

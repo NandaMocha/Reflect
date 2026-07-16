@@ -25,10 +25,7 @@ struct VoiceNotePlayer: View {
             // Waveform Preview & Progress
             VStack(spacing: 2) {
                 // Waveform visualization with progress
-                AudioWaveform.progress(
-                    audioLevels: generateWaveformLevels(),
-                    progress: progress
-                )
+                ReflectWaveform(content: .playback(samples: voiceRecording.waveformSamples, progress: Double(progress)), style: .compact)
                 .frame(height: 20)
                 .animation(.linear(duration: 0.1), value: progress)
 
@@ -90,26 +87,6 @@ struct VoiceNotePlayer: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
-    private func generateWaveformLevels() -> [CGFloat] {
-        let count = 20
-        var levels: [CGFloat] = []
-
-        // Create a natural-looking waveform pattern
-        for i in 0..<count {
-            let normalizedPos = CGFloat(i) / CGFloat(count)
-            let baseWave = sin(normalizedPos * .pi * 4) * 0.3 + 0.5
-            let variation = sin(normalizedPos * .pi * 10) * 0.2
-            let level = max(0.2, min(1.0, baseWave + variation))
-            levels.append(level)
-        }
-
-        return levels
-    }
-
-    private func barHeightForIndex(_ index: Int) -> CGFloat {
-        // This is now unused, but kept for any reference
-        return 8
-    }
 
     private func togglePlayback() {
         if isPlaying {

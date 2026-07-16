@@ -21,7 +21,7 @@ struct VoiceAudioView: View {
     @State private var screenState: ScreenState = .idle
 
     // Recording state
-    @State private var waveformLevels: [CGFloat] = []
+    @State private var waveformLevels: [Float] = []
     @State private var recordDuration: TimeInterval = 0
     @State private var recordTimer: Timer?
     @State private var transcription: String = ""
@@ -43,8 +43,8 @@ struct VoiceAudioView: View {
     private let waveformBarCount = 60
     private let sampleInterval: TimeInterval = 0.05
 
-    private var defaultWaveformLevels: [CGFloat] {
-        Array(repeating: 0.3, count: waveformBarCount)
+    private var defaultWaveformLevels: [Float] {
+        Array(repeating: Float(0.65), count: waveformBarCount)
     }
 
     // MARK: - Init
@@ -95,7 +95,7 @@ struct VoiceAudioView: View {
             }
             .onChange(of: audioRecorder.audioLevel) { _, newValue in
                 if screenState == .recording {
-                    let level = CGFloat(newValue)
+                    let level = max(0, min(1, 1 - newValue))
                     if waveformLevels.count >= waveformBarCount { waveformLevels.removeFirst() }
                     waveformLevels.append(level)
                 }
@@ -106,7 +106,7 @@ struct VoiceAudioView: View {
         }
         .onAppear {
             if case .play(let input) = mode {
-                waveformLevels = generateSyntheticLevels()
+                waveformLevels = input.waveformSamples
                 setupPlayback(data: input.audioData, duration: input.duration)
                 screenState = .playback
             }
@@ -122,11 +122,12 @@ struct VoiceAudioView: View {
     private var waveformSection: some View {
         switch screenState {
         case .idle, .recording:
-            AudioWaveform.mirror(
-                audioLevels: waveformLevels.isEmpty ? defaultWaveformLevels : waveformLevels,
-                color: .primaryDefault,
-                height: 110
+            ReflectWaveform(
+                content: .live(samples: waveformLevels.isEmpty ? defaultWaveformLevels : waveformLevels),
+                style: .full,
+                color: .primaryDefault
             )
+            .frame(height: 110)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .padding(.horizontal, 8)
@@ -134,9 +135,9 @@ struct VoiceAudioView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.secondary.opacity(0.1), lineWidth: 1))
 
         case .playback:
-            AudioWaveform.progress(
-                audioLevels: waveformLevels.isEmpty ? defaultWaveformLevels : waveformLevels,
-                progress: playbackProgress
+            ReflectWaveform(
+                content: .playback(samples: waveformLevels, progress: Double(playbackProgress)),
+                style: .full
             )
             .frame(maxWidth: .infinity)
             .frame(height: 90)
@@ -328,7 +329,7 @@ struct VoiceAudioView: View {
             recordingResult = audioResult
             transcription = speechResult.transcription ?? ""
 
-            waveformLevels = waveformLevels.isEmpty ? generateSyntheticLevels() : waveformLevels
+            waveformLevels = audioResult.waveformSamples.isEmpty ? waveformLevels : audioResult.waveformSamples
             setupPlayback(data: audioResult.data, duration: audioResult.duration)
             screenState = .playback
             HapticManager.shared.success()
@@ -355,6 +356,7 @@ struct VoiceAudioView: View {
             transcription: fromWidget ? nil : (transcription.isEmpty ? nil : transcription),
             language: selectedLanguage.localeCode,
             duration: result.duration,
+            waveformSamples: result.waveformSamples,
             fromWidget: fromWidget
         )
 
@@ -430,15 +432,6 @@ struct VoiceAudioView: View {
     private var playbackProgress: CGFloat {
         guard playbackDuration > 0 else { return 0 }
         return CGFloat(currentPlaybackTime / playbackDuration)
-    }
-
-    private func generateSyntheticLevels() -> [CGFloat] {
-        (0..<waveformBarCount).map { i in
-            let pos = CGFloat(i) / CGFloat(waveformBarCount)
-            let base = sin(pos * .pi * 4) * 0.3 + 0.5
-            let variation = sin(pos * .pi * 10) * 0.2
-            return max(0.1, min(1.0, base + variation))
-        }
     }
 }
 
