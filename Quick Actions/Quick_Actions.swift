@@ -51,10 +51,11 @@ struct QuickActionsWidgetView: View {
             writeButton
 
 
-            // Bottom section - Camera and Voice buttons
+            // Bottom section - Camera, Voice, and Insight buttons
             HStack(spacing: 20) {
                 cameraButton
                 voiceButton
+                insightButton
             }
         }
         .padding(20)
@@ -220,6 +221,47 @@ struct QuickActionsWidgetView: View {
             .frame(width: 52, height: 52)
         }
     }
+
+    private var insightButton: some View {
+        Link(destination: URL(string: "reflect://insight")!) {
+            ZStack {
+                // Soft shadow/glow
+                Circle()
+                    .fill(Color(hex: "F5A623").opacity(0.12))
+                    .frame(width: 60, height: 60)
+
+                // Glass circle
+                Circle()
+                    .fill(Color.white)
+                    .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 3)
+
+                // Subtle highlight
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.8),
+                                Color.white.opacity(0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
+                    .frame(width: 44, height: 22)
+
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: "F5A623"), Color(hex: "E0821A")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            .frame(width: 52, height: 52)
+        }
+    }
 }
 
 // MARK: - Widget Configuration
@@ -239,7 +281,7 @@ struct Quick_Actions: Widget {
             }
         }
         .configurationDisplayName("Reflect")
-        .description("Quick access to write, capture photos, or record voice reflections.")
+        .description("Quick access to write, capture photos, record voice reflections, or add insights.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
