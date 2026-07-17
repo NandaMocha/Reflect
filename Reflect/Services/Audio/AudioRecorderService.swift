@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import Combine
+import DSWaveformImage
 
 final class AudioRecorderService: NSObject, AudioRecorderServiceProtocol {
     private var audioRecorder: AVAudioRecorder?
@@ -84,8 +85,9 @@ final class AudioRecorderService: NSObject, AudioRecorderServiceProtocol {
 
         do {
             let data = try Data(contentsOf: url)
+            let waveformSamples = (try? await WaveformAnalyzer().samples(fromAudioAt: url, count: 60)) ?? []
             cleanupRecorder()
-            return AudioRecordingResult(data: data, duration: duration, url: url)
+            return AudioRecordingResult(data: data, duration: duration, url: url, waveformSamples: waveformSamples)
         } catch {
             cleanupRecorder()
             throw error

@@ -9,7 +9,7 @@ typealias ThemeOption = Constants.ThemeOption
 enum Constants {
     // MARK: - App Info
     enum App {
-        static let name = "ReflectLearn"
+        static let name = "Reflect"
         static let bundleIdentifier = "com.reflectlearn.app"
         static let iCloudContainerIdentifier = "iCloud.com.reflectlearn.app"
     }

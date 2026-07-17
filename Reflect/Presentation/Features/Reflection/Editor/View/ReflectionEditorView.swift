@@ -15,6 +15,32 @@ struct ReflectionEditorView: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \Learning.sortOrder) var learnings: [Learning]
 
+    /// ViewModel owning the domain save pipeline (CreateReflectionUseCase → EvaluateBadgesUseCase).
+    /// The view's @State form fields mirror the VM's fields today; they're copied onto the VM
+    /// before `save()` is called. A future refactor can fold the form fields into the VM so
+    /// bindings flow through `$viewModel.title` etc. directly — see follow-up in
+    /// docs/reviews/achievement-counter-root-cause.md.
+    @State var viewModel: ReflectionEditorViewModel
+
+    init(
+        mode: ReflectionEditorMode,
+        preselectedLearning: Learning? = nil,
+        onDismiss: (() -> Void)? = nil
+    ) {
+        self.mode = mode
+        self.preselectedLearning = preselectedLearning
+        self.onDismiss = onDismiss
+        // DIContainer is configured at app launch (ReflectApp.init) so this is safe.
+        self._viewModel = State(initialValue: DIContainer.shared.makeReflectionEditorViewModel(mode: Self.vmMode(from: mode)))
+    }
+
+    private static func vmMode(from mode: ReflectionEditorMode) -> ReflectionEditorViewModel.Mode {
+        switch mode {
+        case .create: return .create
+        case .edit(let reflection): return .edit(reflection)
+        }
+    }
+
     // Form State
     @State var title = ""
     @State var content = ""
@@ -31,8 +57,6 @@ struct ReflectionEditorView: View {
     @State var showImagePicker = false
     @State var showMediaPicker = false
     @State var showVoiceRecorder = false
-    @State var showLearningPicker = false
-    @State var showCreateLearning = false
     @State var showDatePicker = false
     @State var selectedPhotoItems: [PhotosPickerItem] = []
     @State var hasChanges = false
@@ -48,10 +72,6 @@ struct ReflectionEditorView: View {
     // Error handling
     @State var errorMessage: String?
     @State var showErrorAlert = false
-
-    // Celebration state
-    @State var showCelebration = false
-    @State var celebrationTrigger: BadgeUnlockEvent.CelebrationTrigger = .none
 
     @FocusState var focusedField: ReflectionEditorField?
 
@@ -71,9 +91,9 @@ struct ReflectionEditorView: View {
     }
 
     var isValid: Bool {
-        // Title is not mandatory - uses default value if empty
-        (!content.trimmingCharacters(in: .whitespaces).isEmpty || !images.isEmpty || !videos.isEmpty) || !voiceRecordings.isEmpty &&
-        selectedLearning != nil
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        return (hasContent || hasMedia) && selectedLearning != nil
     }
 
     var isIOS17_2OrNewer: Bool {
@@ -109,8 +129,6 @@ struct ReflectionEditorView: View {
                         Text(errorMessage)
                     }
                 }
-                .sheet(isPresented: $showLearningPicker) { learningPickerSheet }
-                .sheet(isPresented: $showCreateLearning) { createLearningSheet }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
                 .fullScreenCover(isPresented: $showMediaPicker) {
                     mediaPickerSheet
@@ -149,12 +167,17 @@ struct ReflectionEditorView: View {
                     setupNotificationObservers()
                     os_log("📱 [PERF] ReflectionEditorView onAppear completed in %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - viewStartTime) * 1000)
                 }
-                .celebration(isPresented: $showCelebration, trigger: celebrationTrigger)
         }
     }
 }
 
 #Preview {
-    ReflectionEditorView(mode: .create, onDismiss: nil)
-        .modelContainer(for: [Learning.self, Reflection.self, ImageAttachment.self, VoiceRecording.self, VideoAttachment.self], inMemory: true)
+    let container = try! ModelContainer(
+        for: Learning.self, Reflection.self, ImageAttachment.self,
+            VoiceRecording.self, VideoAttachment.self, Badge.self, MonthlyAchievement.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    DIContainer.shared.configure(with: container.mainContext)
+    return ReflectionEditorView(mode: .create, onDismiss: nil)
+        .modelContainer(container)
 }

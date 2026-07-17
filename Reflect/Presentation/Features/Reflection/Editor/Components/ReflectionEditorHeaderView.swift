@@ -1,34 +1,27 @@
 import SwiftUI
 
+/// Editor header — shows the reflection's learning (read-only; the user picked the learning
+/// before entering the editor) and a tappable date pill.
 struct ReflectionEditorHeaderView: View {
     let selectedLearning: Learning?
     let selectedDate: Date
-    let learningsCount: Int
-    let onSelectLearning: () -> Void
     let onSelectDate: () -> Void
 
     var body: some View {
         HStack {
-            // Learning selector
-            Button(action: onSelectLearning) {
-                if let learning = selectedLearning {
-                    HStack(spacing: Constants.Spacing.xs) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(hex: learning.colorHex).opacity(0.15))
-                                .frame(width: 32, height: 32)
+            if let learning = selectedLearning {
+                HStack(spacing: Constants.Spacing.xs) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(hex: learning.colorHex).opacity(0.15))
+                            .frame(width: 32, height: 32)
 
-                            Image(systemName: learning.iconName)
-                                .font(.system(size: 16))
-                                .foregroundColor(Color(hex: learning.colorHex))
-                        }
-
-                        Text(learning.title)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        Image(systemName: learning.iconName)
+                            .font(.system(size: 16))
+                            .foregroundColor(Color(hex: learning.colorHex))
                     }
-                } else {
-                    Text(learningsCount == 0 ? "Create learning..." : "Select learning...")
+
+                    Text(learning.title)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

@@ -1,149 +1,136 @@
 import SwiftUI
 
+/// Full-screen celebration shown after a badge unlocks. Deliberately minimal —
+/// small overline, large icon, badge name as the hero, one line of description,
+/// and a "Next up" teaser pointing at the next milestone in the same category.
+/// Confetti + haptic carry the celebration energy.
 struct CelebrationView: View {
-    let trigger: BadgeUnlockEvent.CelebrationTrigger
-    let badgeName: String
-    let onDismiss: () -> Void
-
-    @State private var showCelebration = false
-    @State private var autoDismissTask: Task<Void, Never>?
-
-    init(
-        trigger: BadgeUnlockEvent.CelebrationTrigger,
-        badgeName: String = "Achievement Unlocked!",
-        onDismiss: @escaping () -> Void = {}
-    ) {
-        self.trigger = trigger
-        self.badgeName = badgeName
-        self.onDismiss = onDismiss
-    }
+    let badgeID: BadgeID
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
-            switch trigger {
-            case .confetti:
-                celebrationContent {
-                    AnyView(ConfettiView())
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
+            ConfettiView()
+                .allowsHitTesting(false)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                VStack(spacing: 24) {
+                    Text("Achievement Unlocked")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(1.5)
+
+                    badgeIcon
+
+                    VStack(spacing: 8) {
+                        Text(badgeID.displayName)
+                            .font(.largeTitle.bold())
+                            .multilineTextAlignment(.center)
+
+                        Text(badgeID.badgeDescription)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    if let next = badgeID.nextInCategory {
+                        NextUpCard(next: next, justUnlocked: badgeID)
+                            .padding(.top, 8)
+                    }
                 }
-            case .sparkles:
-                celebrationContent {
-                    AnyView(SparklesView())
+                .padding(.horizontal, 24)
+
+                Spacer()
+
+                PrimaryButton("Continue", icon: "checkmark") {
+                    dismiss()
                 }
-            case .fireworks:
-                celebrationContent {
-                    AnyView(FireworksView())
-                }
-            case .maximum:
-                celebrationContent {
-                    AnyView(MaximumCelebrationView())
-                }
-            case .none:
-                EmptyView()
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
         }
         .onAppear {
-            showCelebration = true
-            scheduleAutoDismiss()
-        }
-        .onDisappear {
-            autoDismissTask?.cancel()
+            Task { await HapticManager.shared.playAchievementRhythm() }
         }
     }
 
-    @ViewBuilder
-    private func celebrationContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private var badgeIcon: some View {
         ZStack {
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    dismiss()
-                }
+            Circle()
+                .fill(Color.blue.opacity(0.15))
+                .frame(width: 160, height: 160)
 
-            content()
+            Image(systemName: badgeID.icon)
+                .font(.system(size: 72))
+                .foregroundStyle(Color.blue)
+        }
+        .shadow(color: Color.blue.opacity(0.3), radius: 16)
+    }
+}
 
-            VStack {
-                Spacer()
+// MARK: - Next Up Card
 
-                HStack {
-                    Spacer()
+private struct NextUpCard: View {
+    let next: BadgeID
+    let justUnlocked: BadgeID
 
-                    Button(action: dismiss) {
-                        Text("Continue")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                    }
-                    .padding(.bottom, 40)
-                }
+    private var more: Int {
+        max(next.requiredCount - justUnlocked.requiredCount, 0)
+    }
+
+    private var subtext: String {
+        let unit: String
+        switch next.badgeCategory {
+        case .reflections: unit = more == 1 ? "reflection" : "reflections"
+        case .media: unit = more == 1 ? "more with media" : "more reflections with media"
+        case .prompts: unit = more == 1 ? "more with a prompt" : "more reflections with a prompt"
+        case .special: unit = more == 1 ? "reflection" : "reflections"
+        }
+        return "\(more) more \(unit) to go"
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color(.tertiarySystemFill))
+                    .frame(width: 44, height: 44)
+                Image(systemName: next.icon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
             }
-        }
-    }
 
-    private func dismiss() {
-        autoDismissTask?.cancel()
-        withAnimation(.easeOut(duration: 0.3)) {
-            showCelebration = false
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            onDismiss()
-        }
-    }
-
-    private func scheduleAutoDismiss() {
-        let duration: Double
-        switch trigger {
-        case .confetti:
-            duration = 3.0
-        case .sparkles:
-            duration = 3.5
-        case .fireworks:
-            duration = 4.0
-        case .maximum:
-            duration = 5.0
-        case .none:
-            return
-        }
-
-        autoDismissTask = Task {
-            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-            if !Task.isCancelled {
-                await MainActor.run {
-                    dismiss()
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("NEXT UP")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .tracking(1.0)
+                Text(next.displayName)
+                    .font(.headline)
+                Text(subtext)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+
+            Spacer(minLength: 0)
         }
+        .padding(14)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
-// MARK: - Preview
-
-#Preview("Confetti") {
-    CelebrationView(
-        trigger: .confetti,
-        badgeName: "3-Day Streak"
-    )
+#Preview("First Step") {
+    CelebrationView(badgeID: .firstReflection)
 }
 
-#Preview("Sparkles") {
-    CelebrationView(
-        trigger: .sparkles,
-        badgeName: "7-Day Streak"
-    )
-}
-
-#Preview("Fireworks") {
-    CelebrationView(
-        trigger: .fireworks,
-        badgeName: "14-Day Streak"
-    )
-}
-
-#Preview("Maximum") {
-    CelebrationView(
-        trigger: .maximum,
-        badgeName: "30-Day Streak"
-    )
+#Preview("Last milestone (no next-up)") {
+    CelebrationView(badgeID: .thousandReflections)
 }

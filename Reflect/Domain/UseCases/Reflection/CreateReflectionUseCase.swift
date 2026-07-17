@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UIKit
 
 protocol CreateReflectionUseCaseProtocol {
     func execute(input: CreateReflectionInput) async throws -> Reflection
@@ -38,13 +39,18 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
             plainTextContent: input.content
         )
         reflection.learning = learning
+        reflection.createdAt = input.createdAt
 
-        // Store prompt ID if provided
         if let promptID = input.promptID {
             reflection.promptID = promptID
         }
 
-        // Process images (async)
+        if let location = input.capturedLocation {
+            reflection.locationLatitude = location.latitude
+            reflection.locationLongitude = location.longitude
+            reflection.locationName = location.name
+        }
+
         for (index, imageInput) in input.images.enumerated() {
             let imageData = await imageService.compressImage(imageInput.image, quality: .high)
             let thumbnailData = await imageService.generateThumbnail(imageInput.image, size: CGSize(width: 200, height: 200))
@@ -58,13 +64,25 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
             reflection.images.append(attachment)
         }
 
-        // Process voice recordings
+        for (index, videoInput) in input.videos.enumerated() {
+            let thumbnailData = videoInput.thumbnailImage.jpegData(compressionQuality: 0.8)
+            let attachment = VideoAttachment(
+                videoData: videoInput.videoData,
+                thumbnailData: thumbnailData,
+                caption: videoInput.caption,
+                duration: videoInput.duration
+            )
+            attachment.sortOrder = index
+            reflection.videos.append(attachment)
+        }
+
         for (index, voiceInput) in input.voiceRecordings.enumerated() {
             let recording = VoiceRecording(
                 audioData: voiceInput.audioData,
                 transcription: voiceInput.transcription,
                 language: voiceInput.language,
                 duration: voiceInput.duration,
+                waveformSamples: voiceInput.waveformSamples,
                 sortOrder: index
             )
             reflection.voiceRecordings.append(recording)
@@ -72,22 +90,15 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
 
         try await reflectionRepository.create(reflection)
 
-        // Evaluate badges after reflection is created
         if let evaluateBadgesUseCase = evaluateBadgesUseCase,
            let modelContext = input.modelContext {
-            let newlyUnlockedBadges = try? await evaluateBadgesUseCase.execute(
+            let unlocked = (try? await evaluateBadgesUseCase.execute(
                 input: EvaluateBadgesInput(modelContext: modelContext, newReflection: reflection)
-            )
+            )) ?? []
 
-            // Post notification for newly unlocked badges
-            if let unlockedBadges = newlyUnlockedBadges, !unlockedBadges.isEmpty {
-                NotificationCenter.default.post(
-                    name: .badgesDidUnlock,
-                    object: unlockedBadges
-                )
+            if !unlocked.isEmpty {
+                NotificationCenter.default.post(name: .badgesDidUnlock, object: unlocked)
             }
-
-            // Post notification for progress update
             NotificationCenter.default.post(name: .badgeProgressDidUpdate, object: nil)
         }
 

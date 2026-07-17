@@ -8,6 +8,11 @@ enum MainTab {
 
 struct MainTabView: View {
     @State private var showOnboarding: Bool = false
+    /// Celebration presentation lives here at the app root so it survives the editor's
+    /// dismissal. When `.badgesDidUnlock` fires — posted by CreateReflectionUseCase /
+    /// UpdateReflectionUseCase after a save — we stash the headline badge and let
+    /// `.fullScreenCover` take over. The editor's own dismiss runs independently.
+    @State private var celebrationBadgeID: BadgeID?
     @Environment(\.modelContext) private var modelContext
 
     // Widget action binding
@@ -36,6 +41,14 @@ struct MainTabView: View {
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding)
+        }
+        .fullScreenCover(item: $celebrationBadgeID) { badgeID in
+            CelebrationView(badgeID: badgeID)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .badgesDidUnlock)) { notification in
+            guard let badgeIDs = notification.object as? [BadgeID],
+                  let headline = BadgeID.headline(from: badgeIDs) else { return }
+            celebrationBadgeID = headline
         }
         .onChange(of: widgetAction) { _, action in
             guard let action else { return }

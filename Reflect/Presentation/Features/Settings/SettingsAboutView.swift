@@ -10,7 +10,7 @@ struct SettingsAboutView: View {
                     .padding(.top, Constants.Spacing.xl)
 
                 VStack(spacing: Constants.Spacing.xs) {
-                    Text("ReflectLearn")
+                    Text(Constants.App.name)
                         .font(.largeTitle.weight(.bold))
 
                     Text("Capture your learning journey")

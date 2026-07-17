@@ -37,6 +37,7 @@ struct AudioRecordingResult {
     let data: Data
     let duration: TimeInterval
     let url: URL
+    var waveformSamples: [Float] = []
 }
 
 protocol AudioRecorderServiceProtocol {

@@ -352,6 +352,9 @@ final class CloudSyncService: CloudSyncServiceProtocol {
         record["transcription"] = voice.transcription
         record["language"] = voice.language
         record["duration"] = voice.duration
+        if !voice.waveformSamples.isEmpty {
+            record["waveformSamples"] = voice.waveformSamples.map { NSNumber(value: $0) } as NSArray
+        }
         record["sortOrder"] = voice.sortOrder
         record["createdAt"] = voice.createdAt
 

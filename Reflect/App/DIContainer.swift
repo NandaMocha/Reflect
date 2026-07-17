@@ -120,12 +120,20 @@ final class DIContainer {
         UpdateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            imageService: makeImageProcessingService()
+            imageService: makeImageProcessingService(),
+            evaluateBadgesUseCase: makeEvaluateBadgesUseCase()
         )
     }
 
     func makeDeleteReflectionUseCase() -> DeleteReflectionUseCaseProtocol {
         DeleteReflectionUseCase(reflectionRepository: makeReflectionRepository())
+    }
+
+    func makeMoveReflectionUseCase() -> MoveReflectionUseCaseProtocol {
+        MoveReflectionUseCase(
+            reflectionRepository: makeReflectionRepository(),
+            learningRepository: makeLearningRepository()
+        )
     }
 
     func makeFetchReflectionsUseCase() -> FetchReflectionsUseCaseProtocol {

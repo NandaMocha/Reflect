@@ -40,12 +40,12 @@ struct VoiceRecordingListItemView: View {
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showPlayerPopup) {
-            VoicePlayerPopup(voiceRecording: voiceRecording.toInput())
+            VoiceAudioView(mode: .play(voiceRecording.toInput()), isPresented: $showPlayerPopup)
         }
     }
 
     private var waveformPreview: some View {
-        AudioWaveform.compact()
+        ReflectWaveform(content: .preview(samples: voiceRecording.waveformSamples), style: .compact)
             .frame(height: 20)
     }
 
