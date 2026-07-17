@@ -38,10 +38,17 @@ struct MainTabView: View {
             OnboardingView(isPresented: $showOnboarding)
         }
         .onChange(of: widgetAction) { _, action in
-            guard action == .insight else { return }
-            selectedTab = .insights
-            insightComposeSignal = true
-            widgetAction = nil
+            guard let action else { return }
+            if action == .insight {
+                selectedTab = .insights
+                insightComposeSignal = true
+                widgetAction = nil
+            } else {
+                // Write/Camera/Voice are handled by LearningListView, which clears
+                // widgetAction itself once it's done — just make sure that tab is
+                // the one on screen so the user doesn't land back on Insights.
+                selectedTab = .learnings
+            }
         }
     }
 

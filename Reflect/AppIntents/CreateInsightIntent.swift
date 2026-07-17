@@ -1,9 +1,8 @@
 import AppIntents
-import SwiftData
 
 /// Quick-captures an `Insight` from Siri, Shortcuts, or Spotlight without foregrounding
-/// the app. Writes go straight to the shared App-Group store so the save is durable even
-/// when the run is backgrounded.
+/// the app. Routes through `CreateInsightUseCase` (same path as the in-app editor) so
+/// validation — e.g. the 500-character limit — is enforced for Siri dictation too.
 struct CreateInsightIntent: AppIntent {
     static let title: LocalizedStringResource = "Add Insight"
     static let description = IntentDescription("Quickly capture a question, note, or reflection to review later.")
@@ -21,9 +20,11 @@ struct CreateInsightIntent: AppIntent {
         guard !trimmed.isEmpty else {
             throw $text.needsValueError("What's on your mind?")
         }
-        let context = InsightStore.container.mainContext
-        context.insert(Insight(text: trimmed, type: type))
-        try context.save()
+        do {
+            _ = try await DIContainer.shared.makeCreateInsightUseCase().execute(text: trimmed, type: type)
+        } catch let error as InsightError {
+            throw error
+        }
         return .result(dialog: "Saved your \(type.title.lowercased()) to Reflect.")
     }
 

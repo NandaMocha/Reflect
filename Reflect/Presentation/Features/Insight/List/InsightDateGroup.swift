@@ -32,7 +32,11 @@ enum InsightDateGroup: Hashable, Comparable {
                   insightDate > monthAgo {
             return .thisMonth
         } else {
-            return .older(insightDate)
+            // Key .older by month (not day) so two insights from different days of the
+            // same old month collapse into a single "Month Year" section instead of
+            // producing duplicate headers.
+            let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: insightDate))
+            return .older(monthStart ?? insightDate)
         }
     }
 
