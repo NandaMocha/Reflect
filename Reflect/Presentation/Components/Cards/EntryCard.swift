@@ -139,14 +139,21 @@ struct EntryCard: View {
 
     private func tagPill(_ tag: EntryCardTag) -> some View {
         let color = Color(hex: tag.colorHex)
-        return Label(tag.label, systemImage: tag.icon)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, Constants.Spacing.xs)
-            .padding(.vertical, 2)
-            .background(
-                Capsule().fill(color.opacity(0.18))
-            )
+        // Explicit HStack (not Label) so the pill hugs the label's width instead of
+        // stretching, and never drops the title.
+        return HStack(spacing: 3) {
+            Image(systemName: tag.icon)
+                .font(.caption2)
+            Text(tag.label)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, Constants.Spacing.xs)
+        .padding(.vertical, 2)
+        .background(
+            Capsule().fill(color.opacity(0.18))
+        )
     }
 
     private var followedUpBadge: some View {

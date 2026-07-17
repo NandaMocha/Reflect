@@ -23,28 +23,29 @@ struct InsightListView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if insights.isEmpty {
-                    emptyState
-                } else if groupedInsights.isEmpty {
-                    noResultsState
-                } else {
-                    insightList
+            ZStack(alignment: .bottomTrailing) {
+                Group {
+                    if insights.isEmpty {
+                        emptyState
+                    } else if groupedInsights.isEmpty {
+                        noResultsState
+                    } else {
+                        insightList
+                    }
+                }
+
+                // Floating action button — matches the Reflections list
+                if !insights.isEmpty {
+                    FloatingActionButton {
+                        showComposeSheet = true
+                    }
+                    .padding(Constants.Spacing.lg)
                 }
             }
             .navigationTitle("Insights")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     filterMenu
-                }
-
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        HapticManager.shared.lightImpact()
-                        showComposeSheet = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
                 }
             }
             .searchable(text: $viewModel.searchQuery, prompt: "Search insights...")
@@ -133,7 +134,7 @@ struct InsightListView: View {
                         .fontWeight(.semibold)
                         .padding(.leading, 4)
                 }
-                .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
             }
         }
         .listStyle(.plain)
