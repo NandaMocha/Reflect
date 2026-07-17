@@ -41,6 +41,13 @@ struct ReflectApp: App {
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false,
+                // Pin to the app's OWN container. Without this, SwiftData's default
+                // `groupContainer: .automatic` silently relocates this store into the
+                // App Group (added for the Insight feature), where it would (a) collide
+                // with Insight's own store on `default.store` and (b) move existing
+                // users' data. Insight uses the App Group with a distinct store name;
+                // the main app must stay out of it.
+                groupContainer: .none,
                 cloudKitDatabase: .none // Manual sync, not automatic
             )
 

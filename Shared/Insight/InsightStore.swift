@@ -21,7 +21,10 @@ enum InsightStore {
     static let container: ModelContainer = {
         let schema = Schema([Insight.self])
 
+        // A distinct store name ("Insight.store") so this never shares the App Group's
+        // `default.store` with the main app's container.
         let appGroupConfiguration = ModelConfiguration(
+            "Insight",
             schema: schema,
             groupContainer: .identifier(appGroupID),
             cloudKitDatabase: .none
@@ -32,7 +35,9 @@ enum InsightStore {
         print("⚠️ InsightStore: failed to create App-Group ModelContainer (group: \(appGroupID)). Falling back to a local on-disk store — Insights will not sync with the widget/App Intent.")
 
         let localConfiguration = ModelConfiguration(
+            "Insight",
             schema: schema,
+            groupContainer: .none,
             cloudKitDatabase: .none
         )
         if let container = try? ModelContainer(for: schema, configurations: [localConfiguration]) {
