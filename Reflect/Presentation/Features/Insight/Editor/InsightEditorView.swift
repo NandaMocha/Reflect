@@ -19,22 +19,24 @@ struct InsightEditorView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Constants.Spacing.md) {
-                typePicker
+            ScrollView {
+                VStack(alignment: .leading, spacing: Constants.Spacing.md) {
+                    typePicker
 
-                textEditor
+                    textEditor
 
-                characterCounter
+                    characterCounter
 
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(Color.error)
+                    followUpField
+
+                    if let errorMessage = viewModel.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(Color.error)
+                    }
                 }
-
-                Spacer(minLength: 0)
+                .padding(Constants.Spacing.md)
             }
-            .padding(Constants.Spacing.md)
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -105,7 +107,7 @@ struct InsightEditorView: View {
         TextEditor(text: $viewModel.text)
             .focused($isTextFieldFocused)
             .font(.body)
-            .frame(minHeight: 160)
+            .frame(height: 200)
             .scrollContentBackground(.hidden)
             .padding(Constants.Spacing.sm)
             .background(
@@ -120,6 +122,34 @@ struct InsightEditorView: View {
             Text("\(viewModel.characterCount)/\(viewModel.characterLimit)")
                 .font(.caption)
                 .foregroundStyle(isOverLimit ? Color.error : Color.secondary)
+        }
+    }
+
+    private var followUpField: some View {
+        VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
+            Label("Follow-up", systemImage: "arrowshape.turn.up.right")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            TextEditor(text: $viewModel.followUp)
+                .font(.body)
+                .frame(height: 120)
+                .scrollContentBackground(.hidden)
+                .padding(Constants.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                        .fill(Color.secondary.opacity(0.08))
+                )
+                .overlay(alignment: .topLeading) {
+                    if viewModel.followUp.isEmpty {
+                        Text("Add the answer or next step when you revisit this…")
+                            .font(.body)
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, Constants.Spacing.sm + 5)
+                            .padding(.vertical, Constants.Spacing.sm + 8)
+                            .allowsHitTesting(false)
+                    }
+                }
         }
     }
 }

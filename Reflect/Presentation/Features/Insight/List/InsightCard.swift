@@ -26,9 +26,15 @@ struct InsightCard: View {
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
 
-                    Text(insight.createdAt.relativeFormatted)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: Constants.Spacing.xs) {
+                        Text(insight.createdAt.relativeFormatted)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        if insight.hasFollowUp {
+                            followedUpBadge
+                        }
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -37,6 +43,20 @@ struct InsightCard: View {
             .glassCard()
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Followed-up Badge
+
+    private var followedUpBadge: some View {
+        Label("Followed up", systemImage: "checkmark.circle.fill")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Color(hex: "628141"))
+            .padding(.horizontal, Constants.Spacing.xs)
+            .padding(.vertical, 2)
+            .background(
+                Capsule()
+                    .fill(Color(hex: "628141").opacity(0.12))
+            )
     }
 }
 
@@ -49,7 +69,11 @@ struct InsightCard: View {
         }
 
         InsightCard(
-            insight: Insight(text: "SwiftData's @Model macro generates a lot of boilerplate under the hood.", type: .note)
+            insight: Insight(
+                text: "SwiftData's @Model macro generates a lot of boilerplate under the hood.",
+                type: .note,
+                followUp: "Confirmed via -Xfrontend -dump-macro-expansions: it synthesizes the PersistentModel conformance."
+            )
         ) {
             print("Tapped")
         }

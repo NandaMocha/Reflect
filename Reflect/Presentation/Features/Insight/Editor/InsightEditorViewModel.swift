@@ -15,6 +15,7 @@ final class InsightEditorViewModel {
 
     var text: String = ""
     var type: InsightType = .note
+    var followUp: String = ""
     var isSaving: Bool = false
     var errorMessage: String?
 
@@ -38,6 +39,7 @@ final class InsightEditorViewModel {
         if case .edit(let insight) = mode {
             text = insight.text
             type = insight.type
+            followUp = insight.followUp
         }
     }
 
@@ -72,9 +74,9 @@ final class InsightEditorViewModel {
         do {
             switch mode {
             case .create:
-                _ = try await createUseCase.execute(text: text, type: type)
+                _ = try await createUseCase.execute(text: text, type: type, followUp: followUp)
             case .edit(let insight):
-                try await updateUseCase.execute(insight: insight, text: text, type: type)
+                try await updateUseCase.execute(insight: insight, text: text, type: type, followUp: followUp)
             }
 
             isSaving = false

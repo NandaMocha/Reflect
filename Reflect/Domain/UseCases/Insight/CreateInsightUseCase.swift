@@ -1,7 +1,13 @@
 import Foundation
 
 protocol CreateInsightUseCaseProtocol {
-    func execute(text: String, type: InsightType) async throws -> Insight
+    func execute(text: String, type: InsightType, followUp: String) async throws -> Insight
+}
+
+extension CreateInsightUseCaseProtocol {
+    func execute(text: String, type: InsightType) async throws -> Insight {
+        try await execute(text: text, type: type, followUp: "")
+    }
 }
 
 final class CreateInsightUseCase: CreateInsightUseCaseProtocol {
@@ -11,11 +17,15 @@ final class CreateInsightUseCase: CreateInsightUseCaseProtocol {
         self.repository = repository
     }
 
-    func execute(text: String, type: InsightType) async throws -> Insight {
+    func execute(text: String, type: InsightType, followUp: String) async throws -> Insight {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw InsightError.textRequired }
         guard trimmed.count <= Constants.Limits.insightTextMaxLength else { throw InsightError.textTooLong }
-        let insight = Insight(text: trimmed, type: type)
+        let insight = Insight(
+            text: trimmed,
+            type: type,
+            followUp: followUp.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
         try await repository.create(insight)
         return insight
     }
