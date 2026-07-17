@@ -1,62 +1,25 @@
 import SwiftUI
 
+/// Insight list row. Reuses the shared `EntryCard` (same visual as `ReflectionCard`),
+/// adding the insight type tag and a "Followed up" badge — bits that reflections omit.
 struct InsightCard: View {
     let insight: Insight
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            HStack(alignment: .top, spacing: Constants.Spacing.sm) {
-                // Type Icon
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: insight.type.colorHex).opacity(0.15))
-                        .frame(width: 40, height: 40)
-
-                    Image(systemName: insight.type.icon)
-                        .font(.subheadline)
-                        .foregroundColor(Color(hex: insight.type.colorHex))
-                }
-
-                // Content
-                VStack(alignment: .leading, spacing: Constants.Spacing.xxs) {
-                    Text(insight.preview)
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-
-                    HStack(spacing: Constants.Spacing.xs) {
-                        Text(insight.createdAt.relativeFormatted)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-
-                        if insight.hasFollowUp {
-                            followedUpBadge
-                        }
-                    }
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(Constants.Spacing.md)
-            .glassCard()
+            EntryCard(
+                tag: EntryCardTag(
+                    label: insight.type.title,
+                    icon: insight.type.icon,
+                    colorHex: insight.type.colorHex
+                ),
+                bodyText: insight.preview,
+                dateText: insight.createdAt.relativeFormatted,
+                showFollowedUp: insight.hasFollowUp
+            )
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Followed-up Badge
-
-    private var followedUpBadge: some View {
-        Label("Followed up", systemImage: "checkmark.circle.fill")
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(Color(hex: "628141"))
-            .padding(.horizontal, Constants.Spacing.xs)
-            .padding(.vertical, 2)
-            .background(
-                Capsule()
-                    .fill(Color(hex: "628141").opacity(0.12))
-            )
     }
 }
 
@@ -74,6 +37,12 @@ struct InsightCard: View {
                 type: .note,
                 followUp: "Confirmed via -Xfrontend -dump-macro-expansions: it synthesizes the PersistentModel conformance."
             )
+        ) {
+            print("Tapped")
+        }
+
+        InsightCard(
+            insight: Insight(text: "I keep reaching for force-unwraps when I'm tired — worth a habit check.", type: .reflection)
         ) {
             print("Tapped")
         }
