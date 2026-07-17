@@ -52,13 +52,13 @@ struct QuickActionsWidgetView: View {
 
 
             // Bottom section - Camera, Voice, and Insight buttons
-            HStack(spacing: 20) {
+            HStack(spacing: 8) {
                 cameraButton
                 voiceButton
                 insightButton
             }
         }
-        .padding(20)
+        .padding(16)
         .background(
             ZStack {
                 // Clean white background
@@ -146,7 +146,7 @@ struct QuickActionsWidgetView: View {
                 // Soft shadow/glow
                 Circle()
                     .fill(Color(hex: "E67E22").opacity(0.12))
-                    .frame(width: 60, height: 60)
+                    .frame(width: 34, height: 34)
 
                 // Glass circle
                 Circle()
@@ -165,10 +165,10 @@ struct QuickActionsWidgetView: View {
                             endPoint: .center
                         )
                     )
-                    .frame(width: 44, height: 22)
+                    .frame(width: 24, height: 12)
 
                 Image(systemName: "camera.fill")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Color(hex: "E67E22"), Color(hex: "D35400")],
@@ -177,8 +177,9 @@ struct QuickActionsWidgetView: View {
                         )
                     )
             }
-            .frame(width: 52, height: 52)
+            .frame(width: 32, height: 32)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var voiceButton: some View {
@@ -187,7 +188,7 @@ struct QuickActionsWidgetView: View {
                 // Soft shadow/glow
                 Circle()
                     .fill(Color(hex: "9B59B6").opacity(0.12))
-                    .frame(width: 60, height: 60)
+                    .frame(width: 34, height: 34)
 
                 // Glass circle
                 Circle()
@@ -206,10 +207,10 @@ struct QuickActionsWidgetView: View {
                             endPoint: .center
                         )
                     )
-                    .frame(width: 44, height: 22)
+                    .frame(width: 24, height: 12)
 
                 Image(systemName: "waveform")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Color(hex: "9B59B6"), Color(hex: "8E44AD")],
@@ -218,8 +219,9 @@ struct QuickActionsWidgetView: View {
                         )
                     )
             }
-            .frame(width: 52, height: 52)
+            .frame(width: 32, height: 32)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var insightButton: some View {
@@ -228,7 +230,7 @@ struct QuickActionsWidgetView: View {
                 // Soft shadow/glow
                 Circle()
                     .fill(Color(hex: "F5A623").opacity(0.12))
-                    .frame(width: 60, height: 60)
+                    .frame(width: 34, height: 34)
 
                 // Glass circle
                 Circle()
@@ -247,10 +249,10 @@ struct QuickActionsWidgetView: View {
                             endPoint: .center
                         )
                     )
-                    .frame(width: 44, height: 22)
+                    .frame(width: 24, height: 12)
 
                 Image(systemName: "lightbulb.fill")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Color(hex: "F5A623"), Color(hex: "E0821A")],
@@ -259,8 +261,9 @@ struct QuickActionsWidgetView: View {
                         )
                     )
             }
-            .frame(width: 52, height: 52)
+            .frame(width: 32, height: 32)
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
