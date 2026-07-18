@@ -7,9 +7,13 @@ struct InsightShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: CreateInsightIntent(),
             phrases: [
+                // Type-specific — lets the user say "Add a question / note / reflection".
+                "Add a \(\.$type) to \(.applicationName)",
+                "Capture a \(\.$type) in \(.applicationName)",
+                "New \(\.$type) in \(.applicationName)",
+                // Generic — the app then asks which type.
                 "Add an insight to \(.applicationName)",
-                "Capture an insight in \(.applicationName)",
-                "New insight in \(.applicationName)"
+                "Capture an insight in \(.applicationName)"
             ],
             shortTitle: "Add Insight",
             systemImageName: "lightbulb.fill"

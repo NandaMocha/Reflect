@@ -8,11 +8,11 @@ struct CreateInsightIntent: AppIntent {
     static let description = IntentDescription("Quickly capture a question, note, or reflection to review later.")
     static let openAppWhenRun = false
 
+    @Parameter(title: "Type", requestValueDialog: "Is it a question, a note, or a reflection?")
+    var type: InsightType
+
     @Parameter(title: "Insight", requestValueDialog: "What's on your mind?")
     var text: String
-
-    @Parameter(title: "Type", default: .note)
-    var type: InsightType
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
