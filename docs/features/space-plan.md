@@ -1,8 +1,21 @@
 # Space — Collaborative Groups (Implementation Plan)
 
 > **Status: PLAN — not implemented.** This document is the design/decision record for a major
-> new collaborative feature. Nothing in the codebase implements Space yet. No code should be
-> written until the [Open decisions](#9-open-decisions-for-the-user) are settled.
+> new collaborative feature. Nothing in the codebase implements Space yet.
+
+## Decisions (locked 2026-07-18)
+
+The gating decisions have been made — the plan follows the recommended path:
+
+1. **Backend:** **Supabase (Postgres + row-level security)**. Both hard requirements
+   (join-by-ID approval, hidden-until-reveal) are enforced **server-side** via RLS.
+2. **Identity:** **Sign in with Apple**, required **only when entering the Space feature**.
+   The rest of the app stays account-free. → commits us to **in-app account deletion**
+   (App Store requirement).
+3. **Reveal model:** a reflection's **creator can read responses before revealing**. "Reveal"
+   just flips visibility for the *other* members — **no client-side encryption needed**.
+
+These are settled; the phased plan below is the path forward.
 
 ---
 
