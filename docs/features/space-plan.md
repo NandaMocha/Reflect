@@ -18,6 +18,11 @@ These are settled — do not re-litigate:
 4. **Visibility: all members see all content** — every reflection and every response in a
    space is visible to every member. **Dropped:** hidden-until-reveal, per-record permissions.
 5. **Platform: Apple-only is acceptable.** Members must have an iCloud account and the app.
+6. **Responses: comment-style.** A member can post **multiple** responses to a reflection (a
+   thread) — not one-answer-per-person.
+7. **Trust model: trusted small groups.** `CKShare` grants zone-wide `.readWrite`; the app
+   restricts editing/deleting to your *own* content in the **UI only** (no server enforcement).
+   Accepted for the friends / teams / study-group audience.
 
 ### Decision history — why the pivot from Supabase
 
