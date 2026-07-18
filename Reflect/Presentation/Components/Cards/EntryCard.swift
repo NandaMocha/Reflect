@@ -157,13 +157,21 @@ struct EntryCard: View {
     }
 
     private var followedUpBadge: some View {
-        Label("Followed up", systemImage: "checkmark.circle.fill")
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(Color(hex: "628141"))
-            .padding(.horizontal, Constants.Spacing.xs)
-            .padding(.vertical, 2)
-            .background(
-                Capsule().fill(Color(hex: "628141").opacity(0.12))
-            )
+        let color = Color(hex: "628141")
+        // Explicit HStack (not Label) so the badge hugs its content and keeps the icon
+        // and text at a consistent size — matching the type tag pill.
+        return HStack(spacing: 3) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption2)
+            Text("Followed up")
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, Constants.Spacing.xs)
+        .padding(.vertical, 2)
+        .background(
+            Capsule().fill(color.opacity(0.12))
+        )
     }
 }
