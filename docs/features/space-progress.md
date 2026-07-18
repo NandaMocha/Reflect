@@ -1,0 +1,134 @@
+# Space Feature — Session Continuation / Handoff
+
+> **Read this first to resume the Space build.** Self-contained: a fresh session should not
+> need the prior chat. Companion docs: [space-plan.md](space-plan.md) (design + locked
+> decisions), [space-tasks.md](space-tasks.md) (the 25-ticket breakdown — the source of truth
+> for what each ticket does, its files, acceptance, executor, and the wave/lock tables).
+
+_Last updated: 2026-07-18 (end of P0)._
+
+## TL;DR status
+
+**P0 (CloudKit sharing foundation) is CODE-COMPLETE and committed.** Everything builds green.
+The next real step is the **H2 two-device spike** (human, needs two iCloud accounts on two
+physical devices). **Do not build the P1 UI until H2 passes** — H2 exists to de-risk the CloudKit
+foundation before investing in UI on top (per plan §12 / task doc checkpoint R2).
+
+## Where everything lives
+
+- **Branch / worktree:** all Space work is on **`feature/space`**, in the dedicated worktree
+  `/Users/nandamochammad/Library/Mobile Documents/com~apple~CloudDocs/Documents/Repo's/Reflect/Reflect-space`.
+  Branched from `develop` (currently `b63b246`). **Do all Space work in that worktree.** Other
+  worktrees: `.../Reflect` (`develop`), `.../Reflect-insight` (`feature/insight`) — **do not touch**.
+- **feature/space @ `5b5d825`**, 7 commits ahead of `develop`, working tree clean, **not pushed**.
+- Repo lives in **iCloud Drive** — a build error in an untracked/unrelated file is likely stray
+  iCloud WIP; check `git status` before chasing it.
+
+## What's done (P0 — 7 tickets, all build-green + committed)
+
+| Ticket | Commit | What |
+|---|---|---|
+| T1 | `8a3c2a1` | `Reflect/Info.plist`: `CKSharingSupported` + `UIBackgroundModes[remote-notification]` (verified in built product) |
+| T2 | `a5e797e` | `Reflect/App/AppDelegate.swift` (AppDelegate+SceneDelegate: share-accept + silent-push entry points, notif names `spaceShareInviteReceived`/`spaceRemoteChangeReceived`) + one-line `@UIApplicationDelegateAdaptor` in `ReflectApp.swift` |
+| T3 | `88059a1` | `Reflect/Domain/Entities/Space/` value types (`Space`, `SpaceReflection`, `SpaceResponse`, `SpaceZoneRef`+`SpaceLane`, `SpaceError`) + `Constants.Limits` (space{Name/ReflectionTitle/Response}MaxLength) |
+| T8 | `316353b` | `Reflect/Data/Space/` isolated `SpaceStore` (InsightStore pattern, store name `"Space"`, `cloudKitDatabase:.none`) + `CachedSpace`/`CachedSpaceReflection`/`CachedSpaceResponse` @Model classes |
+| T4 | `e5a3cd8` | `Reflect/Services/Space/` — `SpaceCloudService` core: `CKContainer(identifier:)`, custom zone per space, **atomic root+CKShare** in one `CKModifyRecordsOperation`, dual-DB (private=owner / shared=joined) lane routing, `acceptShare` via `CKAcceptSharesOperation` + `hierarchicalRootRecordID`, delete/leave with lane guards |
+| T5 | `f77535f` | `Reflect/Presentation/Features/Space/Debug/SpaceDebugView.swift` — **`#if DEBUG` spike harness** (Settings → 🧪 Space Debug), drives `SpaceCloudService` directly |
+| T12 | `5b5d825` | `Reflect/Presentation/Features/Space/Share/CloudSharingView.swift` — `UICloudSharingController` wrapper (existing-share initializer, `.allowReadWrite/.allowPrivate`) |
+
+Checkpoint **R1 passed** (Info.plist keys in built product; `ReflectApp.swift` diff = 1 adaptor
+line; entities CloudKit-free; `SpaceStore` isolated from main schema; no `UIWindow` in SceneDelegate).
+
+## Human gates status
+
+- **H1 — Push capability + entitlements: ✅ DONE/VERIFIED.** `aps-environment=development` is in the
+  committed entitlements AND in the signed device build; the App ID already has Push enabled (a
+  `-allowProvisioningUpdates` device build signs cleanly). No Xcode capability change needed.
+  - Still yours for H1: **a second device with a second iCloud account** (Device B). CloudKit
+    Console record types auto-create on first write during the spike.
+- **The current feature/space build (with the spike harness) is INSTALLED on _Nanda iPhone 16_**
+  (devicectl id `6920DFDC-D656-5ABD-9AA5-A9BB73DBF989`) — that's **Device A**.
+- **H2 — two-device spike: ⏳ PENDING (next action).**
+
+## ▶ NEXT ACTION: run H2 (two-device spike). P0 exit criterion.
+
+On **both** devices: Settings → **🧪 Space Debug (spike)**:
+1. Device A: Check availability → Create test space → Share invite → send link via Messages.
+2. Device B: tap link → app opens & accepts → List joined spaces shows it → Write probe reflection.
+3. Device A: Dump zone records → sees B's record.
+
+If all pass → **H2 green**; commit a one-line outcome note to `space-plan.md` §12 and proceed to P1.
+If broken: likely culprits are the atomic root+share (T4) or the accept callback wiring (T1/T2) —
+see task doc T7 watch-outs.
+
+## After H2 passes — resume P1, then P2 (execution recipe below)
+
+Execute the remaining tickets **in this order** (from [space-tasks.md](space-tasks.md); respect the
+shared-file lock table there):
+
+- **P1:** T9 (SpaceRepository) → T10 (use cases) → T11 (DIContainer factories) → T13 (create-space
+  form) → T14 (spaces list) → **T15 (Spaces tab + accept routing — only ticket touching
+  `MainTabView.swift`)** → **R3 review** → H3 (two-device P1 verification).
+- **P2:** T17 (service/repo child CRUD) ∥ T19 (UGC compliance) → T18 (child use cases) → **R4
+  review** → T20 (space detail) → T21 (response thread) → T22 (subscriptions/push) → H4 (deploy
+  CloudKit schema to **Production**) → H5 (TestFlight E2E) → **R5** → T25 (final audit).
+
+**Remaining human gates:** H3 (two-device P1 UI), H4 (Console: deploy schema Dev→Production — release
+footgun), H5 (TestFlight two-device E2E incl. silent push). Tickets T13/T14/T15/T17/T20/T21/T22 are
+"build-green (agent) vs hardware-verified (human)" — track both bits.
+
+**Remaining review checkpoints:** R2 (after H2), R3 (after T15, before P2), R4 (after T18), R5
+(after H5). Bring Fable back as reviewer at each (the task doc lists each gap signature).
+
+### Orchestration recipe (how this session ran the tickets)
+
+- One agent per ticket, working **only** in the `Reflect-space` worktree. Sonnet for
+  CloudKit/sync/SwiftUI/DI-wiring/delegate tickets; Haiku for mechanical mirrors. Give the agent
+  its ticket's full text from `space-tasks.md`.
+- Run tickets **serially** (not truly parallel) even though files are disjoint: concurrent
+  `xcodebuild` on one worktree corrupts builds. The wave table is for a team/CI; here, follow
+  dependency + lock order one at a time.
+- Every ticket: build green on the simulator, run its grep gates, **commit on `feature/space`**
+  (house style, `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer), **no push**.
+- Enforce the **`DIContainer.swift` lock chain** (T11→T13→T14→T18→T20→T21) and the
+  **`MainTabView.swift` = T15 only** / **service+repo file locks** (T4→T17→T22, T9→T17).
+
+### Commands / IDs
+
+```bash
+# cd into the worktree for ALL Space work:
+cd "/Users/nandamochammad/Library/Mobile Documents/com~apple~CloudDocs/Documents/Repo's/Reflect/Reflect-space"
+
+# Simulator build (per-ticket gate):
+xcodebuild -project Reflect.xcodeproj -scheme Reflect \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2' -configuration Debug build 2>&1 | grep "error:"
+
+# Device build + install (Nanda iPhone 16) — uses an out-of-tree DerivedData to avoid sim/device clashes:
+DD=/private/tmp/.../scratchpad/dd-space   # or any path; -allowProvisioningUpdates handles signing
+xcodebuild -project Reflect.xcodeproj -scheme Reflect -destination 'platform=iOS,name=Nanda iPhone 16' \
+  -configuration Debug -allowProvisioningUpdates -derivedDataPath "$DD" build
+xcrun devicectl device install app --device 6920DFDC-D656-5ABD-9AA5-A9BB73DBF989 "$DD/Build/Products/Debug-iphoneos/Reflect.app"
+xcrun devicectl device process launch --device 6920DFDC-D656-5ABD-9AA5-A9BB73DBF989 xyz.nandamochammad.Reflect
+```
+
+- CloudKit container: `iCloud.xyz.nandamochammad.Reflect`. Bundle: `xyz.nandamochammad.Reflect`. Team: `9NAU7R3577`.
+
+## Hard isolation constraints (every ticket) — from space-tasks.md
+
+- **Never modify:** the main `Schema` in `ReflectApp.swift`, `Reflect/Data/Models/*`,
+  `Shared/Insight/*`, `Reflect/Services/Cloud/CloudSyncService*`, existing repos/use cases,
+  or `Reflect/Reflect.entitlements`.
+- Space uses its **own** container (`CKContainer(identifier:)`, custom zones, record types
+  `Space`/`SpaceReflection`/`Response`) and its **own** isolated `SpaceStore` — zero overlap with
+  the personal journal or its private-DB backup.
+- **Lesson banked (memory `insight-app-group-store`):** SwiftData's default `groupContainer:
+  .automatic` will silently relocate a store into an App Group and collide with another store on
+  `default.store`. `SpaceStore` uses `groupContainer: .none` + a distinct store name `"Space"` —
+  keep it that way; never add Space models to another container's schema.
+- Grep gate before each commit: new Space files must not couple to `Learning`/the personal
+  `Reflection` model (the word "Reflection" appears only inside `SpaceReflection`).
+
+## Merge/PR
+
+When the feature lands: rebase `feature/space` onto the latest `develop`, run T25's regression +
+decoupling audit, then the user pushes and opens the PR (repo rule: **agents never push**).
