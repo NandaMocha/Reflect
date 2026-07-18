@@ -76,33 +76,51 @@ struct InsightListView: View {
 
     private var filterMenu: some View {
         Menu {
-            Button {
-                HapticManager.shared.selection()
-                viewModel.typeFilter = nil
-            } label: {
-                HStack {
-                    Text("All")
-                    if viewModel.typeFilter == nil {
-                        Image(systemName: "checkmark")
+            Section("Type") {
+                Button {
+                    HapticManager.shared.selection()
+                    viewModel.typeFilter = nil
+                } label: {
+                    HStack {
+                        Text("All")
+                        if viewModel.typeFilter == nil {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+
+                ForEach(InsightType.allCases) { type in
+                    Button {
+                        HapticManager.shared.selection()
+                        viewModel.typeFilter = type
+                    } label: {
+                        HStack {
+                            Text(type.pluralTitle)
+                            if viewModel.typeFilter == type {
+                                Image(systemName: "checkmark")
+                            }
+                        }
                     }
                 }
             }
 
-            ForEach(InsightType.allCases) { type in
-                Button {
-                    HapticManager.shared.selection()
-                    viewModel.typeFilter = type
-                } label: {
-                    HStack {
-                        Text(type.pluralTitle)
-                        if viewModel.typeFilter == type {
-                            Image(systemName: "checkmark")
+            Section("Follow-up") {
+                ForEach(InsightFollowUpFilter.allCases, id: \.self) { option in
+                    Button {
+                        HapticManager.shared.selection()
+                        viewModel.followUpFilter = option
+                    } label: {
+                        HStack {
+                            Text(option.title)
+                            if viewModel.followUpFilter == option {
+                                Image(systemName: "checkmark")
+                            }
                         }
                     }
                 }
             }
         } label: {
-            Image(systemName: viewModel.typeFilter == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+            Image(systemName: viewModel.isFiltering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
     }
 
@@ -159,11 +177,12 @@ struct InsightListView: View {
         EmptyStateView(
             icon: "magnifyingglass",
             title: "No Results Found",
-            subtitle: viewModel.typeFilter != nil ? "No insights match this filter" : "Try different keywords",
+            subtitle: viewModel.isFiltering ? "No insights match this filter" : "Try different keywords",
             buttonTitle: "Clear Filters",
             buttonAction: {
                 viewModel.searchQuery = ""
                 viewModel.typeFilter = nil
+                viewModel.followUpFilter = .all
             }
         )
     }
