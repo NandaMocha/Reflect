@@ -19,6 +19,7 @@ enum WidgetAction {
 
 @main
 struct ReflectApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     let modelContainer: ModelContainer
     @AppStorage(Constants.UserDefaults.selectedTheme) private var selectedTheme: String = "system"
 
