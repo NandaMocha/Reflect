@@ -1,393 +1,402 @@
-# Space — Collaborative Groups (Implementation Plan)
+# Space — Collaborative Groups via CloudKit Sharing (Implementation Plan)
 
-> **Status: PLAN — not implemented.** This document is the design/decision record for a major
-> new collaborative feature. Nothing in the codebase implements Space yet.
+> **Status: PLAN — not implemented.** This is the design/decision record for the Space
+> feature. Nothing in the codebase implements Space yet.
 
-## Decisions (locked 2026-07-18)
+## Locked decisions (2026-07-18)
 
-The gating decisions have been made — the plan follows the recommended path:
+These are settled — do not re-litigate:
 
-1. **Backend:** **Supabase (Postgres + row-level security)**. Both hard requirements
-   (join-by-ID approval, hidden-until-reveal) are enforced **server-side** via RLS.
-2. **Identity:** **Sign in with Apple**, required **only when entering the Space feature**.
-   The rest of the app stays account-free. → commits us to **in-app account deletion**
-   (App Store requirement).
-3. **Reveal model:** a reflection's **creator can read responses before revealing**. "Reveal"
-   just flips visibility for the *other* members — **no client-side encryption needed**.
+1. **Backend: CloudKit only.** A Space **is a `CKShare`** — a shared record hierarchy in a
+   custom zone. No third-party backend, no server, no ops footprint.
+2. **Identity: the user's iCloud account.** Participant identity comes from
+   `CKShare.Participant` / `CKUserIdentity`. **No Sign in with Apple, no custom accounts,
+   no account-deletion system.**
+3. **Join flow: share-link only.** The creator taps Share and sends an invite link via
+   Messages / Mail / AirDrop / copy; tapping the link joins the space.
+   **Dropped:** typed Space-ID codes, join-request queue, approve/decline.
+4. **Visibility: all members see all content** — every reflection and every response in a
+   space is visible to every member. **Dropped:** hidden-until-reveal, per-record permissions.
+5. **Platform: Apple-only is acceptable.** Members must have an iCloud account and the app.
 
-These are settled; the phased plan below is the path forward.
+### Decision history — why the pivot from Supabase
 
----
+The previous revision of this document recommended **Supabase + Sign in with Apple**, and
+that was the right call *for the previous requirements*: join-by-typed-ID with an
+approve/decline queue, and responses hidden until the creator revealed them. Both demanded
+server-side, per-record access control that CloudKit cannot express — CKShare is invite-out
+(not request-in) and grants zone-level visibility to all participants.
 
-## 1. Requirements (as stated by the user)
-
-Quoted verbatim so the plan stays honest to the ask:
-
-> - A **Space** is a group people can join.
-> - Members can create **Reflections inside a Space**.
-> - Other members can **join a reflection and add their own responses**.
-> - Other members **cannot see anyone else's responses until the reflection's creator opens/reveals them**.
-> - A member **only sees the Spaces they have joined**.
-> - **Join flow:** a person enters a **Space ID**, sends a **join request**; the space **creator approves or declines**.
-
-Two of these are *hard* requirements that shape the whole architecture:
-
-- **(HR-1) Join-by-ID with approval** — a stranger types a Space ID, a request goes to the
-  creator, and the creator approves or declines. This is a *request/queue* model, not an
-  *invite-link* model.
-- **(HR-2) Hidden-until-reveal responses** — member B must be genuinely unable to read member
-  C's response until the creator reveals. "The app doesn't show it" is not the same as "the
-  server won't return it." This needs **per-record, server-side access control**.
+The user has since **scoped the feature down**: invite links instead of a join-request
+queue, and full visibility instead of hidden-until-reveal. Those two cuts remove exactly
+the requirements CloudKit couldn't meet. **CKShare's native model — owner invites via link,
+participants see everything in the shared zone — is now precisely the feature.** With that,
+a third-party backend, SIWA, account deletion, RLS policies, and a second data processor
+all disappear. The Supabase evaluation is preserved in git history
+(`docs/features/space-plan.md` prior to this rewrite) should the dropped requirements ever
+return.
 
 ---
 
-## 2. Where the app is today (why this is a big deal)
+## 1. Requirements (current scope)
 
-Reflect is **local-first and single-user**:
+- A **Space** is a group people can join **via an invite link** sent by the creator.
+- Members can create **reflections inside a Space** (text-first in MVP).
+- Members can **add responses** to any reflection in the space.
+- Everyone in the space sees everything in the space, live-ish (push-driven updates).
+- A member only sees the spaces they own or have joined; members can **leave**; the
+  creator can **remove a participant** or **delete the space**.
 
-- SwiftData persistence, `cloudKitDatabase: .none` in `Reflect/ReflectApp.swift` — CloudKit
-  automatic sync is deliberately off.
-- Sync is a **manual backup** via a custom `CloudSyncService`
-  (`Reflect/Services/Cloud/CloudSyncService.swift`) writing `CKRecord`s to the user's
-  **private** database. Restore is currently a placeholder.
-- **No user accounts, no sign-in.** The CloudKit container
-  (`iCloud.xyz.nandamochammad.Reflect`, see `Reflect/Reflect.entitlements`) holds only the
-  user's own data.
-- The `Reflection` model (`Reflect/Data/Models/Reflection.swift`) is a personal journal entry:
-  rich text + images/voice/video, tied to a local `Learning`.
+## 2. Where the app is today
 
-**"Other people joining" is a fundamentally new capability.** Every prior feature could be
-built device-side; Space cannot. It needs (a) a shared backend, (b) a notion of identity, and
-(c) server-enforced permissions. That also drags in App Store obligations the app has never
-had: user-generated-content moderation (App Review Guideline 1.2: report/block/EULA) and
-in-app account deletion (Guideline 5.1.1(v)) if we add sign-in.
+- **Local-first, single-user.** SwiftData with `cloudKitDatabase: .none` and
+  `groupContainer: .none` (`Reflect/ReflectApp.swift`) — automatic CloudKit sync is
+  deliberately off.
+- **Manual backup** via `CloudSyncService` (`Reflect/Services/Cloud/CloudSyncService.swift`):
+  hand-rolled `CKRecord` mapping (`CKLearning`, `CKReflection`, `CKImageAttachment`,
+  `CKVoiceRecording`) saved to the **private database** of `CKContainer.default()`.
+  Restore is a placeholder.
+- **Entitlements already in place** (`Reflect/Reflect.entitlements`): iCloud container
+  `iCloud.xyz.nandamochammad.Reflect`, CloudKit service, `aps-environment` (development),
+  App Group. Missing for Space: the `remote-notification` background mode and the
+  `CKSharingSupported` Info.plist key (§8).
+- **Isolation precedent:** `Shared/Insight/InsightStore.swift` — a separate ModelContainer
+  with its own schema and a non-fatal tiered fallback, never touching the main store.
+- Wiring via `DIContainer.shared` factories (`Reflect/App/DIContainer.swift`).
 
----
-
-## 3. Identity — who is a "person"?
-
-| Option | How it works | Pros | Cons |
-|---|---|---|---|
-| **CloudKit user identity** (`fetchUserRecordID`) | Every iCloud account gets a stable, per-container opaque ID. No UI. | Zero sign-up friction; matches app's no-account ethos | Only works with a CloudKit backend; user discovery APIs are deprecated (iOS 17+); no identity off-Apple; can't be verified by a non-Apple server |
-| **Sign in with Apple (SIWA)** | One-tap Apple auth issuing a verifiable token + stable `sub` per team | Verifiable by *any* backend; privacy-friendly (email relay); familiar; required anyway if we ever add other logins | Introduces an account concept → Apple requires in-app account deletion; small onboarding step |
-| **Custom accounts** (email/password) | Classic sign-up | Full control | Highest friction, password handling liability, no upside for this app |
-
-**Recommendation: Sign in with Apple**, gated *only* on the Space feature (the rest of the
-app stays account-free). It is the only option that works with every backend candidate,
-produces a token a server can verify (which HR-1/HR-2 enforcement depends on), and is
-one tap. Users never touch Space → never see a sign-in screen.
-
-Each user gets a **Profile** (self-chosen display name, optional emoji/avatar) created on
-first Space use — no discovery of real names/emails, ever.
+The good news vs. the Supabase plan: the container, entitlement, and CKRecord-mapping
+skills this feature needs **already exist in the codebase**.
 
 ---
 
-## 4. Backend — evaluation and recommendation
+## 3. CloudKit architecture
 
-### Option A — CloudKit public database + custom membership/permission records
+### The shape
 
-- **How:** `Space`, `Membership`, `JoinRequest`, `SpaceReflection`, `Response` as record
-  types in the **public** database; identity = CloudKit user record ID.
-- **HR-1 (join by ID + approval):** *mechanically* possible — requester writes a
-  `JoinRequest` record; creator queries and flips status.
-- **HR-2 (hidden until reveal): fails.** CloudKit public-DB security is **Security Roles**
-  (World / Authenticated / Creator) applied **per record type**, not per record. If
-  "Authenticated" can read `Response` records at all, *any* signed-in iCloud user — not even
-  just space members — can query everyone's responses with a plain CKQuery. Hiding would be
-  client-side theater. The only real fix is client-side end-to-end encryption (responders
-  encrypt to the creator's public key; creator re-publishes on reveal) — a significant
-  cryptographic subsystem with key distribution, rotation, and multi-device problems.
-- Also: no server-side validation at write time (anyone can insert a `Membership` record
-  claiming to be a member — every read has to distrust the data), no rate limiting, no
-  moderation hooks.
-- **Verdict:** free and serverless, but cannot honestly enforce HR-2 and only weakly
-  enforces HR-1. Rejected as primary.
+```
+Owner's PRIVATE database                     Member's SHARED database
+┌──────────────────────────────┐             ┌──────────────────────────────┐
+│ Custom zone: Space-<UUID>    │   CKShare   │ (mirror of the owner's zone) │
+│  ┌ Space (root CKRecord) ◄───┼── link ─────┼──► visible to participants   │
+│  │  └ SpaceReflection        │             │     with .readWrite access   │
+│  │     └ Response            │             │                              │
+│  └ CKShare (zone-wide share) │             │                              │
+└──────────────────────────────┘             └──────────────────────────────┘
+```
 
-### Option B — CloudKit sharing (CKShare / shared database / custom zones)
+- **One Space = one custom `CKRecordZone`** (e.g. `Space-<UUID>`) in the **creator's
+  private database**, containing a root `Space` record, its child `SpaceReflection`
+  records, and their child `Response` records.
+- The zone is shared with a **`CKShare`**. Recommendation: share the **root record
+  hierarchy** (`CKShare(rootRecord:)`) with every child setting `record.parent` to its
+  parent record — parent references make children travel with the share automatically.
+  (A zone-wide share, `CKShare(recordZoneID:)`, is the alternative; hierarchy sharing is
+  chosen because one zone hosts exactly one space either way, and hierarchy shares are the
+  path `UICloudSharingController`/`ShareLink` are built around.)
+- `share.publicPermission = .none` (invite-only link) and participants are added with
+  **`.readWrite`** permission so members can create reflections and responses.
+- **Two databases per user:**
+  - **Private DB** — zones for spaces *I created*. I am the owner.
+  - **Shared DB** — mirrored zones for spaces *I joined* (zone appears after accepting
+    the share; zone ID carries the owner's name).
+  - "My spaces" = enumerate my private-DB space zones; "joined spaces" = enumerate
+    shared-DB zones. Same record types, two databases — all reads/writes go through a
+    small abstraction that knows which DB a given space lives in.
+- Members create child records **in the shared database** inside the mirrored zone,
+  setting `parent` appropriately; CloudKit propagates them to the owner and all other
+  participants.
 
-- **How:** each Space is a custom zone in the creator's private DB, shared via `CKShare`;
-  participants see it in their shared database.
-- **HR-1: model mismatch.** CKShare is **invite-out** (owner sends a share URL / adds
-  participants), the requirement is **request-in** (stranger enters an ID, owner approves).
-  There is no "request to join" primitive. Worse, adding a participant programmatically
-  requires `CKUserIdentity` lookup by email/phone — the discovery APIs for this are
-  deprecated since iOS 17. You'd end up bolting a public-DB request queue onto CKShare
-  and still hitting the participant-lookup wall.
-- **HR-2: fails.** Share participants have zone-level access; every participant can read
-  every record in the shared zone. Per-record hiding inside a share does not exist.
-- **Verdict:** the *worst* fit despite being the "native sharing" API. Rejected.
+### Who wrote what
 
-### Option C — Custom backend (Supabase / Firebase / bespoke API) — **RECOMMENDED: Supabase**
+Every `CKRecord` carries system metadata: `creatorUserRecordID` and `lastModifiedUserRecordID`.
+Display names come from matching `creatorUserRecordID` against
+`CKShare.participants[*].userIdentity` (`nameComponents`). No profile system needed.
+(Names can be nil if a participant hides them — fall back to "A member".)
 
-- **How:** Postgres + **Row-Level Security (RLS)** + Supabase Auth (native SIWA support) +
-  official `supabase-swift` SDK. Firebase (Firestore + security rules) is equivalent in
-  capability; a bespoke API server is strictly more work.
-- **HR-1: enforced.** `join_requests` is a table; RLS lets a requester insert exactly one
-  pending request for a space they can name, lets only the space owner read/resolve
-  requests, and a trigger/RPC creates the `membership` row on approval. The client cannot
-  self-insert a membership — the database refuses.
-- **HR-2: enforced.** A single RLS policy on `responses` — readable iff *you wrote it*, or
-  *you created the parent reflection*, or *the reflection is revealed (and you're a
-  member)*. A malicious client, curl, or a modified app binary gets zero rows. This is real
-  access control, not client-side hiding.
-- **Trade-offs (honest):** a second backend beside CloudKit; data leaves the Apple
-  ecosystem (privacy-policy + App Privacy label updates, region choice for GDPR);
-  free tier is fine for launch but it's a paid dependency at scale; requires SIWA
-  (Option A wouldn't); you now own schema migrations on a server.
-- Why Supabase over Firebase: SQL + RLS expresses HR-2 in ~10 lines and is auditable;
-  relational fits this model (memberships, uniqueness constraints, joins); no vendor
-  query-language lock-in; Firestore rules can do it too but are harder to reason about
-  and Firestore's pricing model punishes the fan-out reads this feature does.
+---
 
-### Decision matrix
+## 4. Local persistence — decision
 
-| | HR-1 join-by-ID + approval | HR-2 hidden until reveal | Server-side validation | Ops cost | New user friction |
-|---|---|---|---|---|---|
-| A. CloudKit public DB | ⚠️ client-enforced only | ❌ (needs client E2E crypto) | ❌ | none | none |
-| B. CKShare | ❌ invite-link model, deprecated lookup | ❌ zone-level access | ❌ | none | none |
-| **C. Supabase (rec.)** | ✅ RLS + RPC | ✅ RLS | ✅ | low (managed) | SIWA, one tap |
+### Options weighed
 
-**Recommendation: Option C (Supabase + Sign in with Apple).** It is the only option where
-both hard requirements are enforced *by the server*. If the user is unwilling to take a
-non-Apple dependency, the fallback is Option A **plus client-side encryption for HR-2 and
-acceptance that HR-1 is only client-enforced** — materially more code and weaker guarantees;
-this plan assumes Option C.
+| | A. Raw CloudKit (`CKRecord` + small local cache) | B. Core Data `NSPersistentCloudKitContainer` + sharing |
+|---|---|---|
+| Sharing API maturity | Full manual control (`CKShare`, `CKFetchRecordZoneChangesOperation` / `CKSyncEngine`) | Mature: `share(_:to:)`, `persistUpdatedShare`, `fetchShares(matching:)` |
+| Fit with existing app | Matches the **existing manual-CKRecord competence** in `CloudSyncService` | Introduces a **Core Data stack** into a SwiftData app — two persistence frameworks |
+| SwiftData? | Cache can be a plain isolated SwiftData store (no CloudKit coupling) | **SwiftData has no CKShare/sharing API** as of iOS 17/18 — B forces Core Data, not SwiftData |
+| Complexity owned | Sync bookkeeping: change tokens, subscriptions, conflict handling (small: 3 record types, text-only) | Mirroring is a black box; sharing edge cases (share metadata stores, `.sharedPersistentStore` juggling) are notoriously fiddly |
+| Isolation from main store | Trivial — mirrors `InsightStore` | Possible but heavier (separate `NSPersistentContainer` + two store descriptions private/shared) |
+
+### Recommendation: **A — raw CloudKit with a thin, isolated local cache**
+
+Reasons, in order:
+
+1. **SwiftData cannot do CKShare.** Option B is really "adopt Core Data for this feature."
+   That's a second persistence framework and the `NSPersistentCloudKitContainer` mirroring
+   black box, permanently, for a feature with **three text-only record types**.
+2. The app **already does manual CKRecord mapping** (`CloudSyncService`) — Option A is more
+   of the same pattern, not a new discipline.
+3. Space data is **server-authoritative and small**. The local layer is a *cache for
+   offline reading + fast launch*, not a system of record. A dedicated `SpaceStore`
+   (separate SwiftData ModelContainer, modeled exactly on `InsightStore`: own schema,
+   `cloudKitDatabase: .none`, non-fatal fallback) — or even a first-cut in-memory cache —
+   is sufficient.
+4. **Sync plumbing:** prefer **`CKSyncEngine`** (iOS 17+, matches the deployment target) —
+   it owns change tokens, batching, retries, and account changes for both the private and
+   shared databases, and works with shares. Fallback if it fights us:
+   `CKFetchRecordZoneChangesOperation` + manually stored change tokens (the classic path).
+
+**Explicitly untouched:** the main ModelContainer (`Learning`, `Reflection`, attachments,
+badges), `InsightStore`, and `CloudSyncService`'s backup flow. Space adds a new store and
+a new service; it modifies none of the existing persistence.
 
 ---
 
 ## 5. Data model
 
-Server-side (Postgres) is the source of truth. On-device, Space data is a **read-through
-cache** in its own SwiftData store (`SpaceStore`, modeled on `Shared/Insight/InsightStore.swift`
-— separate container, separate schema, never touching the main store).
+All CloudKit record types live in the space's custom zone. Timestamps use CloudKit's
+system `creationDate`/`modificationDate` where possible (one less field to maintain).
 
 ```
-profiles
-  user_id      uuid PK            -- = auth.uid() from SIWA
-  display_name text (1..30)
-  avatar_emoji text?
-  created_at   timestamptz
+Space (root record, 1 per zone)
+  name          String (1..50)
+  detail        String?          -- optional description
+  emoji         String?          -- optional icon
+  [system] creatorUserRecordID   -- the owner
+  [system] creationDate
 
-spaces
-  id           uuid PK
-  join_code    text UNIQUE        -- 8-char human-typable "Space ID", e.g. "R7KQ-2MXF"
-  name         text (1..50)
-  detail       text?
-  creator_id   uuid → profiles
-  created_at   timestamptz
+SpaceReflection (parent → Space)
+  title         String (1..200)
+  promptText    String           -- the body/question members respond to (text-only MVP)
+  [system] creatorUserRecordID   -- author = any member
+  [system] creationDate / modificationDate
 
-memberships                        -- "a member only sees spaces they joined"
-  space_id     uuid → spaces      \  PK (space_id, user_id)
-  user_id      uuid → profiles    /
-  role         enum: owner | member
-  joined_at    timestamptz
-
-join_requests
-  id           uuid PK
-  space_id     uuid → spaces
-  requester_id uuid → profiles
-  status       enum: pending | approved | declined
-  message      text? (0..200)     -- optional "hi, it's Nanda"
-  created_at   timestamptz
-  resolved_at  timestamptz?
-  resolved_by  uuid?              -- the owner who acted
-  UNIQUE (space_id, requester_id) WHERE status = 'pending'   -- no request spam
-
-space_reflections                  -- NEW type; NOT the local Reflection model
-  id                 uuid PK
-  space_id           uuid → spaces
-  author_id          uuid → profiles
-  title              text (1..200)
-  prompt_text        text          -- body/question members respond to (text-only in MVP)
-  responses_revealed bool DEFAULT false      -- ← the reveal state
-  revealed_at        timestamptz?
-  created_at / updated_at
-
-responses
-  id                   uuid PK
-  space_reflection_id  uuid → space_reflections
-  author_id            uuid → profiles
-  body                 text (1..5000)
-  created_at / updated_at
-  UNIQUE (space_reflection_id, author_id)    -- one response per member
+Response (parent → SpaceReflection)
+  body          String (1..5000)
+  [system] creatorUserRecordID   -- author
+  [system] creationDate / modificationDate
 ```
 
-Relationships: `Space 1—N Membership`, `Space 1—N JoinRequest`, `Space 1—N SpaceReflection`,
-`SpaceReflection 1—N Response`. Reveal is **per reflection** (one switch reveals all its
-responses), which matches the requirement; per-response reveal is a possible later refinement.
+- `record.parent` is set on every child so the share hierarchy carries them.
+- **Authorship/display** resolved via `CKShare.participants` (§3). No Profile record type.
+- **No uniqueness constraint** is enforceable server-side in CloudKit, so "one response per
+  member" (from the old plan) is dropped: **multiple responses per member are allowed**,
+  comment-thread style. (If one-per-member matters, it's client-side-only enforcement —
+  flag as product choice, see §11.)
+- Client-side Swift domain entities in `Domain/Entities/Space/` (`Space`,
+  `SpaceReflection`, `SpaceResponse` — value types mapped from CKRecords), plus cache
+  `@Model` classes in the isolated `SpaceStore`.
 
-### Client-side Swift types
-
-New domain entities (`Domain/Entities/Space/…`) mirroring the tables, plus SwiftData cache
-models in a dedicated `SpaceStore` container. **`SpaceReflection` is a new type, not an
-extension of `Reflection`** — see §7.
-
----
-
-## 6. Permission & visibility enforcement (server vs client)
-
-**Principle: the client is untrusted.** Everything below is RLS in Postgres; SwiftUI just
-renders what the server is willing to return.
-
-| Rule | Enforced server-side (RLS/RPC) | Client's role |
-|---|---|---|
-| Only members see a space & its content | `SELECT` on `spaces`/`space_reflections` requires a `memberships` row for `auth.uid()` | renders the list |
-| Join-code lookup doesn't leak the space list | `spaces` not selectable by non-members; lookup goes through a `SECURITY DEFINER` RPC `request_to_join(join_code, message)` that returns only *name + creator display name* and inserts the pending request | join form UI |
-| Only the owner sees/resolves join requests | `SELECT/UPDATE` on `join_requests` restricted to space owner (requester may `SELECT` own rows to show "pending…") | approval inbox UI |
-| Membership can't be self-granted | no direct `INSERT` on `memberships`; only the `approve_request(request_id)` RPC (checks caller = owner) creates it | — |
-| **Hidden until revealed (HR-2)** | `SELECT` on `responses`: `author_id = auth.uid() OR reflection.author_id = auth.uid() OR (reflection.responses_revealed AND caller is a member)` | shows "N responses waiting" placeholder |
-| Only the creator reveals | `UPDATE … SET responses_revealed` allowed only when `author_id = auth.uid()` (via RPC `reveal_responses(reflection_id)`) | reveal button |
-| One response per member | DB `UNIQUE (space_reflection_id, author_id)` | disables the compose button |
-| Members respond, non-members don't | `INSERT` on `responses` requires membership in the parent space | — |
-
-**Why client-only hiding is insufficient:** any member's auth token can hit the REST/realtime
-API directly (curl, a jailbroken device, a modified build). If the server returns unrevealed
-response rows and the *app* filters them, the "surprise reveal" guarantee is fiction — one
-member could read everyone's answers early and, socially, that breaks the whole feature
-(think retro/ice-breaker use). RLS makes the unrevealed rows non-existent to everyone but
-their author and the reflection's creator.
-
-Whether the reflection *creator* may read responses before revealing is a product choice —
-the policy above allows it (simplest, and the creator "opens" them anyway). Flag if the user
-wants the creator blind too; that would push toward the encryption design.
+**`SpaceReflection` is a new type, NOT the local `Reflection`** (§7): the local model is
+rich-text + media + `Learning`-bound + badge-coupled and is swept by the personal backup;
+a space reflection is text-first, share-owned, multi-author. Reusing `Reflection` would
+poison existing fetches, `CloudSyncService.backup`, and badge evaluation.
 
 ---
 
-## 7. Coexistence with the existing app (additive, zero-touch)
+## 6. Key flows
 
-- **The local `Reflection`/`Learning`/`Insight` features do not change.** No schema change
-  to the main `ModelContainer`, no change to `InsightStore`, no change to existing use cases.
-- **`SpaceReflection` is a new type**, not an extension of `Reflection`. Reasons: the local
-  `Reflection` is rich-text + media + `Learning`-bound + badge-coupled
-  (`CreateReflectionUseCase` triggers `EvaluateBadgesUseCase`); a space reflection is
-  text-first, server-owned, has an author and reveal state, and must never be swept up by
-  the personal iCloud backup in `CloudSyncService`. Extending `Reflection` with nullable
-  `spaceID/authorID/revealed` fields would poison every existing fetch, the backup path, and
-  badge evaluation. Bridging later ("copy my response into my journal") is a one-way
-  *export*, not a shared model.
-- **Isolation pattern already exists in this repo:** `InsightStore` (separate ModelContainer,
-  separate schema, non-fatal fallback). `SpaceStore` copies that pattern for the offline
-  cache.
-- **Wiring follows house conventions:** new `Data/Repositories/Protocols/Space*Protocol.swift`
-  + implementations backed by a `SpaceAPIClient` (Supabase) instead of SwiftData;
-  `Domain/UseCases/Space/` one-class-per-action (`CreateSpaceUseCase`,
-  `RequestToJoinSpaceUseCase`, `ApproveJoinRequestUseCase`, `RevealResponsesUseCase`, …);
-  `DIContainer` gains `makeSpace…()` factories; UI lands in
-  `Presentation/Features/Space/{List,Detail,Join,Requests}` as a new tab or a section on the
-  main tab. Badges/achievements ignore Space entirely in MVP.
-- If Space is ever removed, deleting the `Space*` folders and the tab leaves the app exactly
-  as it is today.
+All mutations go through use cases → repository → `SpaceCloudService` (house conventions:
+`Domain/UseCases/Space/`, one class per action; `DIContainer` gains `makeSpace…()`
+factories; UI in `Presentation/Features/Space/{List,Detail,Compose}`).
 
-## 8. Key flows
+1. **Create space** — user names it → create custom zone in private DB → save `Space` root
+   record + `CKShare(rootRecord:)` **in one `CKModifyRecordsOperation`** (CloudKit requires
+   the share and root saved atomically) with `publicPermission = .none`.
+2. **Invite** — present the share sheet to get the link out:
+   `UICloudSharingController` (wrapped in `UIViewControllerRepresentable`) or SwiftUI
+   `ShareLink` with `CKShareTransferRepresentation`. Recommendation: start with
+   `UICloudSharingController` — it also gives the owner the participant-management and
+   stop-sharing UI for free. Owner sends via Messages/Mail/AirDrop/copy.
+3. **Accept an invite** — ⚠️ **real integration point in the app target.** Tapping the
+   link routes to the app; acceptance arrives via the scene delegate:
+   `windowScene(_:userDidAcceptCloudKitShareWith:)` handing us `CKShare.Metadata` →
+   `CKAcceptSharesOperation`. Reflect is a pure SwiftUI-lifecycle app with **no
+   app/scene delegate today** — we must add `@UIApplicationDelegateAdaptor` + a
+   `UIWindowSceneDelegate` (via `application(_:configurationForConnecting:)`), plus the
+   **`CKSharingSupported = YES`** Info.plist key so the OS offers the app for share links.
+   After acceptance, the zone appears in the user's **shared DB**; navigate straight into
+   the joined space.
+4. **List spaces** — "My spaces": fetch space zones/roots from private DB. "Joined":
+   `fetchAllRecordZones` on the shared DB → fetch each zone's root `Space` record. Merge
+   into one list with an owner/member marker; back it with the `SpaceStore` cache.
+5. **Create a reflection** — member composes title + prompt → save `SpaceReflection` with
+   `parent = space root` into the correct DB (private if owner, shared if member).
+6. **Add a response** — open reflection → compose → save `Response` with
+   `parent = reflection`. Others see it on next push/fetch.
+7. **Leave a space** (participant) — remove self: delete own participant via
+   `CKShare` (a participant can remove themselves; simplest UI path is
+   `UICloudSharingController`'s built-in option, or delete the zone from *my shared DB*,
+   which removes my participation — it does **not** delete the owner's data).
+8. **Remove a participant / stop sharing** (owner) — edit `share.participants` and re-save
+   the share (or `UICloudSharingController`'s management UI). Removed member loses access
+   on their next sync.
+9. **Delete a space** (owner) — delete the custom zone from the private DB
+   (`CKModifyRecordZonesOperation`): destroys the share and all content for everyone.
+   Confirmation alert; irreversible.
 
-All mutations go through use cases → repository → Supabase RPC/table ops. Push notifications
-(APNs via Supabase Edge Function or DB webhook) are Phase 3; before that, pull-to-refresh.
+## 7. Coexistence & isolation
 
-1. **Create space:** user signs in with Apple (first time only) → names the space → server
-   inserts `spaces` (+ generates unique `join_code`) + owner `membership` in one RPC → UI
-   shows the code with a Share/Copy button ("Share this Space ID").
-2. **Request to join:** joiner taps "Join a Space" → signs in if needed → enters the code →
-   `request_to_join` RPC returns space name for a confirm screen and creates the pending
-   request → joiner sees "Pending approval".
-3. **Approve / decline:** creator's "Requests" inbox lists pending requests (display name +
-   message) → Approve calls `approve_request` (creates membership, marks resolved) → Decline
-   marks declined. Requester's next refresh shows the space (or a declined state). A declined
-   user may request again (rate-limited, see §9 below and abuse notes).
-4. **Create a reflection in a space:** any member → title + prompt text → inserted with
-   `responses_revealed = false` → appears to all members.
-5. **Add a response:** member opens the reflection → composes → insert (unique per member) →
-   others see "3 responses · hidden until <creator> reveals", never the bodies.
-6. **Reveal:** the reflection's creator taps "Reveal responses" (confirmation alert —
-   irreversible in MVP) → `reveal_responses` RPC sets the flag → everyone's next
-   fetch/realtime event returns the bodies.
-7. **Leave / remove:** member leaves (deletes own membership; their revealed responses
-   remain, attributed); owner removes a member (RPC; removed user loses all access via RLS
-   instantly). Owner deletes the space → cascade. Owner leaving requires transfer-or-delete
-   (MVP: owners can't leave, only delete).
+- **Additive, zero-touch.** No schema change to the main ModelContainer, no change to
+  `InsightStore`, no change to existing use cases or the backup path. Deleting the
+  `Space*` folders and the tab entry point returns the app to exactly today's state.
+- **Same container, different lanes.** `CloudSyncService` (backup) writes
+  `CKLearning`/`CKReflection`/… records to the private DB's default zone. Space uses
+  **custom zones** (private DB) and the **shared DB** with distinct record types
+  (`Space`, `SpaceReflection`, `Response`). No record-type or zone overlap;
+  `deleteAllCloudData()` touches only the backup's four record types. No conflict.
+  - Housekeeping note: `CloudSyncService` uses `CKContainer.default()`; the Space service
+    should reference `CKContainer(identifier: "iCloud.xyz.nandamochammad.Reflect")`
+    explicitly (they resolve to the same container today, but explicit is safer).
+- **Badges/achievements ignore Space** in MVP (no badge triggers from space activity).
+- Bridging ("copy a space reflection into my journal") is a later one-way export, not a
+  shared model.
 
-## 9. Security, privacy, abuse
+## 8. Entitlements, capabilities, config
 
-**What leaves the device (new — must be disclosed in privacy policy + App Privacy labels):**
-SIWA identifier, chosen display name, space names, reflection titles/prompts, response text,
-timestamps. MVP is deliberately **text-only** — no images/voice/video in spaces — which keeps
-the upload surface and moderation burden small. Personal journal data (`Reflection`,
-`Learning`, `Insight`) never touches the new backend.
+Already present: iCloud container `iCloud.xyz.nandamochammad.Reflect`, CloudKit service,
+`aps-environment` (APNs), App Group.
 
-**Who can read what:** enforced by RLS per §6. Supabase service keys never ship in the app
-(only the anon key + user JWT); TLS in transit; encryption at rest per Supabase. Choose the
-project region deliberately (user is in Indonesia; Singapore region is the sensible default).
+To add:
+- **Info.plist `CKSharingSupported = YES`** (app advertises it accepts share links).
+- **Background Modes → Remote notifications** (`UIBackgroundModes: remote-notification`)
+  so CloudKit subscription pushes wake the app for silent sync.
+- Register for remote notifications at launch (`registerForRemoteNotifications` — no user
+  permission prompt needed for silent pushes; user-visible pushes are optional later).
+- **CloudKit Console:** define the three record types + indexes in the **Development**
+  environment, then **deploy schema to Production** before TestFlight/App Store —
+  a classic release-blocking footgun if forgotten.
+- No Developer-portal additions beyond what the existing iCloud + push entitlements
+  already require (APNs is implicit with the aps-environment entitlement).
 
-**Abuse / spam on join requests:**
-- Join codes are 8 chars from a 32-symbol alphabet (~1.1 × 10¹²) — not enumerable; lookup
-  only via the RPC, which is rate-limited (e.g. 10 lookups/hour/user) so codes can't be
-  brute-forced.
-- One pending request per (space, user); declined users can retry after a cooldown, max N
-  total; owner can regenerate the join code (invalidates the old one) if it leaks.
-- Owner can remove members; removed/declined users can be blocked from re-requesting.
-- **App Review Guideline 1.2 (UGC):** must ship report-content + block-user + EULA/terms
-  before release, and **5.1.1(v)**: in-app account deletion (delete profile, memberships,
-  authored content or anonymize). These are non-negotiable App Store requirements, not
-  nice-to-haves.
+## 9. Sync & realtime
 
-## 10. Phased delivery
+- **Subscriptions:** one **`CKDatabaseSubscription`** on the **shared database** and one on
+  the **private database** (covering owned space zones), each with silent-push
+  (`shouldSendContentAvailable`) notification info. Database subscriptions are the
+  recommended pattern for custom zones and are what `CKSyncEngine` sets up for you if we
+  adopt it — another point for `CKSyncEngine`.
+- **On push (or foregrounding):** fetch changed zones → fetch zone changes with stored
+  change tokens → upsert into `SpaceStore` cache → UI (Observation) updates.
+- **Do not trust push for delivery.** Silent pushes are throttled/coalesced by iOS.
+  Always also sync on: app foreground, space screen appear, and pull-to-refresh.
+  Push makes it feel live; fetch makes it correct.
+- **Conflicts:** text-append workload (new child records) rarely conflicts. For edits to
+  existing records, handle `serverRecordChanged` with last-writer-wins on whole fields —
+  sufficient for MVP.
+- **Coexistence with `CloudSyncService`:** the backup remains a user-triggered, one-shot
+  private-DB operation on different record types in the default zone. The Space sync loop
+  never touches those records and vice versa (§7).
 
-Rough sizing assumes one developer; this is a **large** feature — realistically 8–12 weeks
-to a shippable v1 across Phases 0–3.
+## 10. App Store / safety (UGC — lighter, but not zero)
 
-**Phase 0 — Decisions & foundation (≈1–1.5 wk)**
-- T0.1 Sign-off on Open Decisions (§11); create Supabase project (region: Singapore)
-- T0.2 Schema + RLS policies + RPCs (`request_to_join`, `approve_request`, `reveal_responses`) as versioned SQL migrations
-- T0.3 Add SIWA capability; add `supabase-swift` via SPM; `AuthService` (sign in, session, sign out) + `SpaceAPIClient`
-- T0.4 RLS verification script (two test users; assert HR-1/HR-2 from raw REST, not the app)
+No accounts means no Guideline 5.1.1(v) account-deletion obligation — that whole
+workstream from the Supabase plan is gone. But content shared between users is still
+**user-generated content**, and Guideline 1.2 typically expects:
 
-**Phase 1 — MVP: spaces & membership (≈2–3 wk)**
-- T1.1 Profile creation (display name) on first Space use
-- T1.2 Create space + join-code display/share; spaces list (only joined ones)
-- T1.3 Join flow: enter code → confirm → pending state
-- T1.4 Owner request inbox: approve/decline
-- T1.5 `SpaceStore` offline read cache + pull-to-refresh
-- T1.6 DIContainer wiring, use cases, Space tab entry point
+- **Report objectionable content** — MVP-acceptable: a "Report" action on
+  reflections/responses that pre-fills an email to the developer (no server needed),
+  plus the ability for the owner to delete any record in their zone (owners have full
+  control of their zone's records).
+- **Block / escape** — "Leave space" (participant) and "Remove participant" (owner)
+  already cover the escape hatch; call them out in the App Review notes.
+- **Terms/EULA** acknowledging no tolerance for objectionable content — a one-time sheet
+  before first Space use.
 
-**Phase 2 — Reflections, responses, reveal (≈2–3 wk)**
-- T2.1 Create/list space reflections
-- T2.2 Compose response; "hidden" placeholder states ("N responses waiting")
-- T2.3 Reveal flow + revealed reading UI
-- T2.4 Leave space / remove member / delete space
-- T2.5 Empty/error/loading states per house component library
+Budget a small task for this (P2); it is a ship consideration, not an architecture driver.
 
-**Phase 3 — Ship-blockers & polish (≈2–3 wk)**
-- T3.1 Report content + block user + terms (Guideline 1.2)
-- T3.2 In-app account deletion (Guideline 5.1.1(v))
-- T3.3 Push notifications: join request received, approved, new reflection, responses revealed
-- T3.4 Supabase Realtime for live updates (else stay on refresh)
-- T3.5 Privacy policy + App Privacy labels update; TestFlight beta
+## 11. CloudKit gotchas (accepted, with mitigations)
 
-**Later / explicitly out of MVP:** media in space reflections, per-response reveal,
-multiple owners/moderators, response comments/reactions, exporting a response into the
-personal journal, web read-only view.
+1. **Share-acceptance UX is fragile-feeling:** if the recipient lacks the app, the link
+   lands on a generic iCloud web page (no store redirect for non-public apps in dev).
+   Test the full link → install → accept path via TestFlight before judging it.
+2. **`.readWrite` is zone-hierarchy-wide:** any participant can technically modify or
+   delete *another member's* records via raw API (CloudKit has no per-record ACL inside a
+   share). The UI will only offer edit/delete on your own records — but this is
+   client-enforced. Accepted: consistent with "all members see/do everything" scope and a
+   trusted-small-group product.
+3. **Participant leaving vs. owner deleting differ:** a participant removing the zone from
+   their shared DB only removes *their access*; the owner deleting the zone destroys the
+   space *for everyone*. Get the copy in confirm dialogs right.
+4. **Eventual consistency / latency:** seconds (occasionally more) between a write and
+   other devices seeing it; silent pushes can be delayed or dropped. Design the UI for
+   "recently synced", not "realtime chat".
+5. **Testing needs two real iCloud accounts on real devices.** Simulators can't reliably
+   receive CloudKit pushes, and share acceptance flows are limited there. Plan for two
+   physical devices (or device + second account on a Mac) from P0 — this is the #1
+   schedule risk.
+6. **Schema deploy to Production** (§8) before any external build.
+7. **Account edge cases:** no iCloud account signed in, iCloud restricted, account
+   switching mid-session (`CKAccountChanged` — `CKSyncEngine` surfaces this). MVP: Space
+   tab shows a "Sign in to iCloud in Settings" empty state (reuse
+   `CloudSyncService.checkCloudAvailability` semantics).
+8. **Rate limits & record sizes:** irrelevant at this text-only scale, but keep responses
+   ≤ ~1 MB per record (CloudKit hard limit) — the 5000-char cap handles it.
 
-## 11. Open decisions for the user
+## 12. Phased delivery
 
-1. **Backend (biggest fork in the road).** Recommendation: **Supabase (Option C)**. The
-   alternative — staying pure-Apple with CloudKit public DB — means HR-1 is only
-   client-enforced and HR-2 requires a client-side encryption subsystem; CKShare doesn't fit
-   at all. Accepting Supabase means: a non-Apple data processor, a privacy-policy update, and
-   a small ops footprint. **Nothing can be scheduled until this is decided.**
-2. **Identity.** Recommendation: **Sign in with Apple, required only for Space**. Alternative
-   (anonymous CloudKit ID) only exists inside Option A and gives no verifiable identity for a
-   server. Accepting SIWA commits us to in-app account deletion (T3.2).
-3. **May the reflection's creator read responses *before* revealing?** Recommendation:
-   **yes** (simplest; the creator controls the reveal anyway, and RLS grants them read). If
-   the answer is *no — creator must be blind until reveal too*, that pushes toward client-side
-   encryption and materially grows the design.
-4. **MVP content scope.** Recommendation: **text-only** space reflections/responses (no
-   photos/voice/video in v1) — keeps storage, bandwidth, and moderation obligations small and
-   ships months earlier. Media becomes a Phase-4 candidate.
+**This is roughly half the previous plan** (was 8–12 weeks): no backend project, no auth,
+no RLS, no account deletion, no join-request system, no reveal machinery.
+**Revised estimate: ~4–6 weeks to a shippable v1** (one developer), dominated by
+CloudKit-sharing integration verification rather than code volume.
+
+**P0 — CloudKit sharing spike & plumbing (≈1 wk)** — *de-risk first, UI later*
+- T0.1 Entitlements/Info.plist: `CKSharingSupported`, remote-notification background mode;
+  register for remote notifications; add `UIApplicationDelegateAdaptor` + scene delegate
+  with `userDidAcceptCloudKitShareWith`.
+- T0.2 Spike, two devices / two iCloud accounts: create zone + root record + CKShare,
+  send link, accept, fetch from shared DB, write a child record back, see it on device A.
+  **Exit criterion: round trip proven end-to-end.** (This spike retires the majority of
+  the feature's risk.)
+- T0.3 Define record types in CloudKit Console (Development); decide `CKSyncEngine` vs
+  manual operations based on spike experience.
+
+**P1 — Create / join / list spaces (≈1.5–2 wk)**
+- T1.1 `SpaceCloudService` (zone/share/CRUD ops) + repository protocol + implementations;
+  `SpaceStore` isolated cache (InsightStore pattern); DIContainer factories.
+- T1.2 Create-space flow + `UICloudSharingController` invite sheet.
+- T1.3 Accept-invite routing → land in the joined space.
+- T1.4 Spaces list (owned + joined merged), leave space, owner delete space,
+  owner manage/remove participants (sharing controller UI).
+- T1.5 iCloud-unavailable / empty / error states.
+
+**P2 — Reflections, responses, push (≈1.5–2 wk)**
+- T2.1 Create/list `SpaceReflection` in a space (both DB lanes).
+- T2.2 Compose/list `Response` with author names from share participants.
+- T2.3 Database subscriptions + silent push → sync → cache → UI; foreground/pull-to-refresh
+  fallback sync.
+- T2.4 UGC ship items: report action, first-use terms sheet, App Review notes (§10).
+- T2.5 Deploy schema to Production; TestFlight beta with ≥2 external testers exercising
+  the invite path.
+
+**Later / out of MVP:** media in space reflections, reactions/comments on responses,
+export a space reflection into the personal journal, user-visible push notifications
+("Nanda responded…"), per-member response limits.
+
+## 13. Residual open questions & risks (for the user)
+
+1. **Multiple responses per member?** CloudKit can't enforce one-per-member server-side.
+   Recommendation: allow multiple (comment-style). If you want one-per-member, it's
+   client-enforced only — say so and we'll add it to the composer logic.
+2. **Trust model inside a space.** Any participant *technically* can edit/delete others'
+   records (gotcha #2). Fine for friends/study groups; if Space is ever aimed at
+   strangers, this becomes a real limitation (CloudKit has no fix — that would reopen the
+   backend question). Confirm the intended audience is trusted small groups.
+3. **Invite-link UX for non-users.** Link → App Store → install → tap link again is only
+   smooth once the app is public; during TestFlight it's clunky. Accept for beta?
+4. **`CKSyncEngine` vs manual operations** — decided empirically in the P0 spike; no
+   user input needed unless the spike forces a deployment-target or complexity trade-off.
+5. **Two-device testing logistics** — needs a second physical device + second iCloud
+   account throughout development (schedule risk #1).
 
 ---
 
-*Grounding references:* `Reflect/ReflectApp.swift` (store config, `cloudKitDatabase: .none`),
-`Reflect/Services/Cloud/CloudSyncService.swift` (manual private-DB backup),
+*Grounding references:* `Reflect/ReflectApp.swift` (store config: `cloudKitDatabase: .none`,
+`groupContainer: .none`), `Reflect/Services/Cloud/CloudSyncService.swift` (manual private-DB
+backup, default-zone record types), `Reflect/Reflect.entitlements` (iCloud container
+`iCloud.xyz.nandamochammad.Reflect`, CloudKit, aps-environment),
 `Reflect/App/DIContainer.swift` (wiring pattern), `Shared/Insight/InsightStore.swift`
-(isolated-store precedent), `Reflect/Data/Models/Reflection.swift` (why SpaceReflection is a
-new type), `docs/architecture.md` (layering and conventions).
+(isolated-store precedent), `Reflect/Data/Models/Reflection.swift` +
+`Reflect/Data/Models/Learning.swift` (why `SpaceReflection` is a new type),
+`docs/architecture.md` (layering and conventions). Superseded Supabase plan: this file's
+prior revision in git history.
