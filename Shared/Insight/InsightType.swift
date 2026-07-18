@@ -3,10 +3,12 @@ import AppIntents
 
 /// The kind of quick-capture insight. Categorisation only — Insight is a
 /// standalone feature, decoupled from Reflection/Learning.
+///
+/// Note: there is deliberately no `reflection` case — a full Reflection is its own
+/// feature, so a "reflection" insight type would be redundant.
 enum InsightType: String, Codable, CaseIterable, Identifiable, AppEnum {
     case question
     case note
-    case reflection
 
     var id: String { rawValue }
 
@@ -14,7 +16,6 @@ enum InsightType: String, Codable, CaseIterable, Identifiable, AppEnum {
         switch self {
         case .question: return "Question"
         case .note: return "Note"
-        case .reflection: return "Reflection"
         }
     }
 
@@ -22,7 +23,6 @@ enum InsightType: String, Codable, CaseIterable, Identifiable, AppEnum {
         switch self {
         case .question: return "Questions"
         case .note: return "Notes"
-        case .reflection: return "Reflections"
         }
     }
 
@@ -31,7 +31,6 @@ enum InsightType: String, Codable, CaseIterable, Identifiable, AppEnum {
         switch self {
         case .question: return "questionmark.circle.fill"
         case .note: return "note.text"
-        case .reflection: return "quote.bubble.fill"
         }
     }
 
@@ -40,7 +39,6 @@ enum InsightType: String, Codable, CaseIterable, Identifiable, AppEnum {
         switch self {
         case .question: return "81D4FA"
         case .note: return "FFCC80"
-        case .reflection: return "B39DDB"
         }
     }
 
@@ -52,8 +50,7 @@ enum InsightType: String, Codable, CaseIterable, Identifiable, AppEnum {
     static var caseDisplayRepresentations: [InsightType: DisplayRepresentation] {
         [
             .question: DisplayRepresentation(title: "Question", image: .init(systemName: "questionmark.circle.fill")),
-            .note: DisplayRepresentation(title: "Note", image: .init(systemName: "note.text")),
-            .reflection: DisplayRepresentation(title: "Reflection", image: .init(systemName: "quote.bubble.fill"))
+            .note: DisplayRepresentation(title: "Note", image: .init(systemName: "note.text"))
         ]
     }
 }

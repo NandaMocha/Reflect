@@ -42,7 +42,7 @@ struct InsightCard: View {
         }
 
         InsightCard(
-            insight: Insight(text: "I keep reaching for force-unwraps when I'm tired — worth a habit check.", type: .reflection)
+            insight: Insight(text: "I keep reaching for force-unwraps when I'm tired — worth a habit check.", type: .note)
         ) {
             print("Tapped")
         }

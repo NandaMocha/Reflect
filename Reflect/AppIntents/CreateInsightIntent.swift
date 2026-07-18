@@ -5,10 +5,10 @@ import AppIntents
 /// validation — e.g. the 500-character limit — is enforced for Siri dictation too.
 struct CreateInsightIntent: AppIntent {
     static let title: LocalizedStringResource = "Add Insight"
-    static let description = IntentDescription("Quickly capture a question, note, or reflection to review later.")
+    static let description = IntentDescription("Quickly capture a question or note to review later.")
     static let openAppWhenRun = false
 
-    @Parameter(title: "Type", requestValueDialog: "Is it a question, a note, or a reflection?")
+    @Parameter(title: "Type", requestValueDialog: "Is it a question or a note?")
     var type: InsightType
 
     @Parameter(title: "Insight", requestValueDialog: "What's on your mind?")

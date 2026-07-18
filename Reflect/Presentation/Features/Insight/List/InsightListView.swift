@@ -197,7 +197,7 @@ struct InsightListView: View {
     let sampleInsights = [
         Insight(text: "What's the difference between actors and classes in Swift 6?", type: .question),
         Insight(text: "SwiftData's @Model macro generates a lot of boilerplate under the hood.", type: .note),
-        Insight(text: "I keep reaching for force-unwraps when I'm tired — worth a habit check.", type: .reflection)
+        Insight(text: "I keep reaching for force-unwraps when I'm tired — worth a habit check.", type: .question)
     ]
     for insight in sampleInsights {
         container.mainContext.insert(insight)
