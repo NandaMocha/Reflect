@@ -126,6 +126,16 @@ struct SettingsView: View {
 //                    .frame(maxWidth: .infinity)
 //                    .padding(.top, Constants.Spacing.lg)
 //                }
+
+#if DEBUG
+                Section {
+                    NavigationLink(destination: SpaceDebugView()) {
+                        Text("🧪 Space Debug (spike)")
+                    }
+                } header: {
+                    Text("Debug")
+                }
+#endif
             }
             .navigationTitle("Settings")
             .toolbar {
