@@ -57,6 +57,19 @@ final class SpaceDetailViewModel {
             && !isSaving
     }
 
+    /// Reflections bucketed into date sections (newest group first, newest reflection first
+    /// within each group) so the list is easy to scan by when things were posted.
+    var groupedReflections: [(group: SpaceReflectionDateGroup, reflections: [SpaceReflection])] {
+        var buckets: [SpaceReflectionDateGroup: [SpaceReflection]] = [:]
+        for reflection in reflections {
+            let group = SpaceReflectionDateGroup.group(for: reflection.createdAt ?? .distantPast)
+            buckets[group, default: []].append(reflection)
+        }
+        return buckets
+            .map { (group: $0.key, reflections: $0.value.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }) }
+            .sorted { $0.group < $1.group }
+    }
+
     // MARK: - Actions
 
     func load() async {

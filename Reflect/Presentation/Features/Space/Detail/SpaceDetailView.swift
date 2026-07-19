@@ -68,25 +68,32 @@ struct SpaceDetailView: View {
 
     private var reflectionList: some View {
         List {
-            ForEach(viewModel.reflections) { reflection in
-                NavigationLink(value: reflection) {
-                    SpaceReflectionRow(reflection: reflection)
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    if reflection.isMine {
-                        Button(role: .destructive) {
-                            reflectionToDelete = reflection
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+            ForEach(viewModel.groupedReflections, id: \.group) { entry in
+                Section {
+                    ForEach(entry.reflections) { reflection in
+                        NavigationLink(value: reflection) {
+                            SpaceReflectionRow(reflection: reflection)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if reflection.isMine {
+                                Button(role: .destructive) {
+                                    reflectionToDelete = reflection
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                        .contextMenu {
+                            ReportContentButton(
+                                contentKind: "reflection",
+                                contentID: reflection.id,
+                                spaceName: viewModel.space.name
+                            )
                         }
                     }
-                }
-                .contextMenu {
-                    ReportContentButton(
-                        contentKind: "reflection",
-                        contentID: reflection.id,
-                        spaceName: viewModel.space.name
-                    )
+                } header: {
+                    Text(entry.group.title)
+                        .font(.subheadline.weight(.semibold))
                 }
             }
         }
