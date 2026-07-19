@@ -186,6 +186,13 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return response
     }
 
+    func updateResponse(_ response: SpaceResponse, in space: Space, body: String) async throws -> SpaceResponse {
+        let updated = try await cloudService.updateResponse(id: response.id, in: space.zoneID, body: body)
+        try upsertResponse(updated)
+        try modelContext.save()
+        return updated
+    }
+
     // MARK: - Delete own content
 
     func deleteContent(id: String, in space: Space) async throws {

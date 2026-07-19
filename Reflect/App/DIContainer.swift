@@ -155,6 +155,11 @@ final class DIContainer {
     }
 
     @MainActor
+    func makeEditOwnSpaceResponseUseCase() -> EditOwnSpaceResponseUseCaseProtocol {
+        EditOwnSpaceResponseUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
     func makeSpaceDetailViewModel(space: Space) -> SpaceDetailViewModel {
         SpaceDetailViewModel(
             space: space,
@@ -172,6 +177,7 @@ final class DIContainer {
             reflection: reflection,
             fetchUseCase: makeFetchSpaceResponsesUseCase(),
             createUseCase: makeCreateSpaceResponseUseCase(),
+            editUseCase: makeEditOwnSpaceResponseUseCase(),
             deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
             repository: makeSpaceRepository()
         )

@@ -51,6 +51,9 @@ protocol SpaceCloudServiceProtocol {
     /// Creates a response as a child of its `SpaceReflection` record.
     func createResponse(to reflection: SpaceReflection, body: String, in zone: SpaceZoneRef) async throws -> SpaceResponse
 
+    /// Updates a response's body (edit-your-own). Caller guards `isMine`.
+    func updateResponse(id: String, in zone: SpaceZoneRef, body: String) async throws -> SpaceResponse
+
     /// Deletes a single child record (reflection or response) by record name. UI-level
     /// trust: the caller guards `isMine` (no server enforcement, plan §11.2).
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws

@@ -384,6 +384,23 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         return response
     }
 
+    func updateResponse(id: String, in zone: SpaceZoneRef, body: String) async throws -> SpaceResponse {
+        let database = database(for: zone.lane)
+        let recordID = CKRecord.ID(recordName: id, zoneID: ckZoneID(for: zone))
+        // Fetch-modify-save inside withRetry: if the record changed on the server since we
+        // last saw it, the retry re-fetches the latest and re-applies the edit —
+        // last-writer-wins with the server record as base (plan §9).
+        let saved = try await withRetry { () -> CKRecord in
+            let record = try await database.record(for: recordID)
+            record[SpaceRecordField.body] = body as CKRecordValue
+            return try await database.save(record)
+        }
+        guard let response = SpaceRecordMapper.spaceResponse(from: saved, isMine: true) else {
+            throw SpaceError.syncFailed("Could not map the updated response")
+        }
+        return response
+    }
+
     /// Deletes a record and any children parented to it. The hierarchy uses parent
     /// references with `action: .none` (required for CKShare), which do NOT cascade on the
     /// server — so deleting a reflection here also deletes its response records in the same

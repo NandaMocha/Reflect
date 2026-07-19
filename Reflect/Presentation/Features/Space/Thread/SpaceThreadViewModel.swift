@@ -23,6 +23,7 @@ final class SpaceThreadViewModel {
 
     private let fetchUseCase: FetchSpaceResponsesUseCaseProtocol
     private let createUseCase: CreateSpaceResponseUseCaseProtocol
+    private let editUseCase: EditOwnSpaceResponseUseCaseProtocol
     private let deleteUseCase: DeleteOwnSpaceContentUseCaseProtocol
     private let repository: SpaceRepositoryProtocol
 
@@ -33,6 +34,7 @@ final class SpaceThreadViewModel {
         reflection: SpaceReflection,
         fetchUseCase: FetchSpaceResponsesUseCaseProtocol,
         createUseCase: CreateSpaceResponseUseCaseProtocol,
+        editUseCase: EditOwnSpaceResponseUseCaseProtocol,
         deleteUseCase: DeleteOwnSpaceContentUseCaseProtocol,
         repository: SpaceRepositoryProtocol
     ) {
@@ -40,6 +42,7 @@ final class SpaceThreadViewModel {
         self.reflection = reflection
         self.fetchUseCase = fetchUseCase
         self.createUseCase = createUseCase
+        self.editUseCase = editUseCase
         self.deleteUseCase = deleteUseCase
         self.repository = repository
     }
@@ -48,6 +51,17 @@ final class SpaceThreadViewModel {
 
     var responseLimit: Int { Constants.Limits.spaceResponseMaxLength }
     var draftCount: Int { draft.count }
+
+    /// Only the current user's responses — shown on the compose page so writing your own
+    /// answer doesn't require seeing others' first.
+    var myResponses: [SpaceResponse] {
+        responses.filter { $0.isMine }
+    }
+
+    /// How many responses others have posted (for the "view all" affordance).
+    var otherResponseCount: Int {
+        responses.count - myResponses.count
+    }
 
     var canPost: Bool {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -84,6 +98,19 @@ final class SpaceThreadViewModel {
             let response = try await createUseCase.execute(to: reflection, in: space, body: draft)
             responses.append(response)
             draft = ""
+            HapticManager.shared.success()
+        } catch {
+            errorMessage = error.localizedDescription
+            HapticManager.shared.error()
+        }
+    }
+
+    func edit(_ response: SpaceResponse, body: String) async {
+        do {
+            let updated = try await editUseCase.execute(response, in: space, body: body)
+            if let index = responses.firstIndex(where: { $0.id == updated.id }) {
+                responses[index] = updated
+            }
             HapticManager.shared.success()
         } catch {
             errorMessage = error.localizedDescription
