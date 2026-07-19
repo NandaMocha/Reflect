@@ -71,6 +71,45 @@ final class DIContainer {
         InsightListViewModel(deleteUseCase: makeDeleteInsightUseCase())
     }
 
+    // MARK: - Space
+
+    func makeSpaceCloudService() -> SpaceCloudServiceProtocol {
+        SpaceCloudService()
+    }
+
+    @MainActor
+    func makeSpaceRepository() -> SpaceRepositoryProtocol {
+        SpaceRepository(
+            cloudService: makeSpaceCloudService(),
+            modelContext: SpaceStore.container.mainContext
+        )
+    }
+
+    @MainActor
+    func makeCreateSpaceUseCase() -> CreateSpaceUseCaseProtocol {
+        CreateSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpacesUseCase() -> FetchSpacesUseCaseProtocol {
+        FetchSpacesUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteSpaceUseCase() -> DeleteSpaceUseCaseProtocol {
+        DeleteSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeLeaveSpaceUseCase() -> LeaveSpaceUseCaseProtocol {
+        LeaveSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeAcceptSpaceInviteUseCase() -> AcceptSpaceInviteUseCaseProtocol {
+        AcceptSpaceInviteUseCase(repository: makeSpaceRepository())
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
