@@ -80,13 +80,7 @@ struct SpaceListView: View {
                 path = newPath
                 openSpace.wrappedValue = nil
             }
-            .alert("Something went wrong", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK", role: .cancel) { viewModel.errorMessage = nil }
-            } message: {
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                }
-            }
+            .errorAlert($viewModel.errorMessage)
             .alert(
                 "Delete Space?",
                 isPresented: dialogBinding($spaceToDelete),

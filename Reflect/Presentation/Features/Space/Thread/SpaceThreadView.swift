@@ -56,13 +56,7 @@ struct SpaceThreadView: View {
                 await viewModel.edit(response, body: newBody)
             }
         }
-        .alert("Something went wrong", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK", role: .cancel) { viewModel.errorMessage = nil }
-        } message: {
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-            }
-        }
+        .errorAlert($viewModel.errorMessage)
     }
 
     // MARK: - Header
@@ -242,13 +236,13 @@ struct ResponseBubble: View {
 /// A small sheet for editing a response body (multiline, counter-validated).
 struct SpaceResponseEditSheet: View {
     let limit: Int
-    let onSave: (String) async -> Void
+    let onSave: (String) async -> Bool
 
     @Environment(\.dismiss) private var dismiss
     @State private var text: String
     @State private var isSaving = false
 
-    init(initialBody: String, limit: Int, onSave: @escaping (String) async -> Void) {
+    init(initialBody: String, limit: Int, onSave: @escaping (String) async -> Bool) {
         self.limit = limit
         self.onSave = onSave
         _text = State(initialValue: initialBody)
@@ -287,9 +281,9 @@ struct SpaceResponseEditSheet: View {
                         Button("Save") {
                             Task {
                                 isSaving = true
-                                await onSave(text)
+                                let saved = await onSave(text)
                                 isSaving = false
-                                dismiss()
+                                if saved { dismiss() }
                             }
                         }
                         .fontWeight(.semibold)

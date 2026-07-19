@@ -98,6 +98,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         let staleCutoff = Date().addingTimeInterval(-Self.reconcileGraceInterval)
         let existing = try modelContext.fetch(FetchDescriptor<CachedSpace>())
         for row in existing where !fetchedIDs.contains(row.id) && row.lastFetchedAt < staleCutoff {
+            try removeCachedChildren(spaceID: row.id)
             modelContext.delete(row)
         }
         try modelContext.save()
@@ -126,8 +127,23 @@ final class SpaceRepository: SpaceRepositoryProtocol {
     private func removeCached(id: String) throws {
         let descriptor = FetchDescriptor<CachedSpace>(predicate: #Predicate { $0.id == id })
         if let existing = try modelContext.fetch(descriptor).first {
+            try removeCachedChildren(spaceID: id)
             modelContext.delete(existing)
             try modelContext.save()
+        }
+    }
+
+    /// Deletes all cached reflections (and their responses) for a space — the flattened
+    /// cache has no cascade, so a space delete/leave/prune must clean up children itself.
+    /// Does not save — callers batch saves.
+    private func removeCachedChildren(spaceID: String) throws {
+        let target = spaceID
+        let reflections = try modelContext.fetch(
+            FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.spaceID == target })
+        )
+        for reflection in reflections {
+            try removeCachedResponses(reflectionID: reflection.id)
+            modelContext.delete(reflection)
         }
     }
 

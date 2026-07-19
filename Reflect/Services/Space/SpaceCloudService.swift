@@ -387,18 +387,26 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     func updateResponse(id: String, in zone: SpaceZoneRef, body: String) async throws -> SpaceResponse {
         let database = database(for: zone.lane)
         let recordID = CKRecord.ID(recordName: id, zoneID: ckZoneID(for: zone))
-        // Fetch-modify-save inside withRetry: if the record changed on the server since we
-        // last saw it, the retry re-fetches the latest and re-applies the edit —
-        // last-writer-wins with the server record as base (plan §9).
-        let saved = try await withRetry { () -> CKRecord in
-            let record = try await database.record(for: recordID)
-            record[SpaceRecordField.body] = body as CKRecordValue
-            return try await database.save(record)
+
+        // Fetch-modify-save. On `serverRecordChanged`, re-fetch the latest and re-apply the
+        // edit (last-writer-wins with the server record as base, plan §9). `withRetry`
+        // covers transient network errors within each attempt.
+        var conflictRetries = 0
+        while true {
+            do {
+                let saved = try await withRetry { () -> CKRecord in
+                    let record = try await database.record(for: recordID)
+                    record[SpaceRecordField.body] = body as CKRecordValue
+                    return try await database.save(record)
+                }
+                guard let response = SpaceRecordMapper.spaceResponse(from: saved, isMine: true) else {
+                    throw SpaceError.syncFailed("Could not map the updated response")
+                }
+                return response
+            } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
+                conflictRetries += 1
+            }
         }
-        guard let response = SpaceRecordMapper.spaceResponse(from: saved, isMine: true) else {
-            throw SpaceError.syncFailed("Could not map the updated response")
-        }
-        return response
     }
 
     /// Deletes a record and any children parented to it. The hierarchy uses parent
@@ -472,6 +480,10 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
             var changedZoneCount = 0
             operation.recordZoneWithIDChangedBlock = { _ in changedZoneCount += 1 }
+            // A space deleted/left on another device removes its zone — count that as a
+            // change too, so the silent-push path reports .newData and the list refreshes.
+            operation.recordZoneWithIDWasDeletedBlock = { _ in changedZoneCount += 1 }
+            operation.recordZoneWithIDWasPurgedBlock = { _ in changedZoneCount += 1 }
             operation.changeTokenUpdatedBlock = { token in self.saveChangeToken(token, key: tokenKey) }
             operation.fetchDatabaseChangesResultBlock = { result in
                 switch result {
@@ -587,27 +599,41 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     }
 
     // MARK: - Retry Logic with Exponential Backoff
-    // Mirrors CloudSyncService.uploadWithRetry's shape (same backoff curve: 1s, 2s, 4s).
 
+    /// Retries only *transient* CloudKit failures (network/rate-limit/busy), honoring the
+    /// server's `retryAfterSeconds` when present. Non-transient CKErrors (e.g. "already
+    /// exists", quota, bad request) and `CancellationError` rethrow immediately — so we
+    /// never back off on a permanent, expected outcome (was a ~6s launch penalty on the
+    /// idempotent subscription save) and never blindly retry a non-idempotent write.
     private func withRetry<T: Sendable>(
         maxRetries: Int = 3,
         baseDelay: TimeInterval = 1.0,
         operation: @escaping @Sendable () async throws -> T
     ) async throws -> T {
-        var lastError: Error?
-
-        for attempt in 0..<maxRetries {
+        var attempt = 0
+        while true {
             do {
                 return try await operation()
             } catch {
-                lastError = error
-                if attempt < maxRetries - 1 {
-                    let delay = baseDelay * pow(2.0, Double(attempt))
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                if error is CancellationError { throw error }
+                guard let ckError = error as? CKError,
+                      Self.isTransient(ckError),
+                      attempt < maxRetries - 1 else {
+                    throw error
                 }
+                let delay = ckError.retryAfterSeconds ?? baseDelay * pow(2.0, Double(attempt))
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                attempt += 1
             }
         }
+    }
 
-        throw lastError ?? URLError(.unknown)
+    private static func isTransient(_ error: CKError) -> Bool {
+        switch error.code {
+        case .networkUnavailable, .networkFailure, .serviceUnavailable, .requestRateLimited, .zoneBusy:
+            return true
+        default:
+            return false
+        }
     }
 }

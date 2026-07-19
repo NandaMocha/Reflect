@@ -65,6 +65,7 @@ final class SpaceDetailViewModel {
     }
 
     func refresh() async {
+        guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
         do {

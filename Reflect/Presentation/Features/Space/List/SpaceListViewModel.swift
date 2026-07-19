@@ -60,6 +60,10 @@ final class SpaceListViewModel {
     }
 
     func refresh(force: Bool) async {
+        // Coalesce the many refresh triggers (.task / remote-change / scenePhase /
+        // sheet-dismiss) so overlapping fetches can't interleave and let a staler result
+        // win over a just-completed mutation.
+        guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
 

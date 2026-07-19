@@ -89,13 +89,7 @@ struct MainTabView: View {
         .onChange(of: celebrationBadgeID) { _, badge in
             if badge == nil { processPendingInviteIfPossible() }
         }
-        .alert("Couldn't Join Space", isPresented: .constant(inviteErrorMessage != nil)) {
-            Button("OK", role: .cancel) { inviteErrorMessage = nil }
-        } message: {
-            if let inviteErrorMessage {
-                Text(inviteErrorMessage)
-            }
-        }
+        .errorAlert($inviteErrorMessage, title: "Couldn't Join Space")
     }
 
     private func checkOnboardingStatus() {

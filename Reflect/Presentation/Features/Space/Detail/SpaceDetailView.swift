@@ -44,13 +44,7 @@ struct SpaceDetailView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await viewModel.refresh() } }
         }
-        .alert("Something went wrong", isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("OK", role: .cancel) { viewModel.errorMessage = nil }
-        } message: {
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-            }
-        }
+        .errorAlert($viewModel.errorMessage)
         .alert(
             "Delete Reflection?",
             isPresented: Binding(

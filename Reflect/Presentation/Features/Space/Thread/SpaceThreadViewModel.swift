@@ -76,6 +76,7 @@ final class SpaceThreadViewModel {
     }
 
     func refresh() async {
+        guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
         do {
@@ -105,16 +106,19 @@ final class SpaceThreadViewModel {
         }
     }
 
-    func edit(_ response: SpaceResponse, body: String) async {
+    /// Returns true on success so the edit sheet dismisses only when the save landed.
+    func edit(_ response: SpaceResponse, body: String) async -> Bool {
         do {
             let updated = try await editUseCase.execute(response, in: space, body: body)
             if let index = responses.firstIndex(where: { $0.id == updated.id }) {
                 responses[index] = updated
             }
             HapticManager.shared.success()
+            return true
         } catch {
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
+            return false
         }
     }
 
