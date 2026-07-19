@@ -10,6 +10,7 @@ struct SpaceListView: View {
     @State private var spaceToDelete: Space?
     @State private var spaceToLeave: Space?
     @State private var path: [Space] = []
+    @State private var showTermsSheet = false
 
     /// External deep-link hook (mirrors `InsightListView.composeSignal`): when set — e.g.
     /// by `MainTabView` after accepting an invite — the list refreshes and pushes straight
@@ -56,7 +57,13 @@ struct SpaceListView: View {
             }) {
                 SpaceFormView()
             }
-            .task { await viewModel.load() }
+            .task {
+                showTermsSheet = !SpaceTerms.hasAccepted
+                await viewModel.load()
+            }
+            .sheet(isPresented: $showTermsSheet) {
+                SpaceTermsSheet(onAccept: { showTermsSheet = false })
+            }
             .onChange(of: openSpace.wrappedValue) { _, newValue in
                 guard let space = newValue else { return }
                 // Show the just-joined space from cache (already upserted by the accept);
