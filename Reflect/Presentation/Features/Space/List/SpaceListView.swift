@@ -9,9 +9,19 @@ struct SpaceListView: View {
     @State private var showCreateSheet = false
     @State private var spaceToDelete: Space?
     @State private var spaceToLeave: Space?
+    @State private var path: [Space] = []
+
+    /// External deep-link hook (mirrors `InsightListView.composeSignal`): when set — e.g.
+    /// by `MainTabView` after accepting an invite — the list refreshes and pushes straight
+    /// into that space, then clears the signal.
+    var openSpace: Binding<Space?> = .constant(nil)
+
+    init(openSpace: Binding<Space?> = .constant(nil)) {
+        self.openSpace = openSpace
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if viewModel.showsUnavailableState {
                     unavailableState
@@ -44,6 +54,12 @@ struct SpaceListView: View {
                 SpaceFormView()
             }
             .task { await viewModel.load() }
+            .onChange(of: openSpace.wrappedValue) { _, newValue in
+                guard let space = newValue else { return }
+                Task { await viewModel.refresh(force: true) }
+                path = [space]
+                openSpace.wrappedValue = nil
+            }
             .alert("Something went wrong", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK", role: .cancel) { viewModel.errorMessage = nil }
             } message: {
