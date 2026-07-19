@@ -70,6 +70,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         userDidAcceptCloudKitShareWith metadata: CKShare.Metadata
     ) {
+        MainActor.assumeIsolated { SpaceInviteInbox.deposit(metadata) }
         NotificationCenter.default.post(name: .spaceShareInviteReceived, object: metadata)
     }
 }
@@ -78,15 +79,27 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 final class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
-    // Deliberately NOT implementing scene(_:willConnectTo:) — creating a
-    // UIWindow here would fight SwiftUI for ownership of the window and
-    // produce a black screen. Leaving it unimplemented is correct: SwiftUI's
-    // WindowGroup handles window setup on its own.
+    // Cold-launch invite path: when the app is not running and the user taps a share
+    // invite, iOS delivers the metadata here via the connection options — before any
+    // SwiftUI view exists to receive a notification. We read it and stash it in the inbox
+    // for MainTabView to drain on appear.
+    //
+    // IMPORTANT: this must NOT create or assign a UIWindow — doing so would fight SwiftUI
+    // for window ownership and black-screen the app. We only read the connection options.
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        guard let metadata = connectionOptions.cloudKitShareMetadata else { return }
+        MainActor.assumeIsolated { SpaceInviteInbox.deposit(metadata) }
+    }
 
     func windowScene(
         _ windowScene: UIWindowScene,
         userDidAcceptCloudKitShareWith metadata: CKShare.Metadata
     ) {
+        MainActor.assumeIsolated { SpaceInviteInbox.deposit(metadata) }
         NotificationCenter.default.post(name: .spaceShareInviteReceived, object: metadata)
     }
 }

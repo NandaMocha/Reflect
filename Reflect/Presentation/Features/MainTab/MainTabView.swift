@@ -53,6 +53,8 @@ struct MainTabView: View {
         }
         .onAppear {
             checkOnboardingStatus()
+            // Cold-launch / raced-notification invites are stashed in the inbox; pick them up.
+            drainInviteInboxIfPossible()
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding)
@@ -78,10 +80,8 @@ struct MainTabView: View {
                 selectedTab = .learnings
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .spaceShareInviteReceived)) { notification in
-            guard let metadata = notification.object as? CKShare.Metadata else { return }
-            pendingInviteMetadata = metadata
-            processPendingInviteIfPossible()
+        .onReceive(NotificationCenter.default.publisher(for: .spaceShareInviteReceived)) { _ in
+            drainInviteInboxIfPossible()
         }
         .onChange(of: showOnboarding) { _, isShowing in
             if !isShowing { processPendingInviteIfPossible() }
@@ -103,6 +103,15 @@ struct MainTabView: View {
         if !hasCompletedOnboarding {
             showOnboarding = true
         }
+    }
+
+    /// Pulls any invite the scene/app delegate stashed (cold launch, or a notification that
+    /// beat this view's subscription) into the pending slot and tries to process it.
+    private func drainInviteInboxIfPossible() {
+        if let metadata = SpaceInviteInbox.drain() {
+            pendingInviteMetadata = metadata
+        }
+        processPendingInviteIfPossible()
     }
 
     /// Accepts a queued Space invite once no onboarding sheet or celebration cover is up,
