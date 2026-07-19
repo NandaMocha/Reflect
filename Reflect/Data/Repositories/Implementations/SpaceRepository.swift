@@ -130,4 +130,165 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             try modelContext.save()
         }
     }
+
+    // MARK: - Reflections
+
+    func cachedReflections(spaceID: String) -> [SpaceReflection] {
+        let target = spaceID
+        let descriptor = FetchDescriptor<CachedSpaceReflection>(
+            predicate: #Predicate { $0.spaceID == target },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        return rows.map { $0.toDomain() }
+    }
+
+    func fetchReflections(for space: Space) async throws -> [SpaceReflection] {
+        let fetched = try await cloudService.fetchReflections(in: space.zoneID)
+        try reconcileReflections(fetched, spaceID: space.id)
+        return cachedReflections(spaceID: space.id)
+    }
+
+    func createReflection(in space: Space, title: String, promptText: String) async throws -> SpaceReflection {
+        let reflection = try await cloudService.createReflection(
+            in: space.zoneID,
+            spaceID: space.id,
+            title: title,
+            promptText: promptText
+        )
+        try upsertReflection(reflection)
+        try modelContext.save()
+        return reflection
+    }
+
+    // MARK: - Responses
+
+    func cachedResponses(reflectionID: String) -> [SpaceResponse] {
+        let target = reflectionID
+        let descriptor = FetchDescriptor<CachedSpaceResponse>(
+            predicate: #Predicate { $0.reflectionID == target },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        return rows.map { $0.toDomain() }
+    }
+
+    func fetchResponses(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceResponse] {
+        let fetched = try await cloudService.fetchResponses(for: reflection, in: space.zoneID)
+        try reconcileResponses(fetched, reflectionID: reflection.id)
+        return cachedResponses(reflectionID: reflection.id)
+    }
+
+    func createResponse(to reflection: SpaceReflection, in space: Space, body: String) async throws -> SpaceResponse {
+        let response = try await cloudService.createResponse(to: reflection, body: body, in: space.zoneID)
+        try upsertResponse(response)
+        try modelContext.save()
+        return response
+    }
+
+    // MARK: - Delete own content
+
+    func deleteContent(id: String, in space: Space) async throws {
+        try await cloudService.deleteRecord(id: id, in: space.zoneID)
+        try removeCachedContent(id: id)
+    }
+
+    // MARK: - Child cache reconciliation
+
+    private func reconcileReflections(_ reflections: [SpaceReflection], spaceID: String) throws {
+        for reflection in reflections {
+            try upsertReflection(reflection)
+        }
+
+        let fetchedIDs = Set(reflections.map { $0.id })
+        let staleCutoff = Date().addingTimeInterval(-Self.reconcileGraceInterval)
+        let target = spaceID
+        let existing = try modelContext.fetch(
+            FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.spaceID == target })
+        )
+        for row in existing where !fetchedIDs.contains(row.id) && row.lastFetchedAt < staleCutoff {
+            try removeCachedResponses(reflectionID: row.id)
+            modelContext.delete(row)
+        }
+        try modelContext.save()
+    }
+
+    private func reconcileResponses(_ responses: [SpaceResponse], reflectionID: String) throws {
+        for response in responses {
+            try upsertResponse(response)
+        }
+
+        let fetchedIDs = Set(responses.map { $0.id })
+        let staleCutoff = Date().addingTimeInterval(-Self.reconcileGraceInterval)
+        let target = reflectionID
+        let existing = try modelContext.fetch(
+            FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.reflectionID == target })
+        )
+        for row in existing where !fetchedIDs.contains(row.id) && row.lastFetchedAt < staleCutoff {
+            modelContext.delete(row)
+        }
+        try modelContext.save()
+    }
+
+    private func upsertReflection(_ reflection: SpaceReflection) throws {
+        let id = reflection.id
+        let descriptor = FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.id == id })
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.spaceID = reflection.spaceID
+            existing.title = reflection.title
+            existing.promptText = reflection.promptText
+            existing.authorRecordName = reflection.authorRecordName
+            existing.authorDisplayName = reflection.authorDisplayName
+            existing.createdAt = reflection.createdAt
+            existing.modifiedAt = reflection.modifiedAt
+            existing.isMine = reflection.isMine
+            existing.lastFetchedAt = Date()
+        } else {
+            modelContext.insert(CachedSpaceReflection(from: reflection))
+        }
+    }
+
+    private func upsertResponse(_ response: SpaceResponse) throws {
+        let id = response.id
+        let descriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.id == id })
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.reflectionID = response.reflectionID
+            existing.body = response.body
+            existing.authorRecordName = response.authorRecordName
+            existing.authorDisplayName = response.authorDisplayName
+            existing.createdAt = response.createdAt
+            existing.isMine = response.isMine
+            existing.lastFetchedAt = Date()
+        } else {
+            modelContext.insert(CachedSpaceResponse(from: response))
+        }
+    }
+
+    /// Removes a reflection (and its responses) or a response by id. CloudKit cascades on
+    /// the server via `parent`; the local cache must not orphan the children.
+    private func removeCachedContent(id: String) throws {
+        let reflectionID = id
+        let reflectionDescriptor = FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.id == reflectionID })
+        if let reflection = try modelContext.fetch(reflectionDescriptor).first {
+            try removeCachedResponses(reflectionID: reflection.id)
+            modelContext.delete(reflection)
+        }
+
+        let responseID = id
+        let responseDescriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.id == responseID })
+        if let response = try modelContext.fetch(responseDescriptor).first {
+            modelContext.delete(response)
+        }
+
+        try modelContext.save()
+    }
+
+    /// Deletes all cached responses under a reflection. Does not save — callers batch saves.
+    private func removeCachedResponses(reflectionID: String) throws {
+        let target = reflectionID
+        let descriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.reflectionID == target })
+        for row in try modelContext.fetch(descriptor) {
+            modelContext.delete(row)
+        }
+    }
 }

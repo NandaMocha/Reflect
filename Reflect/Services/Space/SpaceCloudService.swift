@@ -25,6 +25,10 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private lazy var privateDB: CKDatabase = container.privateCloudDatabase
     private lazy var sharedDB: CKDatabase = container.sharedCloudDatabase
 
+    /// The current user's record name in this container, resolved once and reused for
+    /// `isMine` comparisons.
+    private var cachedUserRecordName: String?
+
     // MARK: - Availability
 
     func checkAvailability() async -> CloudAvailability {
@@ -293,7 +297,144 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         _ = try await withRetry { try await self.sharedDB.deleteRecordZone(withID: zoneID) }
     }
 
+    // MARK: - Child records (SpaceReflection / Response)
+
+    func fetchReflections(in zone: SpaceZoneRef) async throws -> [SpaceReflection] {
+        let database = database(for: zone.lane)
+        let zoneID = ckZoneID(for: zone)
+        let records = try await fetchAllRecords(in: zoneID, database: database)
+
+        let myName = await currentUserRecordName()
+        let authors = await authorNames(for: zone)
+
+        return records
+            .filter { $0.recordType == SpaceRecordType.spaceReflection }
+            .compactMap { record -> SpaceReflection? in
+                guard var reflection = SpaceRecordMapper.spaceReflection(
+                    from: record,
+                    isMine: isMine(record, myUserRecordName: myName)
+                ) else { return nil }
+                if !reflection.isMine {
+                    reflection.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""] ?? "A member"
+                }
+                return reflection
+            }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+    }
+
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String) async throws -> SpaceReflection {
+        let database = database(for: zone.lane)
+        let record = SpaceRecordMapper.makeReflectionRecord(
+            zoneID: ckZoneID(for: zone),
+            spaceID: spaceID,
+            title: title,
+            promptText: promptText
+        )
+        let saved = try await withRetry { try await database.save(record) }
+        let myName = await currentUserRecordName()
+        guard let reflection = SpaceRecordMapper.spaceReflection(
+            from: saved,
+            isMine: isMine(saved, myUserRecordName: myName)
+        ) else {
+            throw SpaceError.syncFailed("Could not map the saved reflection")
+        }
+        return reflection
+    }
+
+    func fetchResponses(for reflection: SpaceReflection, in zone: SpaceZoneRef) async throws -> [SpaceResponse] {
+        let database = database(for: zone.lane)
+        let zoneID = ckZoneID(for: zone)
+        let records = try await fetchAllRecords(in: zoneID, database: database)
+
+        let myName = await currentUserRecordName()
+        let authors = await authorNames(for: zone)
+
+        return records
+            .filter { record in
+                guard record.recordType == SpaceRecordType.response else { return false }
+                let parentID = record.parent?.recordID.recordName
+                    ?? (record[SpaceRecordField.reflectionID] as? String)
+                return parentID == reflection.id
+            }
+            .compactMap { record -> SpaceResponse? in
+                guard var response = SpaceRecordMapper.spaceResponse(
+                    from: record,
+                    isMine: isMine(record, myUserRecordName: myName)
+                ) else { return nil }
+                if !response.isMine {
+                    response.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""] ?? "A member"
+                }
+                return response
+            }
+            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+    }
+
+    func createResponse(to reflection: SpaceReflection, body: String, in zone: SpaceZoneRef) async throws -> SpaceResponse {
+        let database = database(for: zone.lane)
+        let record = SpaceRecordMapper.makeResponseRecord(
+            zoneID: ckZoneID(for: zone),
+            reflectionID: reflection.id,
+            body: body
+        )
+        let saved = try await withRetry { try await database.save(record) }
+        let myName = await currentUserRecordName()
+        guard let response = SpaceRecordMapper.spaceResponse(
+            from: saved,
+            isMine: isMine(saved, myUserRecordName: myName)
+        ) else {
+            throw SpaceError.syncFailed("Could not map the saved response")
+        }
+        return response
+    }
+
+    func deleteRecord(id: String, in zone: SpaceZoneRef) async throws {
+        let database = database(for: zone.lane)
+        let recordID = CKRecord.ID(recordName: id, zoneID: ckZoneID(for: zone))
+        _ = try await withRetry { try await database.deleteRecord(withID: recordID) }
+    }
+
+    // MARK: - Authorship resolution
+
+    /// The current user's record name in the Space container, cached after the first
+    /// lookup. Used to decide `isMine` — compared by record *name*, never display name.
+    private func currentUserRecordName() async -> String? {
+        if let cachedUserRecordName { return cachedUserRecordName }
+        let name = try? await container.userRecordID().recordName
+        cachedUserRecordName = name
+        return name
+    }
+
+    /// Whether the current user authored `record`. CloudKit reports a record you created
+    /// with either a nil creator or the opaque `__defaultOwner__` (`CKCurrentUserDefaultName`)
+    /// in your own database, so treat those as mine; otherwise match record names.
+    private func isMine(_ record: CKRecord, myUserRecordName: String?) -> Bool {
+        guard let creator = record.creatorUserRecordID?.recordName else { return true }
+        if creator == CKCurrentUserDefaultName { return true }
+        if let myUserRecordName, creator == myUserRecordName { return true }
+        return false
+    }
+
+    /// Maps participant record names → formatted display names for a zone, via its
+    /// `CKShare`. Best-effort: a share/name-fetch failure just yields an empty map and the
+    /// caller falls back to "A member".
+    private func authorNames(for zone: SpaceZoneRef) async -> [String: String] {
+        guard let share = try? await fetchShare(for: zone) else { return [:] }
+        let formatter = PersonNameComponentsFormatter()
+        var map: [String: String] = [:]
+        for participant in share.participants {
+            guard let recordName = participant.userIdentity.userRecordID?.recordName,
+                  let components = participant.userIdentity.nameComponents else { continue }
+            let name = formatter.string(from: components)
+            if !name.isEmpty { map[recordName] = name }
+        }
+        return map
+    }
+
     // MARK: - Helpers
+
+    private func ckZoneID(for zone: SpaceZoneRef) -> CKRecordZone.ID {
+        CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
+    }
 
     private func database(for lane: SpaceLane) -> CKDatabase {
         switch lane {

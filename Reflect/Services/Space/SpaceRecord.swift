@@ -98,10 +98,46 @@ enum SpaceRecordMapper {
     }
 
     // MARK: SpaceReflection / Response mapping helpers
-    //
-    // Read-direction mappers only. Fetch/create service methods for these child record
-    // types are T17's job, not T4's — these helpers exist now so T17 doesn't have to
-    // re-derive the field-key contract.
+
+    /// Builds a new `SpaceReflection` CKRecord as a child of the root `Space` record.
+    ///
+    /// The `parent` reference (action `.none`) is what carries the zone's `CKShare` down
+    /// to the child — without it, participants never see the record (plan §3, the classic
+    /// CKShare bug). `spaceID` is also stored as a plain field as a belt-and-braces fallback
+    /// for the reader.
+    static func makeReflectionRecord(
+        recordName: String = UUID().uuidString,
+        zoneID: CKRecordZone.ID,
+        spaceID: String,
+        title: String,
+        promptText: String
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
+        let record = CKRecord(recordType: SpaceRecordType.spaceReflection, recordID: recordID)
+        record[SpaceRecordField.title] = title as CKRecordValue
+        record[SpaceRecordField.promptText] = promptText as CKRecordValue
+        record[SpaceRecordField.spaceID] = spaceID as CKRecordValue
+        let parentID = CKRecord.ID(recordName: spaceID, zoneID: zoneID)
+        record.parent = CKRecord.Reference(recordID: parentID, action: .none)
+        return record
+    }
+
+    /// Builds a new `Response` CKRecord as a child of its `SpaceReflection` record. The
+    /// `parent` reference again carries the share down the hierarchy.
+    static func makeResponseRecord(
+        recordName: String = UUID().uuidString,
+        zoneID: CKRecordZone.ID,
+        reflectionID: String,
+        body: String
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
+        let record = CKRecord(recordType: SpaceRecordType.response, recordID: recordID)
+        record[SpaceRecordField.body] = body as CKRecordValue
+        record[SpaceRecordField.reflectionID] = reflectionID as CKRecordValue
+        let parentID = CKRecord.ID(recordName: reflectionID, zoneID: zoneID)
+        record.parent = CKRecord.Reference(recordID: parentID, action: .none)
+        return record
+    }
 
     /// Maps a fetched `SpaceReflection` CKRecord into the domain entity.
     static func spaceReflection(from record: CKRecord, isMine: Bool) -> SpaceReflection? {
