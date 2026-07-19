@@ -134,7 +134,7 @@ struct SpaceThreadView: View {
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.title)
-                            .foregroundStyle(viewModel.canPost ? Color.accentColor : Color.secondary)
+                            .foregroundStyle(viewModel.canPost ? Color.primaryDefault : Color.secondary)
                     }
                     .accessibilityLabel("Send response")
                     .disabled(!viewModel.canPost)
@@ -202,7 +202,7 @@ struct ResponseBubble: View {
             HStack(spacing: 4) {
                 Text(SpaceAuthor.label(isMine: response.isMine, name: response.authorDisplayName))
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(response.isMine ? Color.accentColor : .secondary)
+                    .foregroundStyle(response.isMine ? Color.primaryDefault : .secondary)
                 if let createdAt = response.createdAt {
                     Text("·")
                     Text(createdAt, format: .relative(presentation: .named))
@@ -218,7 +218,7 @@ struct ResponseBubble: View {
         .padding(Constants.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                .fill(response.isMine ? Color.accentColor.opacity(0.10) : Color.secondary.opacity(0.08))
+                .fill(response.isMine ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
         )
         .contextMenu {
             if response.isMine {

@@ -25,7 +25,7 @@ struct SpaceTermsSheet: View {
 
             Image(systemName: "person.3.sequence.fill")
                 .font(.system(size: 52))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.primaryDefault)
 
             Text("Before you join Spaces")
                 .font(.title2.weight(.bold))
@@ -67,7 +67,7 @@ struct SpaceTermsSheet: View {
         HStack(alignment: .top, spacing: Constants.Spacing.sm) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.primaryDefault)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {

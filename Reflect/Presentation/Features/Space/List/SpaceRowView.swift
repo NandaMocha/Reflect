@@ -73,7 +73,7 @@ struct SpaceRowView: View {
     }
 
     private var badgeColor: Color {
-        space.isOwner ? Color.accentColor : Color.secondary
+        space.isOwner ? Color.primaryDefault : Color.secondary
     }
 }
 
