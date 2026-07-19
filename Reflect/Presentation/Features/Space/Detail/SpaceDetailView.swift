@@ -31,10 +31,7 @@ struct SpaceDetailView: View {
             }
         }
         .navigationDestination(for: SpaceReflection.self) { reflection in
-            // Placeholder until T21 swaps in SpaceThreadView.
-            Text(reflection.title)
-                .navigationTitle(reflection.title)
-                .navigationBarTitleDisplayMode(.inline)
+            SpaceThreadView(space: viewModel.space, reflection: reflection)
         }
         .sheet(isPresented: $showCompose) {
             composeSheet

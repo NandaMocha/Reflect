@@ -165,6 +165,18 @@ final class DIContainer {
         )
     }
 
+    @MainActor
+    func makeSpaceThreadViewModel(reflection: SpaceReflection, space: Space) -> SpaceThreadViewModel {
+        SpaceThreadViewModel(
+            space: space,
+            reflection: reflection,
+            fetchUseCase: makeFetchSpaceResponsesUseCase(),
+            createUseCase: makeCreateSpaceResponseUseCase(),
+            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
