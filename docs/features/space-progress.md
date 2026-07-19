@@ -5,14 +5,52 @@
 > decisions), [space-tasks.md](space-tasks.md) (the 25-ticket breakdown — the source of truth
 > for what each ticket does, its files, acceptance, executor, and the wave/lock tables).
 
-_Last updated: 2026-07-18 (end of P0)._
+_Last updated: 2026-07-19 (P1 UI built on `feature/space-p1`)._
 
 ## TL;DR status
 
-**P0 (CloudKit sharing foundation) is CODE-COMPLETE and committed.** Everything builds green.
-The next real step is the **H2 two-device spike** (human, needs two iCloud accounts on two
-physical devices). **Do not build the P1 UI until H2 passes** — H2 exists to de-risk the CloudKit
-foundation before investing in UI on top (per plan §12 / task doc checkpoint R2).
+**P0 is CODE-COMPLETE + committed on `feature/space`.** A runtime bug the H2 Device-A spike
+surfaced (owned-spaces `CKQuery` → "Field 'recordName' is not marked queryable") is **fixed** on
+`feature/space` @ `16bfd31` (root-record lookup now uses `CKFetchRecordZoneChangesOperation`, no
+index needed).
+
+**P1 (Spaces UI) is BUILD-COMPLETE + committed on a separate worktree `feature/space-p1`** (branched
+from `feature/space` @ `16bfd31`). Built ahead of the H2 accept round-trip at the user's request, in
+an isolated branch so `feature/space` stays clean if H2 needs rework. **Two gates remain open before
+P1 is "done done":** **R3 review** (mandatory before P2) and **H3 two-device P1 verification**
+(human). See "P1 status" below.
+
+> **H2 is only partially verified.** Device A passed availability/create/share/probe-write (+ the
+> query fix). The **accept round-trip still needs Device B (second iCloud account)** — scheduled by
+> the user for the next day. Don't start P2 until R3 + H3 pass.
+
+## P1 status (built on `feature/space-p1`)
+
+Worktree: `.../Reflect/Reflect-space-p1`. All tickets build green on the iPhone 17 simulator,
+grep-gate clean, committed (no push).
+
+| Ticket | Commit | What |
+|---|---|---|
+| T9 | `6442b58` | `SpaceRepository` (+protocol) — cloud-through cache, cloud-leads, both-lane reconcile |
+| T10 | `8dbd3c3` | 5 use cases under `Domain/UseCases/Space/` (create/fetch/delete/leave/accept) w/ owner guards |
+| T11 | `ac56d5c` | DIContainer `// MARK: - Space` factories (service, repo, 5 use cases) |
+| T13 | `07c3e0a` | Create-space form (`SpaceFormViewModel`/`View`) → presents `CloudSharingView` on success |
+| T14 | `bc46fd9` | Spaces list (`SpaceListViewModel`/`SpaceRowView`/`SpaceListView`) — owner Delete vs joined Leave (§11.3 copy), iCloud-unavailable state |
+| — | `7011c4e` | `SpaceListView` `openSpace` deep-link binding (list nav contract, enables T15) |
+| T15 | `991a72f` | Spaces tab in `MainTabView` + accept-invite routing (queues metadata behind onboarding/celebration covers) |
+
+**Detail navigation is a placeholder `Text`** until P2's T20 swaps in `SpaceDetailView`.
+
+**Open P1 gates:** **R3** (review the shared-surface `MainTabView` change + the whole P1 slice before
+P2 fans out) and **H3** (two-device: create→invite→join→leave→remove→delete through the real UI).
+Both must pass before P2 (T17+).
+
+## (historical) P0 next-step — H2 spike
+
+**Do not build the P1 UI until H2 passes** — H2 exists to de-risk the CloudKit foundation before
+investing in UI (per plan §12 / task doc checkpoint R2). _(P1 was subsequently built ahead of the
+H2 accept round-trip in the isolated `feature/space-p1` branch at the user's explicit request; the
+de-risk rationale still applies to **merging** and to **P2**.)_
 
 ## Where everything lives
 
