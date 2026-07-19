@@ -16,7 +16,7 @@ enum SpaceTerms {
 /// give users a way to report it and block/leave (plan §10). This is the acknowledgment
 /// half; `ReportContentButton`, owner-delete, and leave/remove are the mechanisms.
 struct SpaceTermsSheet: View {
-    /// Called when the user accepts. The presenter persists `SpaceTerms.hasAccepted`.
+    /// Called when the user accepts (after this sheet has already set `SpaceTerms.hasAccepted`).
     let onAccept: () -> Void
 
     var body: some View {

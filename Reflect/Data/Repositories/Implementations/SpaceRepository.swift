@@ -264,8 +264,9 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         }
     }
 
-    /// Removes a reflection (and its responses) or a response by id. CloudKit cascades on
-    /// the server via `parent`; the local cache must not orphan the children.
+    /// Removes a reflection (and its responses) or a response by id from the cache. The
+    /// cloud service cascades the delete to child response records on the server (parent
+    /// references with action `.none` do NOT auto-cascade), so the cache mirrors that here.
     private func removeCachedContent(id: String) throws {
         let reflectionID = id
         let reflectionDescriptor = FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.id == reflectionID })

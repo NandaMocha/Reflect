@@ -27,6 +27,7 @@ enum Constants {
         static let insightTextMaxLength = 500
         static let spaceNameMaxLength = 50
         static let spaceReflectionTitleMaxLength = 200
+        static let spaceReflectionPromptMaxLength = 5000
         static let spaceResponseMaxLength = 5000
     }
 

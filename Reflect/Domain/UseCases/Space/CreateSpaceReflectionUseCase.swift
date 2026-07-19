@@ -20,6 +20,7 @@ final class CreateSpaceReflectionUseCase: CreateSpaceReflectionUseCaseProtocol {
 
         let trimmedPrompt = promptText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty else { throw SpaceError.promptRequired }
+        guard trimmedPrompt.count <= Constants.Limits.spaceReflectionPromptMaxLength else { throw SpaceError.promptTooLong }
 
         return try await repository.createReflection(in: space, title: trimmedTitle, promptText: trimmedPrompt)
     }

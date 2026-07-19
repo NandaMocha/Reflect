@@ -26,8 +26,10 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private lazy var sharedDB: CKDatabase = container.sharedCloudDatabase
 
     /// The current user's record name in this container, resolved once and reused for
-    /// `isMine` comparisons.
+    /// `isMine` comparisons. Guarded by `userRecordNameLock` because the service is not
+    /// actor-isolated and fetches can run concurrently.
     private var cachedUserRecordName: String?
+    private let userRecordNameLock = NSLock()
 
     // MARK: - Availability
 
@@ -305,14 +307,16 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         let records = try await fetchAllRecords(in: zoneID, database: database)
 
         let myName = await currentUserRecordName()
-        let authors = await authorNames(for: zone)
+        // Resolve authors from the records we already fetched (the root record is in this
+        // set) so we don't scan the zone a second time.
+        let authors = await authorNames(from: records, database: database)
 
         return records
             .filter { $0.recordType == SpaceRecordType.spaceReflection }
             .compactMap { record -> SpaceReflection? in
                 guard var reflection = SpaceRecordMapper.spaceReflection(
                     from: record,
-                    isMine: isMine(record, myUserRecordName: myName)
+                    isMine: isMine(record, lane: zone.lane, myUserRecordName: myName)
                 ) else { return nil }
                 if !reflection.isMine {
                     reflection.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""] ?? "A member"
@@ -331,11 +335,8 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             promptText: promptText
         )
         let saved = try await withRetry { try await database.save(record) }
-        let myName = await currentUserRecordName()
-        guard let reflection = SpaceRecordMapper.spaceReflection(
-            from: saved,
-            isMine: isMine(saved, myUserRecordName: myName)
-        ) else {
+        // We just authored it, so it is unambiguously mine — no need to infer from creator.
+        guard let reflection = SpaceRecordMapper.spaceReflection(from: saved, isMine: true) else {
             throw SpaceError.syncFailed("Could not map the saved reflection")
         }
         return reflection
@@ -347,7 +348,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         let records = try await fetchAllRecords(in: zoneID, database: database)
 
         let myName = await currentUserRecordName()
-        let authors = await authorNames(for: zone)
+        let authors = await authorNames(from: records, database: database)
 
         return records
             .filter { record in
@@ -359,7 +360,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             .compactMap { record -> SpaceResponse? in
                 guard var response = SpaceRecordMapper.spaceResponse(
                     from: record,
-                    isMine: isMine(record, myUserRecordName: myName)
+                    isMine: isMine(record, lane: zone.lane, myUserRecordName: myName)
                 ) else { return nil }
                 if !response.isMine {
                     response.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""] ?? "A member"
@@ -377,20 +378,40 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             body: body
         )
         let saved = try await withRetry { try await database.save(record) }
-        let myName = await currentUserRecordName()
-        guard let response = SpaceRecordMapper.spaceResponse(
-            from: saved,
-            isMine: isMine(saved, myUserRecordName: myName)
-        ) else {
+        guard let response = SpaceRecordMapper.spaceResponse(from: saved, isMine: true) else {
             throw SpaceError.syncFailed("Could not map the saved response")
         }
         return response
     }
 
+    /// Deletes a record and any children parented to it. The hierarchy uses parent
+    /// references with `action: .none` (required for CKShare), which do NOT cascade on the
+    /// server — so deleting a reflection here also deletes its response records in the same
+    /// operation rather than orphaning them. Deleting a response finds no children and
+    /// removes just itself.
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws {
         let database = database(for: zone.lane)
-        let recordID = CKRecord.ID(recordName: id, zoneID: ckZoneID(for: zone))
-        _ = try await withRetry { try await database.deleteRecord(withID: recordID) }
+        let zoneID = ckZoneID(for: zone)
+        let records = try await fetchAllRecords(in: zoneID, database: database)
+
+        var idsToDelete = [CKRecord.ID(recordName: id, zoneID: zoneID)]
+        for record in records where record.parent?.recordID.recordName == id {
+            idsToDelete.append(record.recordID)
+        }
+
+        try await withRetry {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: idsToDelete)
+                operation.qualityOfService = .userInitiated
+                operation.modifyRecordsResultBlock = { result in
+                    switch result {
+                    case .success: continuation.resume()
+                    case .failure(let error): continuation.resume(throwing: error)
+                    }
+                }
+                database.add(operation)
+            }
+        }
     }
 
     // MARK: - Authorship resolution
@@ -398,27 +419,53 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     /// The current user's record name in the Space container, cached after the first
     /// lookup. Used to decide `isMine` — compared by record *name*, never display name.
     private func currentUserRecordName() async -> String? {
-        if let cachedUserRecordName { return cachedUserRecordName }
+        userRecordNameLock.lock()
+        let cached = cachedUserRecordName
+        userRecordNameLock.unlock()
+        if let cached { return cached }
+
         let name = try? await container.userRecordID().recordName
+        userRecordNameLock.lock()
         cachedUserRecordName = name
+        userRecordNameLock.unlock()
         return name
     }
 
-    /// Whether the current user authored `record`. CloudKit reports a record you created
-    /// with either a nil creator or the opaque `__defaultOwner__` (`CKCurrentUserDefaultName`)
-    /// in your own database, so treat those as mine; otherwise match record names.
-    private func isMine(_ record: CKRecord, myUserRecordName: String?) -> Bool {
-        guard let creator = record.creatorUserRecordID?.recordName else { return true }
-        if creator == CKCurrentUserDefaultName { return true }
-        if let myUserRecordName, creator == myUserRecordName { return true }
-        return false
+    /// Whether the current user authored `record`, resolved per lane.
+    ///
+    /// In the **private** DB the user owns the database, so a record they created shows a
+    /// nil creator or the opaque `__defaultOwner__` (`CKCurrentUserDefaultName`) — treat
+    /// those as mine. In the **shared** DB `__defaultOwner__` denotes the *share owner*
+    /// (not the current participant), so it must never count as mine — match only the
+    /// user's real record name, and fail closed otherwise. Fail-closed matters: `isMine`
+    /// is the only guard before a delete, and CloudKit does not enforce per-record
+    /// authorship in a shared zone (plan §11.2).
+    private func isMine(_ record: CKRecord, lane: SpaceLane, myUserRecordName: String?) -> Bool {
+        let creator = record.creatorUserRecordID?.recordName
+        switch lane {
+        case .privateDB:
+            guard let creator else { return true }
+            if creator == CKCurrentUserDefaultName { return true }
+            if let myUserRecordName, creator == myUserRecordName { return true }
+            return false
+        case .sharedDB:
+            guard let creator, let myUserRecordName else { return false }
+            if creator == CKCurrentUserDefaultName { return false }
+            return creator == myUserRecordName
+        }
     }
 
-    /// Maps participant record names → formatted display names for a zone, via its
-    /// `CKShare`. Best-effort: a share/name-fetch failure just yields an empty map and the
-    /// caller falls back to "A member".
-    private func authorNames(for zone: SpaceZoneRef) async -> [String: String] {
-        guard let share = try? await fetchShare(for: zone) else { return [:] }
+    /// Maps participant record names → formatted display names, using the zone's `CKShare`.
+    /// The root `Space` record is found in the already-fetched `records` (avoiding a second
+    /// zone scan); only the share record itself is fetched. Best-effort: any failure yields
+    /// an empty map and the caller falls back to "A member".
+    private func authorNames(from records: [CKRecord], database: CKDatabase) async -> [String: String] {
+        guard let root = records.first(where: { $0.recordType == SpaceRecordType.space }),
+              let shareReference = root.share,
+              let shareRecord = try? await database.record(for: shareReference.recordID),
+              let share = shareRecord as? CKShare else {
+            return [:]
+        }
         let formatter = PersonNameComponentsFormatter()
         var map: [String: String] = [:]
         for participant in share.participants {

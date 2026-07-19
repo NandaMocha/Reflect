@@ -18,11 +18,19 @@ struct ReportContentButton: View {
     /// Destination for reports. Change this to the app's support/moderation address.
     private let reportEmail = "nanda.mocha@gmail.com"
 
+    /// Set when there's no mail handler; surfaces the address so the user can still report.
+    @State private var showNoMailAlert = false
+
     var body: some View {
         Button(role: .destructive) {
             openReportMail()
         } label: {
             Label("Report…", systemImage: "exclamationmark.bubble")
+        }
+        .alert("Can't open Mail", isPresented: $showNoMailAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Email \(reportEmail) to report this \(contentKind). Reference: \(contentID)")
         }
     }
 
@@ -45,11 +53,13 @@ struct ReportContentButton: View {
             URLQueryItem(name: "subject", value: subject),
             URLQueryItem(name: "body", value: body)
         ]
-        // mailto encodes spaces as "+" via query encoding, which some mail clients keep
-        // literally; use %20 instead.
-        guard let url = components.url
-            ?? URL(string: "mailto:\(reportEmail)") else { return }
-        UIApplication.shared.open(url)
+        guard let url = components.url else {
+            showNoMailAlert = true
+            return
+        }
+        UIApplication.shared.open(url) { opened in
+            if !opened { showNoMailAlert = true }
+        }
     }
 }
 

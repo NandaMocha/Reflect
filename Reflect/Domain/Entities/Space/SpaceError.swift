@@ -7,6 +7,7 @@ enum SpaceError: Error, LocalizedError {
     case titleRequired
     case titleTooLong
     case promptRequired
+    case promptTooLong
     case bodyRequired
     case bodyTooLong
     case notFound
@@ -24,6 +25,7 @@ enum SpaceError: Error, LocalizedError {
         case .titleRequired: return "Give this reflection a title."
         case .titleTooLong: return "That title is too long."
         case .promptRequired: return "Add a prompt or note for this reflection."
+        case .promptTooLong: return "That prompt is too long."
         case .bodyRequired: return "Response can't be empty."
         case .bodyTooLong: return "Response is too long."
         case .notFound: return "That space could not be found."
