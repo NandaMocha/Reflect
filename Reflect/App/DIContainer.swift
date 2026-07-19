@@ -118,6 +118,17 @@ final class DIContainer {
         )
     }
 
+    @MainActor
+    func makeSpaceListViewModel() -> SpaceListViewModel {
+        SpaceListViewModel(
+            fetchUseCase: makeFetchSpacesUseCase(),
+            deleteUseCase: makeDeleteSpaceUseCase(),
+            leaveUseCase: makeLeaveSpaceUseCase(),
+            repository: makeSpaceRepository(),
+            cloudService: makeSpaceCloudService()
+        )
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
