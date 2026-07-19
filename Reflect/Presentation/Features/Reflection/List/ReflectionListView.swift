@@ -92,15 +92,10 @@ struct ReflectionListView: View {
         } message: {
             Text("Please create a Learning first before adding reflections")
         }
-        .alert("Error", isPresented: .constant(viewModel?.errorMessage != nil)) {
-            Button("OK", role: .cancel) {
-                viewModel?.errorMessage = nil
-            }
-        } message: {
-            if let error = viewModel?.errorMessage {
-                Text(error)
-            }
-        }
+        .errorAlert(
+            Binding(get: { viewModel?.errorMessage }, set: { viewModel?.errorMessage = $0 }),
+            title: "Error"
+        )
         .onAppear {
             // Initialize ViewModel with proper modelContext
             if viewModel == nil {

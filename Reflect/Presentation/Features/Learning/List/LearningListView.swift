@@ -93,19 +93,7 @@ struct LearningListView: View {
                 SettingsView()
             }
             .sheet(isPresented: $showAchievementGallery) {
-                let viewModel = BadgeGridViewModel(modelContext: modelContext)
-                NavigationView {
-                    BadgeGridView(viewModel: viewModel)
-                        .navigationTitle("Achievements")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") {
-                                    showAchievementGallery = false
-                                }
-                            }
-                        }
-                }
+                AchievementGallerySheet(isPresented: $showAchievementGallery, modelContext: modelContext)
             }
             .onDisappear {
                 // Observers are automatically cleaned up when view is deallocated
@@ -326,6 +314,32 @@ struct LearningListView: View {
     private func loadBadges() {
         let descriptor = FetchDescriptor<Badge>()
         badges = (try? modelContext.fetch(descriptor)) ?? []
+    }
+}
+
+/// Owns its `BadgeGridViewModel` via `@State` so it's created once, not rebuilt on every
+/// parent re-render (the previous inline-in-sheet-closure VM was the documented "orphaned
+/// ViewModel" bug — see docs/reviews/achievement-counter-root-cause.md).
+private struct AchievementGallerySheet: View {
+    @Binding var isPresented: Bool
+    @State private var viewModel: BadgeGridViewModel
+
+    init(isPresented: Binding<Bool>, modelContext: ModelContext) {
+        _isPresented = isPresented
+        _viewModel = State(initialValue: BadgeGridViewModel(modelContext: modelContext))
+    }
+
+    var body: some View {
+        NavigationStack {
+            BadgeGridView(viewModel: viewModel)
+                .navigationTitle("Achievements")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { isPresented = false }
+                    }
+                }
+        }
     }
 }
 

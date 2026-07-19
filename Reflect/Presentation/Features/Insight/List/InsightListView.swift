@@ -55,15 +55,7 @@ struct InsightListView: View {
             .sheet(item: $insightToEdit) { insight in
                 InsightEditorView(mode: .edit(insight))
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK", role: .cancel) {
-                    viewModel.errorMessage = nil
-                }
-            } message: {
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                }
-            }
+            .errorAlert($viewModel.errorMessage, title: "Error")
             .onChange(of: composeSignal.wrappedValue) { _, newValue in
                 guard newValue else { return }
                 showComposeSheet = true
