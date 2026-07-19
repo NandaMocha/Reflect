@@ -29,6 +29,7 @@ struct MainTabView: View {
     @State private var pendingInviteMetadata: CKShare.Metadata?
     @State private var pendingOpenSpace: Space?
     @State private var isAcceptingInvite = false
+    @State private var inviteErrorMessage: String?
 
     init(widgetAction: Binding<WidgetAction?> = .constant(nil)) {
         self._widgetAction = widgetAction
@@ -88,6 +89,13 @@ struct MainTabView: View {
         .onChange(of: celebrationBadgeID) { _, badge in
             if badge == nil { processPendingInviteIfPossible() }
         }
+        .alert("Couldn't Join Space", isPresented: .constant(inviteErrorMessage != nil)) {
+            Button("OK", role: .cancel) { inviteErrorMessage = nil }
+        } message: {
+            if let inviteErrorMessage {
+                Text(inviteErrorMessage)
+            }
+        }
     }
 
     private func checkOnboardingStatus() {
@@ -108,17 +116,21 @@ struct MainTabView: View {
               !isAcceptingInvite else { return }
 
         isAcceptingInvite = true
-        pendingInviteMetadata = nil
+        pendingInviteMetadata = nil   // consume; a newer invite may re-populate this during the await
         selectedTab = .spaces
 
         Task {
-            defer { isAcceptingInvite = false }
             do {
                 let space = try await DIContainer.shared.makeAcceptSpaceInviteUseCase().execute(metadata: metadata)
                 pendingOpenSpace = space
             } catch {
-                print("⚠️ MainTabView: failed to accept Space invite — \(error.localizedDescription)")
+                // Surface the failure instead of swallowing it; the user can re-tap the
+                // invite link (the warm-accept path) to retry.
+                inviteErrorMessage = error.localizedDescription
             }
+            isAcceptingInvite = false
+            // Drain a newer invite that arrived while this one was in flight.
+            processPendingInviteIfPossible()
         }
     }
 }

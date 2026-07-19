@@ -45,10 +45,18 @@ final class SpaceListViewModel {
 
     // MARK: - Actions
 
-    /// First paint: synchronous cache read, then a network reconcile.
+    /// First paint: synchronous cache read, then a real network reconcile (so a space
+    /// deleted/left on another device doesn't linger across launches).
     func load() async {
         spaces = repository.cachedSpaces()
-        await refresh(force: false)
+        await refresh(force: true)
+    }
+
+    /// Repaints from the local cache without a network round-trip. Used right after an
+    /// invite accept, where a forced reconcile could momentarily evict the just-joined
+    /// zone before CloudKit mirrors it into the shared database.
+    func reloadFromCache() {
+        spaces = repository.cachedSpaces()
     }
 
     func refresh(force: Bool) async {
@@ -64,6 +72,9 @@ final class SpaceListViewModel {
         do {
             spaces = try await fetchUseCase.execute(forceRefresh: force)
             errorMessage = nil
+        } catch is CancellationError {
+            // A cancelled pull-to-refresh (e.g. the user navigated away mid-pull) isn't
+            // a real error — don't surface it.
         } catch {
             errorMessage = error.localizedDescription
         }

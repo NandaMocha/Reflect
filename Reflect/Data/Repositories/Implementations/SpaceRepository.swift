@@ -79,6 +79,11 @@ final class SpaceRepository: SpaceRepositoryProtocol {
 
     // MARK: - Cache reconciliation
 
+    /// Grace period protecting freshly written cache rows from delete-stale during the
+    /// CloudKit accept→shared-DB-mirror lag (a just-accepted zone isn't returned by
+    /// `sharedDB.allRecordZones()` for a short while after `acceptShare`).
+    private static let reconcileGraceInterval: TimeInterval = 30
+
     /// Upserts every fetched space by unique `id` and deletes cache rows no longer present
     /// in the (complete, both-lane) fetch. Only reached once both cloud fetches succeed.
     private func reconcileCache(with spaces: [Space]) throws {
@@ -86,9 +91,13 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             try upsert(space)
         }
 
+        // Prune rows the fetch no longer returned — but keep very recently written rows
+        // (e.g. a just-accepted space whose shared-DB zone CloudKit hasn't mirrored yet),
+        // so a reconcile racing the accept→mirror lag can't evict it.
         let fetchedIDs = Set(spaces.map { $0.id })
+        let staleCutoff = Date().addingTimeInterval(-Self.reconcileGraceInterval)
         let existing = try modelContext.fetch(FetchDescriptor<CachedSpace>())
-        for row in existing where !fetchedIDs.contains(row.id) {
+        for row in existing where !fetchedIDs.contains(row.id) && row.lastFetchedAt < staleCutoff {
             modelContext.delete(row)
         }
         try modelContext.save()

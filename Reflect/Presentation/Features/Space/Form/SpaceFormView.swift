@@ -59,6 +59,7 @@ struct SpaceFormView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .disabled(viewModel.isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if viewModel.isSaving {

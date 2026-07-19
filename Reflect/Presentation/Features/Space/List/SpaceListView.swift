@@ -56,7 +56,10 @@ struct SpaceListView: View {
             .task { await viewModel.load() }
             .onChange(of: openSpace.wrappedValue) { _, newValue in
                 guard let space = newValue else { return }
-                Task { await viewModel.refresh(force: true) }
+                // Show the just-joined space from cache (already upserted by the accept);
+                // avoid a forced reconcile here — it could race CloudKit's mirror lag and
+                // briefly evict the row. Normal load()/pull-to-refresh reconciles later.
+                viewModel.reloadFromCache()
                 path = [space]
                 openSpace.wrappedValue = nil
             }
