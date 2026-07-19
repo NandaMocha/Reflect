@@ -414,6 +414,85 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         }
     }
 
+    // MARK: - Subscriptions / background sync
+
+    private static let privateSubscriptionID = "space-private-db-sub"
+    private static let sharedSubscriptionID = "space-shared-db-sub"
+    private static let privateTokenKey = "spacePrivateDBChangeToken"
+    private static let sharedTokenKey = "spaceSharedDBChangeToken"
+
+    func ensureSubscriptions() async throws {
+        try await ensureDatabaseSubscription(id: Self.privateSubscriptionID, in: privateDB)
+        try await ensureDatabaseSubscription(id: Self.sharedSubscriptionID, in: sharedDB)
+    }
+
+    private func ensureDatabaseSubscription(id: String, in database: CKDatabase) async throws {
+        let subscription = CKDatabaseSubscription(subscriptionID: id)
+        let info = CKSubscription.NotificationInfo()
+        info.shouldSendContentAvailable = true   // silent push, no alert/badge
+        subscription.notificationInfo = info
+        do {
+            _ = try await withRetry { try await database.save(subscription) }
+        } catch let error as CKError where error.code == .serverRejectedRequest {
+            // Subscription with this fixed ID already exists — idempotent, ignore.
+        }
+    }
+
+    func syncChanges() async throws -> Bool {
+        let privateChanged = try await fetchDatabaseChanges(in: privateDB, tokenKey: Self.privateTokenKey)
+        let sharedChanged = try await fetchDatabaseChanges(in: sharedDB, tokenKey: Self.sharedTokenKey)
+        return privateChanged || sharedChanged
+    }
+
+    /// Advances (and persists) one database's change token. Returns whether any zone
+    /// changed. On `changeTokenExpired` the token is cleared and we report `true` so the
+    /// downstream fetch reloads from scratch rather than crashing.
+    private func fetchDatabaseChanges(in database: CKDatabase, tokenKey: String) async throws -> Bool {
+        let previousToken = loadChangeToken(key: tokenKey)
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: previousToken)
+            operation.fetchAllChanges = true
+
+            var changedZoneCount = 0
+            operation.recordZoneWithIDChangedBlock = { _ in changedZoneCount += 1 }
+            operation.changeTokenUpdatedBlock = { token in self.saveChangeToken(token, key: tokenKey) }
+            operation.fetchDatabaseChangesResultBlock = { result in
+                switch result {
+                case .success(let (token, _)):
+                    self.saveChangeToken(token, key: tokenKey)
+                    continuation.resume(returning: changedZoneCount > 0)
+                case .failure(let error):
+                    if let ckError = error as? CKError, ckError.code == .changeTokenExpired {
+                        self.saveChangeToken(nil, key: tokenKey)
+                        continuation.resume(returning: true)
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+            database.add(operation)
+        }
+    }
+
+    private func loadChangeToken(key: String) -> CKServerChangeToken? {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
+    }
+
+    private func saveChangeToken(_ token: CKServerChangeToken?, key: String) {
+        guard let token,
+              let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) else {
+            UserDefaults.standard.removeObject(forKey: key)
+            return
+        }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+
+    // Conflict handling note: the Space model is append-only (create + delete, no field
+    // edits), so `serverRecordChanged` save conflicts don't arise — new records have unique
+    // names and deletes don't conflict. If editing is added later, retry-once with the
+    // server record as base goes here (plan §9).
+
     // MARK: - Authorship resolution
 
     /// The current user's record name in the Space container, cached after the first

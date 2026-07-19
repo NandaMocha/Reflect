@@ -54,4 +54,18 @@ protocol SpaceCloudServiceProtocol {
     /// Deletes a single child record (reflection or response) by record name. UI-level
     /// trust: the caller guards `isMine` (no server enforcement, plan §11.2).
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws
+
+    // MARK: - Subscriptions / background sync — T22
+
+    /// Registers idempotent `CKDatabaseSubscription`s (silent, content-available) on both
+    /// the private and shared databases so the app is woken on remote changes. Safe to call
+    /// on every launch — tolerates "already exists".
+    func ensureSubscriptions() async throws
+
+    /// Advances the persisted per-database change tokens and reports whether anything
+    /// changed. The actual cache reconciliation happens via the normal fetch path ("fetch
+    /// makes it correct", plan §9) — callers post `spaceRemoteChangeReceived` so visible
+    /// Space screens refresh. Returns `true` if a change (or a reset token) was seen.
+    @discardableResult
+    func syncChanges() async throws -> Bool
 }

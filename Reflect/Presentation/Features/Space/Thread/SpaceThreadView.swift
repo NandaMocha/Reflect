@@ -6,6 +6,7 @@ import SwiftUI
 struct SpaceThreadView: View {
     @State private var viewModel: SpaceThreadViewModel
     @FocusState private var composerFocused: Bool
+    @Environment(\.scenePhase) private var scenePhase
 
     init(space: Space, reflection: SpaceReflection) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceThreadViewModel(reflection: reflection, space: space))
@@ -42,6 +43,12 @@ struct SpaceThreadView: View {
         .navigationTitle("Responses")
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
+        .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in
+            Task { await viewModel.refresh() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await viewModel.refresh() } }
+        }
         .alert("Something went wrong", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("OK", role: .cancel) { viewModel.errorMessage = nil }
         } message: {

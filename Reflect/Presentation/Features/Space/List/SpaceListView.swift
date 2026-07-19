@@ -12,6 +12,7 @@ struct SpaceListView: View {
     // Type-erased so the stack can push both Space (detail) and SpaceReflection (thread).
     @State private var path = NavigationPath()
     @State private var showTermsSheet = false
+    @Environment(\.scenePhase) private var scenePhase
 
     /// External deep-link hook (mirrors `InsightListView.composeSignal`): when set — e.g.
     /// by `MainTabView` after accepting an invite — the list refreshes and pushes straight
@@ -61,6 +62,12 @@ struct SpaceListView: View {
             }
             .sheet(isPresented: $showTermsSheet) {
                 SpaceTermsSheet(onAccept: { showTermsSheet = false })
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in
+                Task { await viewModel.refresh(force: true) }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await viewModel.refresh(force: true) } }
             }
             .onChange(of: openSpace.wrappedValue) { _, newValue in
                 guard let space = newValue else { return }

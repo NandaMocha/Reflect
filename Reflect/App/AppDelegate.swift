@@ -37,6 +37,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Silent pushes need no permission prompt — this just enables the
         // device token registration required to receive them.
         UIApplication.shared.registerForRemoteNotifications()
+
+        // Register the Space database subscriptions (idempotent, best-effort — retries
+        // next launch if iCloud isn't ready yet).
+        Task {
+            try? await DIContainer.shared.makeSpaceCloudService().ensureSubscriptions()
+        }
         return true
     }
 
@@ -58,10 +64,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
-        // TODO(T22): turn this into a real sync trigger. For now, just notify
-        // observers that a remote change may be waiting.
-        NotificationCenter.default.post(name: .spaceRemoteChangeReceived, object: nil)
-        completionHandler(.newData)
+        // A silent Space push woke us: advance change tokens, then tell any visible Space
+        // screen to refresh (which reconciles the cache via the normal fetch path).
+        Task {
+            let hadChanges = (try? await DIContainer.shared.makeSpaceCloudService().syncChanges()) ?? false
+            NotificationCenter.default.post(name: .spaceRemoteChangeReceived, object: nil)
+            completionHandler(hadChanges ? .newData : .noData)
+        }
     }
 
     // Belt-and-braces: some launch paths deliver CloudKit share acceptance to

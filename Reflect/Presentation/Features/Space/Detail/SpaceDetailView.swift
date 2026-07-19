@@ -6,6 +6,7 @@ struct SpaceDetailView: View {
     @State private var viewModel: SpaceDetailViewModel
     @State private var showCompose = false
     @State private var reflectionToDelete: SpaceReflection?
+    @Environment(\.scenePhase) private var scenePhase
 
     init(space: Space) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceDetailViewModel(space: space))
@@ -37,6 +38,12 @@ struct SpaceDetailView: View {
             composeSheet
         }
         .task { await viewModel.load() }
+        .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in
+            Task { await viewModel.refresh() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await viewModel.refresh() } }
+        }
         .alert("Something went wrong", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("OK", role: .cancel) { viewModel.errorMessage = nil }
         } message: {
