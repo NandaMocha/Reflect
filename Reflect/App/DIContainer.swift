@@ -154,6 +154,17 @@ final class DIContainer {
         DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
     }
 
+    @MainActor
+    func makeSpaceDetailViewModel(space: Space) -> SpaceDetailViewModel {
+        SpaceDetailViewModel(
+            space: space,
+            fetchUseCase: makeFetchSpaceReflectionsUseCase(),
+            createUseCase: makeCreateSpaceReflectionUseCase(),
+            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {

@@ -9,7 +9,8 @@ struct SpaceListView: View {
     @State private var showCreateSheet = false
     @State private var spaceToDelete: Space?
     @State private var spaceToLeave: Space?
-    @State private var path: [Space] = []
+    // Type-erased so the stack can push both Space (detail) and SpaceReflection (thread).
+    @State private var path = NavigationPath()
     @State private var showTermsSheet = false
 
     /// External deep-link hook (mirrors `InsightListView.composeSignal`): when set — e.g.
@@ -44,10 +45,7 @@ struct SpaceListView: View {
                 }
             }
             .navigationDestination(for: Space.self) { space in
-                // Placeholder until T20 swaps in SpaceDetailView.
-                Text(space.name)
-                    .navigationTitle(space.name)
-                    .navigationBarTitleDisplayMode(.inline)
+                SpaceDetailView(space: space)
             }
             .sheet(isPresented: $showCreateSheet, onDismiss: {
                 // The new space is already in the cache (createSpace upserts it), so repaint
@@ -70,7 +68,9 @@ struct SpaceListView: View {
                 // avoid a forced reconcile here — it could race CloudKit's mirror lag and
                 // briefly evict the row. Normal load()/pull-to-refresh reconciles later.
                 viewModel.reloadFromCache()
-                path = [space]
+                var newPath = NavigationPath()
+                newPath.append(space)
+                path = newPath
                 openSpace.wrappedValue = nil
             }
             .alert("Something went wrong", isPresented: .constant(viewModel.errorMessage != nil)) {
