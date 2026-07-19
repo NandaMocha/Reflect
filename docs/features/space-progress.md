@@ -14,11 +14,11 @@ surfaced (owned-spaces `CKQuery` → "Field 'recordName' is not marked queryable
 `feature/space` @ `16bfd31` (root-record lookup now uses `CKFetchRecordZoneChangesOperation`, no
 index needed).
 
-**P1 (Spaces UI) is BUILD-COMPLETE + committed on a separate worktree `feature/space-p1`** (branched
-from `feature/space` @ `16bfd31`). Built ahead of the H2 accept round-trip at the user's request, in
-an isolated branch so `feature/space` stays clean if H2 needs rework. **Two gates remain open before
-P1 is "done done":** **R3 review** (mandatory before P2) and **H3 two-device P1 verification**
-(human). See "P1 status" below.
+**P1 (Spaces UI) BUILD-COMPLETE on `feature/space-p1`** (+ R3 review done). **P2 (child records,
+UI, push) BUILD-COMPLETE on `feature/space-p2`** (T17–T22 + R4 review done) — so the **entire Space
+feature is code-complete**. Everything was built ahead of the two-device hardware gates at the
+user's request, in stacked isolated branches. **Remaining is all hardware/human:** H2/H3 (two-device
+verification), H4 (deploy schema to Production), H5 (TestFlight E2E), then R5 + T25 final audit.
 
 > **H2 is only partially verified.** Device A passed availability/create/share/probe-write (+ the
 > query fix). The **accept round-trip still needs Device B (second iCloud account)** — scheduled by
@@ -90,14 +90,33 @@ in use cases; scoped delete-stale). 7 findings; fixed in `bfe4184`:
 - F3 user-record-name cache race → locked. F4 prompt length validated. F5 author lookup reuses the
   fetched records (no 2nd zone scan). F6 report-button fallback alert. F7 comment fixes.
 
-### P2 remaining (NOT built)
+### P2 UI + sync (T20–T22) — BUILD-COMPLETE
 
-- **T20** — Space detail (reflections list + compose), swaps T14's placeholder `navigationDestination`.
-- **T21** — Response thread (comment-style) UI.
-- **T22** — DB subscriptions + silent-push sync loop (touches `AppDelegate` again; hardware-only to
-  fully verify).
-- **R5** review; human gates **H4** (deploy CloudKit schema Dev→Production — release footgun) and
-  **H5** (TestFlight two-device E2E). T20/T21 depend on T18 (done); T22 on T17 (done).
+| Ticket | Commit | What |
+|---|---|---|
+| T20 | `0d804aa` | Space detail (`SpaceDetailViewModel`/`View`) — reflections list, compose, delete-own, report; replaces T14's placeholder destination; `SpaceListView` → type-erased `NavigationPath` |
+| T21 | `fea0aa1` | Response thread (`SpaceThreadViewModel`/`View`) — comment-style bubbles, always-visible composer, delete-own + report per response |
+| T22 | `922655a` | DB subscriptions + silent-push sync: `ensureSubscriptions` (idempotent), `syncChanges` (per-DB tokens in UserDefaults, reset-on-expiry), AppDelegate push handler, and the 3 Space views refresh on `spaceRemoteChangeReceived` + scenePhase `.active` |
+
+**Full feature is code-complete** (P0 + P1 + P2). Smoke-verified on the iPhone 17 (iOS 26.2) simulator:
+launches cleanly with three tabs (no crash from launch-time `ensureSubscriptions` when signed out).
+
+Notes/simplifications recorded during T22:
+- `syncChanges` advances **database-level** change tokens (persisted, simulator-checkable) and drives
+  a full re-fetch via the VMs' refresh — it does NOT do per-zone incremental upsert, because the
+  repository uses full zone fetches. Correct for the "fetch makes it correct" model; a future
+  optimization if needed.
+- No save-conflict handling: the model is append-only (create + delete, no field edits), so
+  `serverRecordChanged` conflicts don't arise (noted in `SpaceCloudService`).
+
+### Remaining before ship (all hardware/human)
+
+- **R5** — review after H5 (triage TestFlight findings).
+- **H2** (accept round-trip, Device B), **H3** (two-device P1 UI), **H4** (CloudKit Console: deploy
+  schema Dev→**Production** — release footgun), **H5** (TestFlight two-device E2E incl. silent push).
+- **T25** — final regression + decoupling audit + polish (after H5).
+- **R4 F1 still wants two-device confirmation** of the shared-lane `creatorUserRecordID` semantics
+  (the `isMine` authorship model) — fail-closed now, proven by H3/T24.
 
 ## (historical) P0 next-step — H2 spike
 
