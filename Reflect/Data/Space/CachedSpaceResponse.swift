@@ -6,6 +6,9 @@ import SwiftData
 /// rebuilds from the upstream source on refresh.
 @preconcurrency @Model
 final class CachedSpaceResponse {
+    // Responses are always fetched/reconciled scoped to a reflection.
+    #Index<CachedSpaceResponse>([\.reflectionID])
+
     @Attribute(.unique) var id: String
     var reflectionID: String
     var body: String

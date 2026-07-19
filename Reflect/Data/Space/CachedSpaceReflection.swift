@@ -6,6 +6,9 @@ import SwiftData
 /// rebuilds from the upstream source on refresh.
 @preconcurrency @Model
 final class CachedSpaceReflection {
+    // Reflections are always fetched/reconciled scoped to a space.
+    #Index<CachedSpaceReflection>([\.spaceID])
+
     @Attribute(.unique) var id: String
     var spaceID: String
     var title: String
