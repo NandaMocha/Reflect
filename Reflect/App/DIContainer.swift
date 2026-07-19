@@ -129,6 +129,31 @@ final class DIContainer {
         )
     }
 
+    @MainActor
+    func makeCreateSpaceReflectionUseCase() -> CreateSpaceReflectionUseCaseProtocol {
+        CreateSpaceReflectionUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpaceReflectionsUseCase() -> FetchSpaceReflectionsUseCaseProtocol {
+        FetchSpaceReflectionsUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeCreateSpaceResponseUseCase() -> CreateSpaceResponseUseCaseProtocol {
+        CreateSpaceResponseUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpaceResponsesUseCase() -> FetchSpaceResponsesUseCaseProtocol {
+        FetchSpaceResponsesUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteOwnSpaceContentUseCase() -> DeleteOwnSpaceContentUseCaseProtocol {
+        DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
