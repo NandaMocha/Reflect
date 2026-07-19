@@ -49,6 +49,9 @@ struct SpaceListView: View {
                     .navigationBarTitleDisplayMode(.inline)
             }
             .sheet(isPresented: $showCreateSheet, onDismiss: {
+                // The new space is already in the cache (createSpace upserts it), so repaint
+                // instantly; then reconcile against the cloud in the background.
+                viewModel.reloadFromCache()
                 Task { await viewModel.refresh(force: true) }
             }) {
                 SpaceFormView()
@@ -108,6 +111,9 @@ struct SpaceListView: View {
                     SpaceRowView(space: space)
                 }
                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                // Inset the separator past the 44pt avatar (+ spacing) so it aligns with
+                // the name text rather than cutting across the row.
+                .alignmentGuide(.listRowSeparatorLeading) { _ in 56 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     if space.isOwner {
                         Button(role: .destructive) {
