@@ -4,22 +4,17 @@ import OSLog
 // MARK: - Grouping Extension
 
 extension ReflectionListViewModel {
+    // Grouped on the main actor: `reflections` are live SwiftData models bound to the main
+    // ModelContext and must not be read off-main (was a data race via Task.detached). The
+    // bucketing is only a few ms, so there's nothing to offload.
+    @MainActor
     func groupReflectionsByDate() async {
         let startTime = CFAbsoluteTimeGetCurrent()
-
-        // Perform date grouping on background thread to avoid blocking UI
-        let grouped = await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return [ReflectionDateGroup: [Reflection]]() }
-            return self.groupReflections(self.reflections)
-        }.value
-
-        await MainActor.run {
-            self.groupedReflections = grouped
-        }
-
+        groupedReflections = groupReflections(reflections)
         os_log("📅 [PERF] groupReflectionsByDate took %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - startTime) * 1000)
     }
 
+    @MainActor
     private func groupReflections(_ reflections: [Reflection]) -> [ReflectionDateGroup: [Reflection]] {
         let startTime = CFAbsoluteTimeGetCurrent()
         var groups: [ReflectionDateGroup: [Reflection]] = [:]

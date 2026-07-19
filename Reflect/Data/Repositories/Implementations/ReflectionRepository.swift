@@ -42,14 +42,14 @@ final class ReflectionRepository: ReflectionRepositoryProtocol {
     }
 
     func search(query: String, limit: Int? = nil, offset: Int? = nil) async throws -> [Reflection] {
-        // Use SwiftData predicate for server-side filtering instead of in-memory filtering
-        // This significantly improves performance for large datasets
-        let lowercasedQuery = query.lowercased()
+        // Store-side, case- and diacritic-insensitive match. (Previously lowercased the
+        // query but compared against original-case text, so "Titanic" was unfindable.)
+        let query = query
 
         var descriptor = FetchDescriptor<Reflection>(
             predicate: #Predicate<Reflection> { reflection in
-                reflection.title.contains(lowercasedQuery) ||
-                reflection.plainTextContent.contains(lowercasedQuery)
+                reflection.title.localizedStandardContains(query) ||
+                reflection.plainTextContent.localizedStandardContains(query)
             },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
