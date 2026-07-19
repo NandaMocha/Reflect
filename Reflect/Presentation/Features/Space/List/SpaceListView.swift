@@ -116,6 +116,11 @@ struct SpaceListView: View {
                 Text("You'll lose access. The space and its content remain for other members.")
             }
         }
+        // Hide the tab bar whenever anything is pushed (stays hidden through deeper pushes,
+        // so it only animates on the first push and the final pop — smoother than
+        // re-toggling per destination).
+        .toolbar(path.isEmpty ? .automatic : .hidden, for: .tabBar)
+        .animation(.easeInOut(duration: 0.3), value: path.isEmpty)
     }
 
     // MARK: - List

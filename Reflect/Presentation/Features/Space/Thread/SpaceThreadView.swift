@@ -29,7 +29,6 @@ struct SpaceThreadView: View {
         }
         .navigationTitle("Your response")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {
@@ -180,7 +179,6 @@ struct SpaceAllResponsesView: View {
         }
         .navigationTitle("All responses")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .refreshable { await viewModel.refresh() }
         .task { await viewModel.refresh() }
         .sheet(item: $responseToEdit) { response in

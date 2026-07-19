@@ -104,6 +104,8 @@ struct LearningListView: View {
                 }
             }
         }
+        .toolbar(navigationPath.isEmpty ? .automatic : .hidden, for: .tabBar)
+        .animation(.easeInOut(duration: 0.3), value: navigationPath.isEmpty)
         .onAppear {
             loadBadges()
             restoreState()
