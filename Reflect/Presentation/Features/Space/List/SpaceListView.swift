@@ -12,6 +12,7 @@ struct SpaceListView: View {
     // Type-erased so the stack can push both Space (detail) and SpaceReflection (thread).
     @State private var path = NavigationPath()
     @State private var showTermsSheet = false
+    @State private var showSettings = false
     @Environment(\.scenePhase) private var scenePhase
 
     /// External deep-link hook (mirrors `InsightListView.composeSignal`): when set — e.g.
@@ -36,6 +37,9 @@ struct SpaceListView: View {
             }
             .navigationTitle("Spaces")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton { showSettings = true }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showCreateSheet = true
@@ -63,6 +67,9 @@ struct SpaceListView: View {
             }
             .sheet(isPresented: $showTermsSheet) {
                 SpaceTermsSheet(onAccept: { showTermsSheet = false })
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
             .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in
                 Task { await viewModel.refresh(force: true) }

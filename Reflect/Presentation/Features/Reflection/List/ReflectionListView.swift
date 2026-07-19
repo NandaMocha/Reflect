@@ -55,6 +55,7 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
+        .toolbar(.hidden, for: .tabBar)
         .searchable(text:Binding(
             get: { viewModel?.searchQuery ?? "" },
             set: { newValue in

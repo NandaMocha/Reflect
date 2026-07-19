@@ -22,6 +22,7 @@ struct SpaceDetailView: View {
         }
         .navigationTitle(viewModel.space.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

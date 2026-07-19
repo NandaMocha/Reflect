@@ -65,13 +65,7 @@ struct LearningListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        HapticManager.shared.lightImpact()
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.title3)
-                    }
+                    SettingsToolbarButton { showSettings = true }
                 }
 
                 ToolbarItem(placement: .primaryAction) {
