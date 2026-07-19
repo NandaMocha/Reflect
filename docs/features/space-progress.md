@@ -41,9 +41,28 @@ grep-gate clean, committed (no push).
 
 **Detail navigation is a placeholder `Text`** until P2's T20 swaps in `SpaceDetailView`.
 
-**Open P1 gates:** **R3** (review the shared-surface `MainTabView` change + the whole P1 slice before
-P2 fans out) and **H3** (two-device: create→invite→join→leave→remove→delete through the real UI).
-Both must pass before P2 (T17+).
+### R3 review — DONE (2026-07-19)
+
+Independent review (Fable) of `16bfd31..` (the P1 slice). **All four R3 gap signatures passed clean**
+(three tabs; no `.modelContainer` on the Spaces tab; `WidgetAction` not extended; onboarding/
+celebration intact with the invite queued behind covers). Findings remediated:
+
+- `6fca38f` — 6 inline fixes: accept-failure now alerts (was silent); a second invite arriving
+  mid-accept is drained (was queued forever); `load()` force-reconciles (no stale spaces across
+  launches); reconcile grace window prevents accept→mirror-lag eviction; deep-link repaints from
+  cache; form Cancel disabled while saving.
+- `8c26798` — **cold-launch invites (finding #1)**: added `SpaceInviteInbox` + a window-free
+  `scene(_:willConnectTo:)` so an invite tapped while the app is closed is no longer dropped.
+  Simulator-verified: launches with content (no black screen), three tabs render.
+
+**Tracked follow-up (not yet done):** R3 finding #7 — `SpaceDebugView` (DEBUG-only) also observes
+`.spaceShareInviteReceived` and accepts directly, so with that screen open in a DEBUG build an invite
+is double-accepted. Left as-is on purpose (it's the H2 spike harness — don't change mid-test); gate
+or remove it once H2/H3 are done and T15 routing is the sole path. Zero production impact (`#if DEBUG`).
+
+**Open P1 gate:** **H3** (two-device: create→invite→join→leave→remove→delete through the real UI,
+incl. cold-launch invite). Must pass before P2 (T17+). H3 still depends on H2's accept round-trip
+(Device B) passing first.
 
 ## (historical) P0 next-step — H2 spike
 
