@@ -87,7 +87,7 @@ struct SpaceListView: View {
                     Text(errorMessage)
                 }
             }
-            .confirmationDialog(
+            .alert(
                 "Delete Space?",
                 isPresented: dialogBinding($spaceToDelete),
                 presenting: spaceToDelete
@@ -100,7 +100,7 @@ struct SpaceListView: View {
             } message: { _ in
                 Text("Deletes this space and all its content for every member. This cannot be undone.")
             }
-            .confirmationDialog(
+            .alert(
                 "Leave Space?",
                 isPresented: dialogBinding($spaceToLeave),
                 presenting: spaceToLeave

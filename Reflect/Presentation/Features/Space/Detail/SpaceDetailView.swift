@@ -51,7 +51,7 @@ struct SpaceDetailView: View {
                 Text(errorMessage)
             }
         }
-        .confirmationDialog(
+        .alert(
             "Delete Reflection?",
             isPresented: Binding(
                 get: { reflectionToDelete != nil },
