@@ -30,6 +30,14 @@ struct ReflectionListView: View {
         self._widgetAction = widgetAction
     }
 
+    /// Show the search field only when there's data, or the user has an active search /
+    /// favorites filter (so a zero-result search can still be cleared). Hidden on the
+    /// genuinely-empty state (learning with no reflections yet).
+    private var searchFieldActive: Bool {
+        guard let vm = viewModel else { return false }
+        return !vm.isEmpty || !vm.searchQuery.isEmpty || vm.showFavoritesOnly
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
@@ -55,12 +63,14 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
-        .searchable(text:Binding(
-            get: { viewModel?.searchQuery ?? "" },
-            set: { newValue in
-                viewModel?.updateSearchQuery(newValue)
-            }
-        ), prompt: "Search reflections...")
+        .searchable(
+            text: Binding(
+                get: { viewModel?.searchQuery ?? "" },
+                set: { newValue in viewModel?.updateSearchQuery(newValue) }
+            ),
+            prompt: "Search reflections...",
+            isActive: searchFieldActive
+        )
         .fullScreenCover(isPresented: $showCameraPicker) {
             cameraPickerView
         }

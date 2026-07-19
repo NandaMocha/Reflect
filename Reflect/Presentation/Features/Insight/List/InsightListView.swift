@@ -52,7 +52,7 @@ struct InsightListView: View {
                     filterMenu
                 }
             }
-            .searchable(text: $viewModel.searchQuery, prompt: "Search insights...")
+            .searchable(text: $viewModel.searchQuery, prompt: "Search insights...", isActive: !insights.isEmpty)
             .sheet(isPresented: $showComposeSheet) {
                 InsightEditorView(mode: .create)
             }
