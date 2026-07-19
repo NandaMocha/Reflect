@@ -42,6 +42,7 @@ struct SpaceListView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("New Space")
                     .disabled(viewModel.showsUnavailableState)
                 }
             }

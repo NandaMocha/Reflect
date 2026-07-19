@@ -136,6 +136,7 @@ struct SpaceThreadView: View {
                             .font(.title)
                             .foregroundStyle(viewModel.canPost ? Color.accentColor : Color.secondary)
                     }
+                    .accessibilityLabel("Send response")
                     .disabled(!viewModel.canPost)
                 }
             }

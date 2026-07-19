@@ -29,6 +29,7 @@ struct SpaceDetailView: View {
                 } label: {
                     Image(systemName: "square.and.pencil")
                 }
+                .accessibilityLabel("New Reflection")
             }
         }
         .navigationDestination(for: SpaceReflection.self) { reflection in
