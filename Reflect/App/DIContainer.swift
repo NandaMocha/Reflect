@@ -110,6 +110,14 @@ final class DIContainer {
         AcceptSpaceInviteUseCase(repository: makeSpaceRepository())
     }
 
+    @MainActor
+    func makeSpaceFormViewModel() -> SpaceFormViewModel {
+        SpaceFormViewModel(
+            createUseCase: makeCreateSpaceUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {
