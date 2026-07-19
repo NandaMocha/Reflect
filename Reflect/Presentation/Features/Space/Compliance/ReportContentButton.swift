@@ -8,7 +8,7 @@ import UIKit
 ///
 /// This only *opens* a pre-filled composer — the user still taps Send themselves.
 struct ReportContentButton: View {
-    /// Human-readable content kind, e.g. "reflection" or "response".
+    /// Human-readable content kind, e.g. "request" or "feedback".
     let contentKind: String
     /// The CloudKit record name of the reported content.
     let contentID: String
@@ -64,5 +64,5 @@ struct ReportContentButton: View {
 }
 
 #Preview {
-    ReportContentButton(contentKind: "reflection", contentID: "ABC-123", spaceName: "Study Group")
+    ReportContentButton(contentKind: "request", contentID: "ABC-123", spaceName: "Study Group")
 }

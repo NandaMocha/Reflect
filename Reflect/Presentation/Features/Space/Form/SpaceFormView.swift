@@ -24,7 +24,7 @@ struct SpaceFormView: View {
                         .focused($nameFocused)
                 } footer: {
                     HStack {
-                        Text("Everyone you invite can read and add reflections.")
+                        Text("Everyone you invite can read and give feedback.")
                         Spacer()
                         Text("\(viewModel.characterCount)/\(viewModel.characterLimit)")
                             .foregroundStyle(isOverLimit ? Color.error : .secondary)

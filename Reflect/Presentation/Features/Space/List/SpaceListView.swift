@@ -163,7 +163,7 @@ struct SpaceListView: View {
         EmptyStateView(
             icon: "person.3",
             title: "No shared spaces yet",
-            subtitle: "Create a space to reflect together. You'll invite people right after.",
+            subtitle: "Create a space to get feedback from people you invite.",
             buttonTitle: "New Space",
             buttonAction: { showCreateSheet = true }
         )

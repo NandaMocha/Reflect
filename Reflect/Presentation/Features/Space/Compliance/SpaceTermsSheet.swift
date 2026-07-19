@@ -40,7 +40,7 @@ struct SpaceTermsSheet: View {
                 policyRow(
                     icon: "exclamationmark.bubble.fill",
                     title: "Report anything off",
-                    detail: "Every reflection and response has a Report action that emails us the details so we can act on it."
+                    detail: "Every feedback request and piece of feedback has a Report action that emails us the details so we can act on it."
                 )
                 policyRow(
                     icon: "rectangle.portrait.and.arrow.right.fill",

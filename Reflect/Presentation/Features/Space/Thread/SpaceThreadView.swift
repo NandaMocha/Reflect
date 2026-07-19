@@ -27,7 +27,7 @@ struct SpaceThreadView: View {
 
             composerBar
         }
-        .navigationTitle("Your response")
+        .navigationTitle("Your feedback")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -41,7 +41,7 @@ struct SpaceThreadView: View {
                         }
                     }
                 }
-                .accessibilityLabel("View all responses")
+                .accessibilityLabel("View all feedback")
             }
         }
         .task { await viewModel.load() }
@@ -90,13 +90,13 @@ struct SpaceThreadView: View {
     @ViewBuilder
     private var yourResponses: some View {
         if viewModel.myResponses.isEmpty {
-            Text("Write your response below. You can see everyone else's from the button above once you're ready.")
+            Text("Share your feedback below. You can see everyone else's from the button above once you're ready.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, Constants.Spacing.lg)
         } else {
-            Text("Your responses")
+            Text("Your feedback")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             ForEach(viewModel.myResponses) { response in
@@ -116,7 +116,7 @@ struct SpaceThreadView: View {
         VStack(spacing: Constants.Spacing.xs) {
             Divider()
             HStack(alignment: .bottom, spacing: Constants.Spacing.sm) {
-                TextField("Add your response…", text: $viewModel.draft, axis: .vertical)
+                TextField("Share your feedback…", text: $viewModel.draft, axis: .vertical)
                     .focused($composerFocused)
                     .lineLimit(1...6)
                     .padding(Constants.Spacing.sm)
@@ -136,7 +136,7 @@ struct SpaceThreadView: View {
                             .font(.title)
                             .foregroundStyle(viewModel.canPost ? Color.primaryDefault : Color.secondary)
                     }
-                    .accessibilityLabel("Send response")
+                    .accessibilityLabel("Send feedback")
                     .disabled(!viewModel.canPost)
                 }
             }
@@ -157,7 +157,7 @@ struct SpaceAllResponsesView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Constants.Spacing.md) {
                 if viewModel.responses.isEmpty {
-                    Text("No responses yet.")
+                    Text("No feedback yet.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -177,7 +177,7 @@ struct SpaceAllResponsesView: View {
             }
             .padding(Constants.Spacing.md)
         }
-        .navigationTitle("All responses")
+        .navigationTitle("All feedback")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await viewModel.refresh() }
         .task { await viewModel.refresh() }
@@ -229,7 +229,7 @@ struct ResponseBubble: View {
                     Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
                 }
             }
-            ReportContentButton(contentKind: "response", contentID: response.id, spaceName: spaceName)
+            ReportContentButton(contentKind: "feedback", contentID: response.id, spaceName: spaceName)
         }
     }
 }
@@ -258,7 +258,7 @@ struct SpaceResponseEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Response", text: $text, axis: .vertical)
+                    TextField("Feedback", text: $text, axis: .vertical)
                         .lineLimit(3...12)
                 } footer: {
                     HStack {
@@ -269,7 +269,7 @@ struct SpaceResponseEditSheet: View {
                     }
                 }
             }
-            .navigationTitle("Edit Response")
+            .navigationTitle("Edit Feedback")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -29,7 +29,7 @@ struct SpaceDetailView: View {
                 } label: {
                     Image(systemName: "square.and.pencil")
                 }
-                .accessibilityLabel("New Reflection")
+                .accessibilityLabel("Ask for Feedback")
             }
         }
         .navigationDestination(for: SpaceReflection.self) { reflection in
@@ -47,7 +47,7 @@ struct SpaceDetailView: View {
         }
         .errorAlert($viewModel.errorMessage)
         .alert(
-            "Delete Reflection?",
+            "Delete request?",
             isPresented: Binding(
                 get: { reflectionToDelete != nil },
                 set: { if !$0 { reflectionToDelete = nil } }
@@ -60,7 +60,7 @@ struct SpaceDetailView: View {
             }
             Button("Cancel", role: .cancel) { reflectionToDelete = nil }
         } message: { _ in
-            Text("This deletes your reflection and all its responses for everyone.")
+            Text("This deletes your feedback request and all its feedback for everyone.")
         }
     }
 
@@ -85,7 +85,7 @@ struct SpaceDetailView: View {
                         }
                         .contextMenu {
                             ReportContentButton(
-                                contentKind: "reflection",
+                                contentKind: "request",
                                 contentID: reflection.id,
                                 spaceName: viewModel.space.name
                             )
@@ -104,9 +104,9 @@ struct SpaceDetailView: View {
     private var emptyState: some View {
         EmptyStateView(
             icon: "text.bubble",
-            title: "No reflections yet",
-            subtitle: "Start the conversation — add a reflection for everyone in this space.",
-            buttonTitle: "New Reflection",
+            title: "No feedback requests yet",
+            subtitle: "Ask your space for feedback on what you're learning.",
+            buttonTitle: "Ask for Feedback",
             buttonAction: { showCompose = true }
         )
     }
@@ -117,7 +117,7 @@ struct SpaceDetailView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Title", text: $viewModel.newTitle)
+                    TextField("What do you want feedback on?", text: $viewModel.newTitle)
                 } footer: {
                     HStack {
                         Spacer()
@@ -127,12 +127,12 @@ struct SpaceDetailView: View {
                     }
                 }
 
-                Section("Prompt") {
-                    TextField("What should people reflect on?", text: $viewModel.newPrompt, axis: .vertical)
+                Section("Details") {
+                    TextField("Add context or specific questions…", text: $viewModel.newPrompt, axis: .vertical)
                         .lineLimit(3...8)
                 }
             }
-            .navigationTitle("New Reflection")
+            .navigationTitle("Ask for Feedback")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -143,7 +143,7 @@ struct SpaceDetailView: View {
                     if viewModel.isSaving {
                         ProgressView()
                     } else {
-                        Button("Add") {
+                        Button("Ask") {
                             Task {
                                 if await viewModel.save() { showCompose = false }
                             }
