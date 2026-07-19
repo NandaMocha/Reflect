@@ -64,6 +64,41 @@ or remove it once H2/H3 are done and T15 routing is the sole path. Zero producti
 incl. cold-launch invite). Must pass before P2 (T17+). H3 still depends on H2's accept round-trip
 (Device B) passing first.
 
+## P2 status (built on `feature/space-p2`)
+
+Worktree: `.../Reflect/Reflect-space-p2` (branched from `feature/space-p1` @ `8a86611`). Built ahead
+of H2/H3 at the user's request. All build green on the iPhone 17 (iOS 26.2) simulator, grep-clean,
+committed, **not pushed**.
+
+| Ticket | Commit | What |
+|---|---|---|
+| T17 | `ed30953` | Service + repository child CRUD (reflections/responses): parent refs carry the share; children fetched via zone-changes; author/`isMine` resolution; cache-through with scoped grace-windowed reconcile + response cascade |
+| T18 | `d8d3cee` | Child use cases (create/fetch reflections & responses, delete-own w/ `isMine` guard) + DI factories; new SpaceError cases |
+| T19 | `e469e5b` | UGC compliance: `SpaceTermsSheet` (one-time, gated by `spaceHasAcceptedTerms`), `ReportContentButton` (mailto), `space-appreview-notes.md` |
+| R4 fixes | `bfe4184` | Remediations (see below) |
+
+### R4 review — DONE
+
+Independent review of `8a86611..` (T17–T19). **All 3 gap signatures clean** (parent refs set; guards
+in use cases; scoped delete-stale). 7 findings; fixed in `bfe4184`:
+- **F1 (security):** `isMine` made **lane-aware + fail-closed** in the shared DB — `__defaultOwner__`
+  there is the share owner, not the current participant, so it no longer counts as mine (prevented a
+  participant seeing a delete affordance on the owner's content). **Still wants two-device
+  confirmation** of the shared-lane creator record-name semantics (H3/T24).
+- **F2:** deleting a reflection now **cascades** to its response records (parent action `.none`
+  doesn't cascade server-side — responses were orphaning).
+- F3 user-record-name cache race → locked. F4 prompt length validated. F5 author lookup reuses the
+  fetched records (no 2nd zone scan). F6 report-button fallback alert. F7 comment fixes.
+
+### P2 remaining (NOT built)
+
+- **T20** — Space detail (reflections list + compose), swaps T14's placeholder `navigationDestination`.
+- **T21** — Response thread (comment-style) UI.
+- **T22** — DB subscriptions + silent-push sync loop (touches `AppDelegate` again; hardware-only to
+  fully verify).
+- **R5** review; human gates **H4** (deploy CloudKit schema Dev→Production — release footgun) and
+  **H5** (TestFlight two-device E2E). T20/T21 depend on T18 (done); T22 on T17 (done).
+
 ## (historical) P0 next-step — H2 spike
 
 **Do not build the P1 UI until H2 passes** — H2 exists to de-risk the CloudKit foundation before
