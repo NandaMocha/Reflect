@@ -152,17 +152,49 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         return spaces
     }
 
-    /// Queries a zone for its single root `Space` record.
+    /// Finds a zone's single root `Space` record.
+    ///
+    /// Uses a zone-changes fetch rather than a `CKQuery`: querying (even with a
+    /// `TRUEPREDICATE`) requires the record type's `recordName` system field to be marked
+    /// **Queryable**, and auto-created Development schema leaves that index off — a
+    /// `CKQuery` there fails with "Field 'recordName' is not marked queryable".
+    /// `CKFetchRecordZoneChangesOperation` reads every record in the zone with no index
+    /// requirement, and it's the same primitive T22's sync loop will build on.
     private func fetchRootSpaceRecord(in zoneID: CKRecordZone.ID, database: CKDatabase) async throws -> CKRecord? {
+        let records = try await fetchAllRecords(in: zoneID, database: database)
+        return records.first { $0.recordType == SpaceRecordType.space }
+    }
+
+    /// Fetches every record currently in a custom zone via a one-shot zone-changes
+    /// operation (nil change token → full zone contents). Index-free; see
+    /// `fetchRootSpaceRecord` for why we avoid `CKQuery`.
+    private func fetchAllRecords(in zoneID: CKRecordZone.ID, database: CKDatabase) async throws -> [CKRecord] {
         try await withRetry {
-            let query = CKQuery(recordType: SpaceRecordType.space, predicate: NSPredicate(value: true))
-            let results = try await database.records(matching: query, inZoneWith: zoneID)
-            for (_, result) in results.matchResults {
-                if case .success(let record) = result {
-                    return record
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecord], Error>) in
+                let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
+                let operation = CKFetchRecordZoneChangesOperation(
+                    recordZoneIDs: [zoneID],
+                    configurationsByRecordZoneID: [zoneID: config]
+                )
+                operation.fetchAllChanges = true
+                operation.qualityOfService = .userInitiated
+
+                var records: [CKRecord] = []
+                operation.recordWasChangedBlock = { _, result in
+                    if case .success(let record) = result {
+                        records.append(record)
+                    }
                 }
+                operation.fetchRecordZoneChangesResultBlock = { result in
+                    switch result {
+                    case .success:
+                        continuation.resume(returning: records)
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+                database.add(operation)
             }
-            return nil
         }
     }
 
