@@ -104,8 +104,12 @@ struct LearningListView: View {
                 }
             }
         }
-        .toolbar(navigationPath.isEmpty ? .automatic : .hidden, for: .tabBar)
-        .animation(.easeInOut(duration: 0.3), value: navigationPath.isEmpty)
+        // Keep the tab bar on the learnings list (depth 0) AND the reflection list (depth 1)
+        // — the reflection list is the default landing page (state restoration opens the
+        // last-used learning), so it must stay reachable. Only hide it in the deeper
+        // reflection detail (depth 2+).
+        .toolbar(navigationPath.count >= 2 ? .hidden : .automatic, for: .tabBar)
+        .animation(.easeInOut(duration: 0.3), value: navigationPath.count)
         .onAppear {
             loadBadges()
             restoreState()
