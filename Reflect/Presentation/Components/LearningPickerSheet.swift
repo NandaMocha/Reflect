@@ -33,13 +33,13 @@ struct LearningPickerSheet: View {
                     } label: {
                         HStack {
                             Image(systemName: learning.iconName)
-                                .foregroundColor(Color(hex: learning.colorHex))
+                                .foregroundStyle(Color(hex: learning.colorHex))
                             Text(learning.title)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                             Spacer()
                             if currentSelection?.id == learning.id {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(.primaryDefault)
+                                    .foregroundStyle(Color.primaryDefault)
                             }
                         }
                     }

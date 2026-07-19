@@ -18,7 +18,7 @@ struct VideoPlayerView: View {
                         }
                 } else {
                     Text("Unable to load video")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -30,7 +30,7 @@ struct VideoPlayerView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding()
             }
         }

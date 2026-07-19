@@ -46,7 +46,7 @@ struct PrimaryButton: View {
                 RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
                     .fill(isDisabled ? Color.gray : Color.primaryDefault)
             )
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
         }
         .disabled(isDisabled || isLoading)
         .buttonStyle(PressableCardStyle())

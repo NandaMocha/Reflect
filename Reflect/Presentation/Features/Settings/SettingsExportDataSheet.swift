@@ -14,7 +14,7 @@ struct SettingsExportDataSheet: View {
             VStack(spacing: Constants.Spacing.lg) {
                 Image(systemName: "square.and.arrow.up.circle.fill")
                     .font(.system(size: 60))
-                    .foregroundColor(.primaryDefault)
+                    .foregroundStyle(Color.primaryDefault)
 
                 VStack(spacing: Constants.Spacing.xs) {
                     Text("Export Your Data")
@@ -22,7 +22,7 @@ struct SettingsExportDataSheet: View {
 
                     Text("Export all your learnings and reflections as a JSON file that you can backup or share.")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
 

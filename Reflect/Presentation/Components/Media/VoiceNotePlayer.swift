@@ -22,7 +22,7 @@ struct VoiceNotePlayer: View {
             Button(action: togglePlayback) {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
                     .background(Color.primaryDefault)
                     .clipShape(Circle())
@@ -38,13 +38,13 @@ struct VoiceNotePlayer: View {
                 HStack {
                     Text(formatDuration(currentTime))
                         .font(.caption2.monospacedDigit())
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Spacer()
 
                     Text(formatDuration(voiceRecording.duration))
                         .font(.caption2.monospacedDigit())
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -53,14 +53,14 @@ struct VoiceNotePlayer: View {
                 Button(action: { showTranscriptionPopup = true }) {
                     Image(systemName: "text.quote")
                         .font(.caption)
-                        .foregroundColor(.primaryDefault)
+                        .foregroundStyle(Color.primaryDefault)
                 }
             }
         }
         .padding(.vertical, Constants.Spacing.xs)
         .padding(.horizontal, Constants.Spacing.sm)
         .background(Color(.secondarySystemBackground))
-        .cornerRadius(Constants.CornerRadius.medium)
+        .clipShape(.rect(cornerRadius: Constants.CornerRadius.medium))
         .sheet(isPresented: $showTranscriptionPopup) {
             TranscriptionPopupView(
                 voiceRecording: voiceRecording,

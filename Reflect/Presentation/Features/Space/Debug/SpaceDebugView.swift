@@ -78,13 +78,13 @@ struct SpaceDebugView: View {
                     Text(space.name)
                     Text(space.id)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text("zone: \(space.zoneID.zoneName)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text("lane: \(space.zoneID.lane == .privateDB ? "private" : "shared")")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 

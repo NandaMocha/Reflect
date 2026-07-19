@@ -108,7 +108,7 @@ struct ReflectionListView: View {
                 await viewModel?.loadReflections()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .init("ReflectionDidSave"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .reflectionDidSave)) { _ in
             // Reload reflections when a notification is received after saving
             Task {
                 await viewModel?.loadReflections()
@@ -158,7 +158,7 @@ struct ReflectionListView: View {
             ProgressView()
             Text("Loading reflections...")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -266,7 +266,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -321,7 +321,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -369,7 +369,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()

@@ -11,14 +11,14 @@ struct FeatureRowView: View {
                     .frame(width: 44, height: 44)
                 Image(systemName: page.icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(page.color)
+                    .foregroundStyle(page.color)
             }
             VStack(alignment: .leading, spacing: Constants.Spacing.xxs) {
                 Text(page.title)
                     .font(.body.weight(.semibold))
                 Text(page.subtitle)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
@@ -35,11 +35,11 @@ struct OnboardingDataBadge: View {
         VStack(spacing: Constants.Spacing.xxs) {
             Text("\(count)")
                 .font(.title.weight(.bold).monospacedDigit())
-                .foregroundColor(.primaryDefault)
+                .foregroundStyle(Color.primaryDefault)
 
             Text(label)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding(Constants.Spacing.md)
         .frame(minWidth: 100)

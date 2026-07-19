@@ -18,12 +18,12 @@ struct ReflectionEditorHeaderView: View {
 
                         Image(systemName: learning.iconName)
                             .font(.system(size: 16))
-                            .foregroundColor(Color(hex: learning.colorHex))
+                            .foregroundStyle(Color(hex: learning.colorHex))
                     }
 
                     Text(learning.title)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -33,7 +33,7 @@ struct ReflectionEditorHeaderView: View {
             Button(action: onSelectDate) {
                 Text(formatDateShort(selectedDate))
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
     }

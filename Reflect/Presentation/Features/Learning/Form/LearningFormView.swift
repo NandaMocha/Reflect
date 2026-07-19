@@ -110,7 +110,7 @@ struct LearningFormView: View {
         } footer: {
             if title.count > Constants.Limits.learningTitleMaxLength {
                 Text("Title is too long (\(title.count)/\(Constants.Limits.learningTitleMaxLength))")
-                    .foregroundColor(.error)
+                    .foregroundStyle(Color.error)
             }
         }
     }
@@ -144,7 +144,7 @@ struct LearningFormView: View {
         } label: {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(selectedIcon == icon ? .white : .primary)
+                .foregroundStyle(selectedIcon == icon ? .white : .primary)
                 .frame(width: 48, height: 48)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
@@ -179,7 +179,7 @@ struct LearningFormView: View {
                     if selectedColor == colorHex {
                         Image(systemName: "checkmark")
                             .font(.caption.weight(.bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
         }

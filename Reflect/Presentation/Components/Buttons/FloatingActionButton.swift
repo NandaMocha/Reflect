@@ -17,7 +17,7 @@ struct FloatingActionButton: View {
             }) {
                 Image(systemName: icon)
                     .font(.title2.weight(.semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
                     .background(
                         Circle()

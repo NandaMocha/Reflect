@@ -67,7 +67,7 @@ struct OnboardingView: View {
                     .frame(width: 100, height: 100)
                 Image(systemName: "book.closed.fill")
                     .font(.system(size: 44, weight: .medium))
-                    .foregroundColor(.primaryDefault)
+                    .foregroundStyle(Color.primaryDefault)
             }
             VStack(spacing: Constants.Spacing.xs) {
                 Text("Welcome to \(Constants.App.name)")
@@ -75,7 +75,7 @@ struct OnboardingView: View {
                     .multilineTextAlignment(.center)
                 Text("Your personal learning companion")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -109,7 +109,7 @@ struct OnboardingView: View {
                         .font(.body.weight(.semibold))
                     Text("Looking for your previous data")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -119,13 +119,13 @@ struct OnboardingView: View {
                 HStack(spacing: Constants.Spacing.sm) {
                     Image(systemName: "icloud.fill")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.primaryDefault)
+                        .foregroundStyle(Color.primaryDefault)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Previous Data Found")
                             .font(.body.weight(.semibold))
                         Text("Restore your reflections from iCloud")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
                 }
@@ -142,7 +142,7 @@ struct OnboardingView: View {
         } else if let error = viewModel?.errorMessage {
             Text(error)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
         }
@@ -168,7 +168,7 @@ struct OnboardingView: View {
                     completeOnboarding()
                 }
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .disabled(viewModel?.isRestoring == true)
             } else {
                 PrimaryButton(

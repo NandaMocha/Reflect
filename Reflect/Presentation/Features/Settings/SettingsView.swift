@@ -17,13 +17,13 @@ struct SettingsView: View {
                     NavigationLink(destination: CloudSyncView()) {
                         HStack {
                             Image(systemName: "icloud")
-                                .foregroundColor(.primaryDefault)
+                                .foregroundStyle(Color.primaryDefault)
                                 .frame(width: 28)
                             VStack(alignment: .leading) {
                                 Text("iCloud Sync")
                                 Text("Backup and restore your data")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -56,10 +56,10 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Image(systemName: "square.and.arrow.up")
-                                .foregroundColor(.primaryDefault)
+                                .foregroundStyle(Color.primaryDefault)
                                 .frame(width: 28)
                             Text("Export Data")
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                         }
                     }
 
@@ -77,55 +77,6 @@ struct SettingsView: View {
                 } footer: {
                     Text("Clearing data will permanently delete all learnings, reflections, and attachments.")
                 }
-
-//                Section {
-//                    NavigationLink(destination: SettingsAboutView()) {
-//                        HStack {
-//                            Image(systemName: "info.circle")
-//                                .foregroundColor(.primaryDefault)
-//                                .frame(width: 28)
-//                            Text("About ReflectLearn")
-//                        }
-//                    }
-//
-//                    Link(destination: URL(string: "https://example.com/privacy")!) {
-//                        HStack {
-//                            Image(systemName: "hand.raised")
-//                                .foregroundColor(.primaryDefault)
-//                                .frame(width: 28)
-//                            Text("Privacy Policy")
-//                                .foregroundColor(.primary)
-//                            Spacer()
-//                            Image(systemName: "arrow.up.right")
-//                                .font(.caption)
-//                                .foregroundColor(.secondary)
-//                        }
-//                    }
-//
-//                    Link(destination: URL(string: "https://example.com/terms")!) {
-//                        HStack {
-//                            Image(systemName: "doc.text")
-//                                .foregroundColor(.primaryDefault)
-//                                .frame(width: 28)
-//                            Text("Terms of Service")
-//                                .foregroundColor(.primary)
-//                            Spacer()
-//                            Image(systemName: "arrow.up.right")
-//                                .font(.caption)
-//                                .foregroundColor(.secondary)
-//                        }
-//                    }
-//                } header: {
-//                    Text("About")
-//                } footer: {
-//                    VStack(spacing: 4) {
-//                        Text("ReflectLearn v\(Bundle.main.appVersion)")
-//                        Text("Build \(Bundle.main.buildNumber)")
-//                    }
-//                    .font(.caption)
-//                    .frame(maxWidth: .infinity)
-//                    .padding(.top, Constants.Spacing.lg)
-//                }
 
 #if DEBUG
                 Section {

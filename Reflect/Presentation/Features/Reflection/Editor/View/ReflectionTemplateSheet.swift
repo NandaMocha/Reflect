@@ -50,7 +50,7 @@ struct ReflectionTemplateSheet: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(templates[index].title)
                                 .font(.body)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                         }
                         .padding(.vertical, 4)
                     }

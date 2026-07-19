@@ -30,18 +30,18 @@ struct ReflectionCardCompact: View {
         VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
             Text(reflection.title)
                 .font(.headline)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
 
             Text(reflection.contentPreview)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .lineLimit(2)
 
             HStack {
                 Text(reflection.createdAt.shortFormatted)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
             }

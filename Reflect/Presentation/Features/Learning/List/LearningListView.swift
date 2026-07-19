@@ -64,7 +64,7 @@ struct LearningListView: View {
                     }
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
                         HapticManager.shared.lightImpact()
                         showSettings = true

@@ -47,7 +47,7 @@ struct IconButton: View {
         }) {
             Image(systemName: icon)
                 .font(size.iconFont)
-                .foregroundColor(color)
+                .foregroundStyle(color)
                 .frame(width: size.dimension, height: size.dimension)
                 .contentShape(Circle())
         }

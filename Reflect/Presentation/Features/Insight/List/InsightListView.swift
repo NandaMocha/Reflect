@@ -44,7 +44,7 @@ struct InsightListView: View {
             }
             .navigationTitle("Insights")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
                     filterMenu
                 }
             }
