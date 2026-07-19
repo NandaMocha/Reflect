@@ -15,6 +15,35 @@ Findings are deduped across the four passes. `T#` = tier. Each has a source tag:
 
 ---
 
+## Remediation status (applied on `feature/space-p2`, all build-green)
+
+**Key correction discovered while fixing:** the target sets `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`
+(Swift 5 mode). So several concurrency findings the review raised under *Swift-6-strict* assumptions —
+CloudSync models-off-main (#1b), the `lazy var`/`cachedUserRecordName` races (#4/#12), the "missing
+class `@MainActor`" VMs (#13), `DIContainer` (#14) — are **already safe**: everything is main-actor by
+default. Those were **not changed** (would be redundant/regression-risky). The `SpaceCloudService`→actor
+and CloudSync-snapshot rewrites were therefore **not needed**.
+
+**Applied:** #1a (group on main), #2 (case-insensitive search), #3 (refresh coalescing), #4 (Speech
+busy-spin — targeted), #5 (subscription launch penalty), #6 (errorAlert everywhere), #7 (edit-sheet
+dismiss-on-success), #8 (orphaned space cache cascade), #9 (zone deletions), #9-ui-c (achievement-gallery
+VM owned via `@State`), #11 (transient-only retry), #15-partial → **#Index** added, **VoiceAudioView →
+`@Observable`**, **NavigationView holdouts removed**, and the Tier-3 sweeps (foregroundStyle ×162,
+clipShape, toolbar placements, scrollIndicators, dead code, named notification, partial a11y labels).
+
+**Deferred (with reason):**
+- **Migration plan (#15)** — needs `VersionedSchema`/`SchemaMigrationPlan` across 3 stores; invasive and
+  unverifiable without runtime/tests. Do before the next non-lightweight schema change.
+- **Deep SpeechRecognitionService restructure (#4)** — the tap-vs-cleanup race + concurrent Combine
+  `send()` need an actor/AsyncStream rewrite of a core audio feature that can't be verified here.
+- **N+1 reconcile (#5-sd)** — perf-only, on the correctness-sensitive reconcile path just hardened in R4.
+- **ReflectionEditorView state → VM (#B8)**, broader accessibility, remaining `DispatchQueue.asyncAfter`
+  animation-timing, `.onAppear`→`.task` — large or low-risk-low-value; opportunistic.
+- **Nav-mixing (#C1/ui-s)** — assessed low-risk (a deep-link path reset pops the closure-pushed view
+  correctly); kept to avoid VM divergence.
+
+---
+
 ## Tier 1 — Correctness bugs (fix before ship)
 
 1. **`@Model` objects read off the main actor — data race / crash.** `[cc]`
