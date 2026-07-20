@@ -34,7 +34,7 @@ extension ReflectionEditorView {
         } label: {
             Image(systemName: "checkmark")
                 .fontWeight(.semibold)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
                 .background(Color.primaryDefault)
                 .clipShape(Circle())

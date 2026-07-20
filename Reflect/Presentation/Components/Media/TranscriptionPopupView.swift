@@ -10,7 +10,7 @@ struct TranscriptionPopupView: View {
                 HStack {
                     Image(systemName: "text.quote")
                         .font(.subheadline.weight(.medium))
-                        .foregroundColor(.primaryDefault)
+                        .foregroundStyle(Color.primaryDefault)
 
                     Text("Transcription")
                         .font(.subheadline.weight(.medium))
@@ -20,7 +20,7 @@ struct TranscriptionPopupView: View {
                     Button(action: { isPresented = false }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding()
@@ -30,7 +30,7 @@ struct TranscriptionPopupView: View {
                         VStack(alignment: .leading, spacing: Constants.Spacing.md) {
                             Text(transcription)
                                 .font(.body)
-                                .foregroundColor(.primary)
+                                .foregroundStyle(.primary)
                                 .lineSpacing(1.5)
 
                             Button(action: copyTranscription) {
@@ -43,8 +43,8 @@ struct TranscriptionPopupView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Color.primaryDefault)
-                                .foregroundColor(.white)
-                                .cornerRadius(Constants.CornerRadius.medium)
+                                .foregroundStyle(.white)
+                                .clipShape(.rect(cornerRadius: Constants.CornerRadius.medium))
                             }
                         }
                         .padding()
@@ -52,11 +52,11 @@ struct TranscriptionPopupView: View {
                         VStack(spacing: Constants.Spacing.md) {
                             Image(systemName: "text.quote")
                                 .font(.title2)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
 
                             Text("No Transcription Available")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     }

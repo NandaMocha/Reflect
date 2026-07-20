@@ -67,7 +67,7 @@ struct CloudSyncView: View {
 
                 Image(systemName: statusIcon)
                     .font(.system(size: 36))
-                    .foregroundColor(statusColor)
+                    .foregroundStyle(statusColor)
             }
 
             // Status Text
@@ -77,7 +77,7 @@ struct CloudSyncView: View {
 
                 Text(statusSubtitle)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -85,7 +85,7 @@ struct CloudSyncView: View {
             if let lastSync = viewModel?.lastSyncDate {
                 Text("Last synced: \(lastSync.relativeFormatted)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -136,7 +136,7 @@ struct CloudSyncView: View {
         VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
             Text("Local Data")
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             HStack {
                 DataCountCard(
@@ -179,14 +179,14 @@ struct CloudSyncView: View {
             HStack {
                 Text("iCloud Data")
                     .font(.headline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 if let date = data.lastBackupDate {
                     Text(date.relativeFormatted)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -250,11 +250,11 @@ struct CloudSyncView: View {
     private var warningSection: some View {
         HStack(spacing: Constants.Spacing.sm) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.warning)
+                .foregroundStyle(Color.warning)
 
             Text("Restoring will replace all local data with iCloud data.")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding(Constants.Spacing.md)
         .frame(maxWidth: .infinity)
@@ -285,14 +285,14 @@ struct DataCountCard: View {
         HStack(spacing: Constants.Spacing.sm) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(color)
+                .foregroundStyle(color)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count)")
                     .font(.headline.monospacedDigit())
                 Text(label)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()

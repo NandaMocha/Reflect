@@ -9,6 +9,7 @@ struct InsightListView: View {
     // Sheet presentation state
     @State private var showComposeSheet = false
     @State private var insightToEdit: Insight?
+    @State private var showSettings = false
 
     // Deep-link compose hook: flips to true to trigger the compose sheet, e.g. from `reflect://insight`.
     var composeSignal: Binding<Bool>
@@ -44,26 +45,24 @@ struct InsightListView: View {
             }
             .navigationTitle("Insights")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton { showSettings = true }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     filterMenu
                 }
             }
-            .searchable(text: $viewModel.searchQuery, prompt: "Search insights...")
+            .searchable(text: $viewModel.searchQuery, prompt: "Search insights...", isActive: !insights.isEmpty)
             .sheet(isPresented: $showComposeSheet) {
                 InsightEditorView(mode: .create)
             }
             .sheet(item: $insightToEdit) { insight in
                 InsightEditorView(mode: .edit(insight))
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK", role: .cancel) {
-                    viewModel.errorMessage = nil
-                }
-            } message: {
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
+            .errorAlert($viewModel.errorMessage, title: "Error")
             .onChange(of: composeSignal.wrappedValue) { _, newValue in
                 guard newValue else { return }
                 showComposeSheet = true

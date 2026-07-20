@@ -48,20 +48,20 @@ struct EntryCard: View {
                 if let title {
                     Text(title)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     Text(bodyText)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 } else {
                     // No title (insights): the text itself is the primary line.
                     Text(bodyText)
                         .font(.subheadline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
                 }
@@ -74,24 +74,24 @@ struct EntryCard: View {
                             if hasImages {
                                 Image(systemName: "photo")
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             if hasVoiceRecordings {
                                 Image(systemName: "mic")
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             if hasVideos {
                                 Image(systemName: "video")
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
 
                     Text(dateText)
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     if showFollowedUp {
                         followedUpBadge
@@ -118,7 +118,7 @@ struct EntryCard: View {
                                 .overlay(
                                     Image(systemName: "play.fill")
                                         .font(.system(size: 10))
-                                        .foregroundColor(.white)
+                                        .foregroundStyle(.white)
                                 )
                         }
                     }
@@ -127,7 +127,7 @@ struct EntryCard: View {
                 if extraMediaCount > 0 {
                     Text("+ \(extraMediaCount)")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: 50, alignment: .center)
                 }
             }

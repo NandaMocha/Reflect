@@ -2,10 +2,12 @@ import SwiftUI
 
 struct FloatingActionButton: View {
     let icon: String
+    let accessibilityLabel: String
     let action: () -> Void
 
-    init(icon: String = "plus", action: @escaping () -> Void) {
+    init(icon: String = "plus", accessibilityLabel: String = "Add", action: @escaping () -> Void) {
         self.icon = icon
+        self.accessibilityLabel = accessibilityLabel
         self.action = action
     }
 
@@ -17,7 +19,7 @@ struct FloatingActionButton: View {
             }) {
                 Image(systemName: icon)
                     .font(.title2.weight(.semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
                     .background(
                         Circle()
@@ -32,6 +34,7 @@ struct FloatingActionButton: View {
             }
             .buttonStyle(FABButtonStyle())
             .glassEffect()
+            .accessibilityLabel(accessibilityLabel)
         }
     }
 }

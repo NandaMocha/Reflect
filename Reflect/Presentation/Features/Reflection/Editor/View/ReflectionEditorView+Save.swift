@@ -31,7 +31,7 @@ extension ReflectionEditorView {
             if let learning = selectedLearning {
                 UserDefaults.standard.setLastUsedLearningId(learning.id)
             }
-            NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+            NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
             // `.badgesDidUnlock` was posted inside the use case; MainTabView observes it and
             // presents the celebration fullScreenCover. The editor dismisses right away so
             // the celebration lands cleanly over LearningListView.

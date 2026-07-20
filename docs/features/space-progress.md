@@ -5,14 +5,125 @@
 > decisions), [space-tasks.md](space-tasks.md) (the 25-ticket breakdown — the source of truth
 > for what each ticket does, its files, acceptance, executor, and the wave/lock tables).
 
-_Last updated: 2026-07-18 (end of P0)._
+_Last updated: 2026-07-19 (P1 UI built on `feature/space-p1`)._
 
 ## TL;DR status
 
-**P0 (CloudKit sharing foundation) is CODE-COMPLETE and committed.** Everything builds green.
-The next real step is the **H2 two-device spike** (human, needs two iCloud accounts on two
-physical devices). **Do not build the P1 UI until H2 passes** — H2 exists to de-risk the CloudKit
-foundation before investing in UI on top (per plan §12 / task doc checkpoint R2).
+**P0 is CODE-COMPLETE + committed on `feature/space`.** A runtime bug the H2 Device-A spike
+surfaced (owned-spaces `CKQuery` → "Field 'recordName' is not marked queryable") is **fixed** on
+`feature/space` @ `16bfd31` (root-record lookup now uses `CKFetchRecordZoneChangesOperation`, no
+index needed).
+
+**P1 (Spaces UI) BUILD-COMPLETE on `feature/space-p1`** (+ R3 review done). **P2 (child records,
+UI, push) BUILD-COMPLETE on `feature/space-p2`** (T17–T22 + R4 review done) — so the **entire Space
+feature is code-complete**. Everything was built ahead of the two-device hardware gates at the
+user's request, in stacked isolated branches. **Remaining is all hardware/human:** H2/H3 (two-device
+verification), H4 (deploy schema to Production), H5 (TestFlight E2E), then R5 + T25 final audit.
+
+> **H2 is only partially verified.** Device A passed availability/create/share/probe-write (+ the
+> query fix). The **accept round-trip still needs Device B (second iCloud account)** — scheduled by
+> the user for the next day. Don't start P2 until R3 + H3 pass.
+
+## P1 status (built on `feature/space-p1`)
+
+Worktree: `.../Reflect/Reflect-space-p1`. All tickets build green on the iPhone 17 simulator,
+grep-gate clean, committed (no push).
+
+| Ticket | Commit | What |
+|---|---|---|
+| T9 | `6442b58` | `SpaceRepository` (+protocol) — cloud-through cache, cloud-leads, both-lane reconcile |
+| T10 | `8dbd3c3` | 5 use cases under `Domain/UseCases/Space/` (create/fetch/delete/leave/accept) w/ owner guards |
+| T11 | `ac56d5c` | DIContainer `// MARK: - Space` factories (service, repo, 5 use cases) |
+| T13 | `07c3e0a` | Create-space form (`SpaceFormViewModel`/`View`) → presents `CloudSharingView` on success |
+| T14 | `bc46fd9` | Spaces list (`SpaceListViewModel`/`SpaceRowView`/`SpaceListView`) — owner Delete vs joined Leave (§11.3 copy), iCloud-unavailable state |
+| — | `7011c4e` | `SpaceListView` `openSpace` deep-link binding (list nav contract, enables T15) |
+| T15 | `991a72f` | Spaces tab in `MainTabView` + accept-invite routing (queues metadata behind onboarding/celebration covers) |
+
+**Detail navigation is a placeholder `Text`** until P2's T20 swaps in `SpaceDetailView`.
+
+### R3 review — DONE (2026-07-19)
+
+Independent review (Fable) of `16bfd31..` (the P1 slice). **All four R3 gap signatures passed clean**
+(three tabs; no `.modelContainer` on the Spaces tab; `WidgetAction` not extended; onboarding/
+celebration intact with the invite queued behind covers). Findings remediated:
+
+- `6fca38f` — 6 inline fixes: accept-failure now alerts (was silent); a second invite arriving
+  mid-accept is drained (was queued forever); `load()` force-reconciles (no stale spaces across
+  launches); reconcile grace window prevents accept→mirror-lag eviction; deep-link repaints from
+  cache; form Cancel disabled while saving.
+- `8c26798` — **cold-launch invites (finding #1)**: added `SpaceInviteInbox` + a window-free
+  `scene(_:willConnectTo:)` so an invite tapped while the app is closed is no longer dropped.
+  Simulator-verified: launches with content (no black screen), three tabs render.
+
+**Tracked follow-up (not yet done):** R3 finding #7 — `SpaceDebugView` (DEBUG-only) also observes
+`.spaceShareInviteReceived` and accepts directly, so with that screen open in a DEBUG build an invite
+is double-accepted. Left as-is on purpose (it's the H2 spike harness — don't change mid-test); gate
+or remove it once H2/H3 are done and T15 routing is the sole path. Zero production impact (`#if DEBUG`).
+
+**Open P1 gate:** **H3** (two-device: create→invite→join→leave→remove→delete through the real UI,
+incl. cold-launch invite). Must pass before P2 (T17+). H3 still depends on H2's accept round-trip
+(Device B) passing first.
+
+## P2 status (built on `feature/space-p2`)
+
+Worktree: `.../Reflect/Reflect-space-p2` (branched from `feature/space-p1` @ `8a86611`). Built ahead
+of H2/H3 at the user's request. All build green on the iPhone 17 (iOS 26.2) simulator, grep-clean,
+committed, **not pushed**.
+
+| Ticket | Commit | What |
+|---|---|---|
+| T17 | `ed30953` | Service + repository child CRUD (reflections/responses): parent refs carry the share; children fetched via zone-changes; author/`isMine` resolution; cache-through with scoped grace-windowed reconcile + response cascade |
+| T18 | `d8d3cee` | Child use cases (create/fetch reflections & responses, delete-own w/ `isMine` guard) + DI factories; new SpaceError cases |
+| T19 | `e469e5b` | UGC compliance: `SpaceTermsSheet` (one-time, gated by `spaceHasAcceptedTerms`), `ReportContentButton` (mailto), `space-appreview-notes.md` |
+| R4 fixes | `bfe4184` | Remediations (see below) |
+
+### R4 review — DONE
+
+Independent review of `8a86611..` (T17–T19). **All 3 gap signatures clean** (parent refs set; guards
+in use cases; scoped delete-stale). 7 findings; fixed in `bfe4184`:
+- **F1 (security):** `isMine` made **lane-aware + fail-closed** in the shared DB — `__defaultOwner__`
+  there is the share owner, not the current participant, so it no longer counts as mine (prevented a
+  participant seeing a delete affordance on the owner's content). **Still wants two-device
+  confirmation** of the shared-lane creator record-name semantics (H3/T24).
+- **F2:** deleting a reflection now **cascades** to its response records (parent action `.none`
+  doesn't cascade server-side — responses were orphaning).
+- F3 user-record-name cache race → locked. F4 prompt length validated. F5 author lookup reuses the
+  fetched records (no 2nd zone scan). F6 report-button fallback alert. F7 comment fixes.
+
+### P2 UI + sync (T20–T22) — BUILD-COMPLETE
+
+| Ticket | Commit | What |
+|---|---|---|
+| T20 | `0d804aa` | Space detail (`SpaceDetailViewModel`/`View`) — reflections list, compose, delete-own, report; replaces T14's placeholder destination; `SpaceListView` → type-erased `NavigationPath` |
+| T21 | `fea0aa1` | Response thread (`SpaceThreadViewModel`/`View`) — comment-style bubbles, always-visible composer, delete-own + report per response |
+| T22 | `922655a` | DB subscriptions + silent-push sync: `ensureSubscriptions` (idempotent), `syncChanges` (per-DB tokens in UserDefaults, reset-on-expiry), AppDelegate push handler, and the 3 Space views refresh on `spaceRemoteChangeReceived` + scenePhase `.active` |
+
+**Full feature is code-complete** (P0 + P1 + P2). Smoke-verified on the iPhone 17 (iOS 26.2) simulator:
+launches cleanly with three tabs (no crash from launch-time `ensureSubscriptions` when signed out).
+
+Notes/simplifications recorded during T22:
+- `syncChanges` advances **database-level** change tokens (persisted, simulator-checkable) and drives
+  a full re-fetch via the VMs' refresh — it does NOT do per-zone incremental upsert, because the
+  repository uses full zone fetches. Correct for the "fetch makes it correct" model; a future
+  optimization if needed.
+- No save-conflict handling: the model is append-only (create + delete, no field edits), so
+  `serverRecordChanged` conflicts don't arise (noted in `SpaceCloudService`).
+
+### Remaining before ship (all hardware/human)
+
+- **R5** — review after H5 (triage TestFlight findings).
+- **H2** (accept round-trip, Device B), **H3** (two-device P1 UI), **H4** (CloudKit Console: deploy
+  schema Dev→**Production** — release footgun), **H5** (TestFlight two-device E2E incl. silent push).
+- **T25** — final regression + decoupling audit + polish (after H5).
+- **R4 F1 still wants two-device confirmation** of the shared-lane `creatorUserRecordID` semantics
+  (the `isMine` authorship model) — fail-closed now, proven by H3/T24.
+
+## (historical) P0 next-step — H2 spike
+
+**Do not build the P1 UI until H2 passes** — H2 exists to de-risk the CloudKit foundation before
+investing in UI (per plan §12 / task doc checkpoint R2). _(P1 was subsequently built ahead of the
+H2 accept round-trip in the isolated `feature/space-p1` branch at the user's explicit request; the
+de-risk rationale still applies to **merging** and to **P2**.)_
 
 ## Where everything lives
 

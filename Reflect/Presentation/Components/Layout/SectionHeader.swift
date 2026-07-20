@@ -19,7 +19,7 @@ struct SectionHeader: View {
         HStack {
             Text(title)
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             Spacer()
 
@@ -27,7 +27,7 @@ struct SectionHeader: View {
                 Button(action: action) {
                     Text(label)
                         .font(.subheadline.weight(.medium))
-                        .foregroundColor(.primaryDefault)
+                        .foregroundStyle(Color.primaryDefault)
                 }
             }
         }
@@ -45,7 +45,7 @@ struct DateSectionHeader: View {
         HStack {
             Text(date.relativeFormatted)
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             Spacer()
         }

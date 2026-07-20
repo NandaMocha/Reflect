@@ -30,6 +30,14 @@ struct ReflectionListView: View {
         self._widgetAction = widgetAction
     }
 
+    /// Show the search field only when there's data, or the user has an active search /
+    /// favorites filter (so a zero-result search can still be cleared). Hidden on the
+    /// genuinely-empty state (learning with no reflections yet).
+    private var searchFieldActive: Bool {
+        guard let vm = viewModel else { return false }
+        return !vm.isEmpty || !vm.searchQuery.isEmpty || vm.showFavoritesOnly
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
@@ -55,12 +63,14 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
-        .searchable(text:Binding(
-            get: { viewModel?.searchQuery ?? "" },
-            set: { newValue in
-                viewModel?.updateSearchQuery(newValue)
-            }
-        ), prompt: "Search reflections...")
+        .searchable(
+            text: Binding(
+                get: { viewModel?.searchQuery ?? "" },
+                set: { newValue in viewModel?.updateSearchQuery(newValue) }
+            ),
+            prompt: "Search reflections...",
+            isActive: searchFieldActive
+        )
         .fullScreenCover(isPresented: $showCameraPicker) {
             cameraPickerView
         }
@@ -92,15 +102,10 @@ struct ReflectionListView: View {
         } message: {
             Text("Please create a Learning first before adding reflections")
         }
-        .alert("Error", isPresented: .constant(viewModel?.errorMessage != nil)) {
-            Button("OK", role: .cancel) {
-                viewModel?.errorMessage = nil
-            }
-        } message: {
-            if let error = viewModel?.errorMessage {
-                Text(error)
-            }
-        }
+        .errorAlert(
+            Binding(get: { viewModel?.errorMessage }, set: { viewModel?.errorMessage = $0 }),
+            title: "Error"
+        )
         .onAppear {
             // Initialize ViewModel with proper modelContext
             if viewModel == nil {
@@ -113,7 +118,7 @@ struct ReflectionListView: View {
                 await viewModel?.loadReflections()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .init("ReflectionDidSave"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .reflectionDidSave)) { _ in
             // Reload reflections when a notification is received after saving
             Task {
                 await viewModel?.loadReflections()
@@ -163,7 +168,7 @@ struct ReflectionListView: View {
             ProgressView()
             Text("Loading reflections...")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -271,7 +276,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -326,7 +331,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -374,7 +379,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()

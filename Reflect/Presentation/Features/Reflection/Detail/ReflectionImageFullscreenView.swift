@@ -63,11 +63,11 @@ struct ReflectionImageFullscreenView: View {
                                 Spacer()
                                 Text("\(currentIndex + 1)/\(images.count)")
                                     .font(.caption.weight(.medium))
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, Constants.Spacing.md)
                                     .padding(.vertical, Constants.Spacing.sm)
                                     .background(Color.black.opacity(0.6))
-                                    .cornerRadius(Constants.CornerRadius.small)
+                                    .clipShape(.rect(cornerRadius: Constants.CornerRadius.small))
                                 Spacer()
                             }
                             .padding(Constants.Spacing.md)
@@ -81,7 +81,7 @@ struct ReflectionImageFullscreenView: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                 }
 
                 ToolbarItem(placement: .primaryAction) {
@@ -89,7 +89,7 @@ struct ReflectionImageFullscreenView: View {
                         showShareSheet = true
                     } label: {
                         Image(systemName: "square.and.arrow.up")
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
             }

@@ -71,6 +71,118 @@ final class DIContainer {
         InsightListViewModel(deleteUseCase: makeDeleteInsightUseCase())
     }
 
+    // MARK: - Space
+
+    func makeSpaceCloudService() -> SpaceCloudServiceProtocol {
+        SpaceCloudService()
+    }
+
+    @MainActor
+    func makeSpaceRepository() -> SpaceRepositoryProtocol {
+        SpaceRepository(
+            cloudService: makeSpaceCloudService(),
+            modelContext: SpaceStore.container.mainContext
+        )
+    }
+
+    @MainActor
+    func makeCreateSpaceUseCase() -> CreateSpaceUseCaseProtocol {
+        CreateSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpacesUseCase() -> FetchSpacesUseCaseProtocol {
+        FetchSpacesUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteSpaceUseCase() -> DeleteSpaceUseCaseProtocol {
+        DeleteSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeLeaveSpaceUseCase() -> LeaveSpaceUseCaseProtocol {
+        LeaveSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeAcceptSpaceInviteUseCase() -> AcceptSpaceInviteUseCaseProtocol {
+        AcceptSpaceInviteUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeSpaceFormViewModel() -> SpaceFormViewModel {
+        SpaceFormViewModel(
+            createUseCase: makeCreateSpaceUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
+    @MainActor
+    func makeSpaceListViewModel() -> SpaceListViewModel {
+        SpaceListViewModel(
+            fetchUseCase: makeFetchSpacesUseCase(),
+            deleteUseCase: makeDeleteSpaceUseCase(),
+            leaveUseCase: makeLeaveSpaceUseCase(),
+            repository: makeSpaceRepository(),
+            cloudService: makeSpaceCloudService()
+        )
+    }
+
+    @MainActor
+    func makeCreateSpaceReflectionUseCase() -> CreateSpaceReflectionUseCaseProtocol {
+        CreateSpaceReflectionUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpaceReflectionsUseCase() -> FetchSpaceReflectionsUseCaseProtocol {
+        FetchSpaceReflectionsUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeCreateSpaceResponseUseCase() -> CreateSpaceResponseUseCaseProtocol {
+        CreateSpaceResponseUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpaceResponsesUseCase() -> FetchSpaceResponsesUseCaseProtocol {
+        FetchSpaceResponsesUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteOwnSpaceContentUseCase() -> DeleteOwnSpaceContentUseCaseProtocol {
+        DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeEditOwnSpaceResponseUseCase() -> EditOwnSpaceResponseUseCaseProtocol {
+        EditOwnSpaceResponseUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeSpaceDetailViewModel(space: Space) -> SpaceDetailViewModel {
+        SpaceDetailViewModel(
+            space: space,
+            fetchUseCase: makeFetchSpaceReflectionsUseCase(),
+            createUseCase: makeCreateSpaceReflectionUseCase(),
+            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
+    @MainActor
+    func makeSpaceThreadViewModel(reflection: SpaceReflection, space: Space) -> SpaceThreadViewModel {
+        SpaceThreadViewModel(
+            space: space,
+            reflection: reflection,
+            fetchUseCase: makeFetchSpaceResponsesUseCase(),
+            createUseCase: makeCreateSpaceResponseUseCase(),
+            editUseCase: makeEditOwnSpaceResponseUseCase(),
+            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {

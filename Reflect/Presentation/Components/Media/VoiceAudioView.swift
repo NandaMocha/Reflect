@@ -36,8 +36,8 @@ struct VoiceAudioView: View {
     @State private var showTranscription: Bool = false
 
     // Wrappers (only used in .record mode)
-    @StateObject private var audioRecorder = AudioRecorderWrapper()
-    @StateObject private var speechRecognizer = SpeechRecognizerWrapper()
+    @State private var audioRecorder = AudioRecorderWrapper()
+    @State private var speechRecognizer = SpeechRecognizerWrapper()
 
     private let selectedLanguage: SpeechLanguage = .indonesian
     private let waveformBarCount = 60
@@ -446,12 +446,13 @@ struct VoiceAudioView: View {
 
 // MARK: - Wrapper Classes
 
-class AudioRecorderWrapper: ObservableObject {
-    @Published var currentTime: TimeInterval = 0
-    @Published var audioLevel: Float = 0
+@Observable
+final class AudioRecorderWrapper {
+    var currentTime: TimeInterval = 0
+    var audioLevel: Float = 0
 
-    private let service = AudioRecorderService()
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private let service = AudioRecorderService()
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     init() {
         service.audioLevelPublisher
@@ -472,11 +473,12 @@ class AudioRecorderWrapper: ObservableObject {
     func cancelRecording() { service.cancelRecording() }
 }
 
-class SpeechRecognizerWrapper: ObservableObject {
-    @Published var transcription: String = ""
+@Observable
+final class SpeechRecognizerWrapper {
+    var transcription: String = ""
 
-    private let service = SpeechRecognitionService()
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private let service = SpeechRecognitionService()
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     init() {
         service.transcribedTextPublisher
