@@ -236,6 +236,61 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         return share
     }
 
+    // MARK: - Members
+
+    func fetchMembers(for zone: SpaceZoneRef) async throws -> [SpaceMember] {
+        let share = try await fetchShare(for: zone)
+        let myUserRecordName = await currentUserRecordName()
+
+        let members = share.participants.enumerated().compactMap { index, participant in
+            Self.member(from: participant, index: index, myUserRecordName: myUserRecordName)
+        }
+
+        // Owner first, then joined members, then pending invites; alphabetical inside each
+        // bucket so the list doesn't reshuffle between fetches.
+        return members.sorted { lhs, rhs in
+            let lhsRank = Self.sortRank(lhs)
+            let rhsRank = Self.sortRank(rhs)
+            if lhsRank != rhsRank { return lhsRank < rhsRank }
+            return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle) == .orderedAscending
+        }
+    }
+
+    private static func sortRank(_ member: SpaceMember) -> Int {
+        if member.role == .owner { return 0 }
+        return member.status == .joined ? 1 : 2
+    }
+
+    /// Flattens a `CKShare.Participant`. Returns nil for participants CloudKit still lists
+    /// after removal — they're no longer part of the space and shouldn't be shown.
+    ///
+    /// `index` only feeds the id fallback: a pending invite can have a nil `userRecordID`,
+    /// and two invites to different handles must not collide into one row.
+    private static func member(
+        from participant: CKShare.Participant,
+        index: Int,
+        myUserRecordName: String?
+    ) -> SpaceMember? {
+        guard participant.acceptanceStatus != .removed else { return nil }
+
+        let identity = participant.userIdentity
+        let recordName = identity.userRecordID?.recordName
+        let handle = identity.lookupInfo?.emailAddress ?? identity.lookupInfo?.phoneNumber
+
+        let name = identity.nameComponents.map { PersonNameComponentsFormatter().string(from: $0) }
+
+        return SpaceMember(
+            id: recordName ?? handle ?? "participant-\(index)",
+            displayName: (name?.isEmpty == false) ? name : nil,
+            contactHandle: handle,
+            role: participant.role == .owner ? .owner : .member,
+            status: participant.acceptanceStatus == .accepted ? .joined : .invited,
+            canPost: participant.permission == .readWrite,
+            // `userRecordID` is nil for pending invites, so an unresolved id is never "me".
+            isMe: recordName != nil && recordName == myUserRecordName
+        )
+    }
+
     // MARK: - Accept
 
     func acceptShare(metadata: CKShare.Metadata) async throws -> Space {

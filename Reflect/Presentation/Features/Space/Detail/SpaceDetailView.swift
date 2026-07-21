@@ -5,6 +5,7 @@ import SwiftUI
 struct SpaceDetailView: View {
     @State private var viewModel: SpaceDetailViewModel
     @State private var showCompose = false
+    @State private var showMembers = false
     @State private var reflectionToDelete: SpaceReflection?
     @Environment(\.scenePhase) private var scenePhase
 
@@ -31,12 +32,23 @@ struct SpaceDetailView: View {
                 }
                 .accessibilityLabel("Ask for Feedback")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showMembers = true
+                } label: {
+                    Image(systemName: "person.2")
+                }
+                .accessibilityLabel("Members")
+            }
         }
         .navigationDestination(for: SpaceReflection.self) { reflection in
             SpaceThreadView(space: viewModel.space, reflection: reflection)
         }
         .sheet(isPresented: $showCompose) {
             composeSheet
+        }
+        .sheet(isPresented: $showMembers) {
+            SpaceMembersView(space: viewModel.space)
         }
         .task { await viewModel.load() }
         .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in

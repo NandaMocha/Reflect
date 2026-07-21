@@ -22,6 +22,10 @@ protocol SpaceRepositoryProtocol {
     /// The `CKShare` backing a space's root record, for the sharing controller.
     func shareForSpace(_ space: Space) async throws -> CKShare
 
+    /// A space's members, read live from its `CKShare`. Not cached — membership lives on
+    /// the share, not in a record, so there's nothing in `SpaceStore` to reconcile.
+    func members(of space: Space) async throws -> [SpaceMember]
+
     /// Accepts an incoming invite and caches the resulting joined space.
     func acceptInvite(metadata: CKShare.Metadata) async throws -> Space
 

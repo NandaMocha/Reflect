@@ -111,6 +111,11 @@ final class DIContainer {
     }
 
     @MainActor
+    func makeFetchSpaceMembersUseCase() -> FetchSpaceMembersUseCaseProtocol {
+        FetchSpaceMembersUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
     func makeSpaceFormViewModel() -> SpaceFormViewModel {
         SpaceFormViewModel(
             createUseCase: makeCreateSpaceUseCase(),
@@ -166,6 +171,15 @@ final class DIContainer {
             fetchUseCase: makeFetchSpaceReflectionsUseCase(),
             createUseCase: makeCreateSpaceReflectionUseCase(),
             deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
+    @MainActor
+    func makeSpaceMembersViewModel(space: Space) -> SpaceMembersViewModel {
+        SpaceMembersViewModel(
+            space: space,
+            fetchUseCase: makeFetchSpaceMembersUseCase(),
             repository: makeSpaceRepository()
         )
     }

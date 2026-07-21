@@ -24,6 +24,10 @@ protocol SpaceCloudServiceProtocol {
     /// for `zone.lane`.
     func fetchShare(for zone: SpaceZoneRef) async throws -> CKShare
 
+    /// The share's participants, flattened into `SpaceMember` values. Owner first, then
+    /// joined members, then still-pending invites.
+    func fetchMembers(for zone: SpaceZoneRef) async throws -> [SpaceMember]
+
     /// Accepts an incoming share invitation and returns the resulting joined `Space`.
     func acceptShare(metadata: CKShare.Metadata) async throws -> Space
 
