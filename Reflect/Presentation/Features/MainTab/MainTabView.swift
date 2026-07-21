@@ -93,6 +93,15 @@ struct MainTabView: View {
     }
 
     private func checkOnboardingStatus() {
+#if DEBUG
+        // Developer override (Settings → Debug → "Always show onboarding"): re-present the
+        // first-run sheet on every launch so it can be reviewed without deleting the app.
+        // Compiled out of release builds entirely.
+        if UserDefaults.standard.bool(forKey: Constants.UserDefaults.debugAlwaysShowOnboarding) {
+            showOnboarding = true
+            return
+        }
+#endif
         let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: Constants.UserDefaults.hasCompletedOnboarding)
         if !hasCompletedOnboarding {
             showOnboarding = true

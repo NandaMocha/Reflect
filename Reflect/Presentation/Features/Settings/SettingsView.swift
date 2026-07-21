@@ -6,6 +6,9 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(Constants.UserDefaults.selectedTheme) private var selectedTheme: String = "system"
     @AppStorage(Constants.UserDefaults.defaultLanguage) private var defaultLanguage: String = "en-US"
+#if DEBUG
+    @AppStorage(Constants.UserDefaults.debugAlwaysShowOnboarding) private var debugAlwaysShowOnboarding: Bool = false
+#endif
 
     @State var showClearDataAlert = false
     @State var showExportSheet = false
@@ -83,8 +86,12 @@ struct SettingsView: View {
                     NavigationLink(destination: SpaceDebugView()) {
                         Text("🧪 Space Debug (spike)")
                     }
+
+                    Toggle("🧪 Always show onboarding", isOn: $debugAlwaysShowOnboarding)
                 } header: {
                     Text("Debug")
+                } footer: {
+                    Text("Re-presents the welcome screen on every launch. Takes effect the next time you open the app.")
                 }
 #endif
             }

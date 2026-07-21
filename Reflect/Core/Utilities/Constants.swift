@@ -101,6 +101,10 @@ enum Constants {
     // MARK: - User Defaults Keys
     enum UserDefaults {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        /// DEBUG-only override: when true, the onboarding sheet is shown on every launch
+        /// regardless of `hasCompletedOnboarding`. Read only from inside `#if DEBUG`, so a
+        /// release build ignores it even if the key is somehow set.
+        static let debugAlwaysShowOnboarding = "debugAlwaysShowOnboarding"
         static let selectedTheme = "selectedTheme"
         static let defaultLanguage = "defaultLanguage"
         static let lastSyncDate = "lastSyncDate"
