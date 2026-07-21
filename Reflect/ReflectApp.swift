@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import AppIntents
 
 // MARK: - Widget Action Enum
 
@@ -73,6 +74,10 @@ struct ReflectApp: App {
                 }
                 .onAppear {
                     initializeBadges()
+                    // Nudge the system to (re)ingest ReflectShortcuts. Without this, the
+                    // App Shortcuts can fail to surface in Shortcuts/Spotlight/Siri on a
+                    // fresh install — they'd otherwise wait on first-launch indexing.
+                    ReflectShortcuts.updateAppShortcutParameters()
                 }
         }
         .modelContainer(modelContainer)
