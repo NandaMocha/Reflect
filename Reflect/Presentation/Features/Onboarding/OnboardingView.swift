@@ -4,9 +4,9 @@ import SwiftUI
 /// Learnings, Insights, Spaces.
 ///
 /// Two deliberate constraints:
-/// - The **Get Started** button only appears on the last page, so the walkthrough is read
-///   rather than skipped. Earlier pages show a swipe hint in the same slot, which is
-///   height-matched so the footer never jumps as you page through.
+/// - Paging is **swipe-only** — there is no Next button. The **Get Started** button only
+///   appears on the last page, so the walkthrough is read rather than skipped. Its slot is
+///   height-reserved on every page so the dots never shift as you page through.
 /// - The sheet is **not** interactively dismissable (`interactiveDismissDisabled`). Leaving
 ///   is only possible through the CTA, which is what marks onboarding complete — a
 ///   swipe-away would otherwise re-present it on the next launch.
@@ -17,6 +17,10 @@ struct OnboardingView: View {
     @State private var currentPage: Int = 0
 
     private let pages = OnboardingPage.all
+
+    /// Matches `PrimaryButton`'s rendered height, so the empty slot on earlier pages
+    /// reserves exactly what the button will occupy on the last one.
+    private let ctaSlotHeight: CGFloat = 50
 
     private var isLastPage: Bool { currentPage == pages.count - 1 }
 
@@ -60,7 +64,7 @@ struct OnboardingView: View {
             callToAction
                 // Reserve the CTA's height on every page so the dots don't shift when the
                 // button fades in on the last one.
-                .frame(minHeight: 50)
+                .frame(minHeight: ctaSlotHeight)
         }
         .padding(.horizontal, Constants.Spacing.lg)
         .padding(.top, Constants.Spacing.md)
@@ -72,17 +76,10 @@ struct OnboardingView: View {
     @ViewBuilder
     private var callToAction: some View {
         if !isLastPage {
-            Button {
-                withAnimation { currentPage += 1 }
-            } label: {
-                HStack(spacing: Constants.Spacing.xxs) {
-                    Text("Swipe to continue")
-                    Image(systemName: "chevron.right")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-            .transition(.opacity)
+            // Intentionally empty: paging is swipe-only. The height is explicit rather
+            // than `minHeight` — an unbounded `Color.clear` is greedy and would grow the
+            // footer until it squeezed the pager off the screen.
+            Color.clear.frame(height: ctaSlotHeight)
         } else if viewModel?.cloudDataSummary != nil {
             // Previous data found: restoring is the primary action, starting clean the
             // secondary one. Both complete onboarding.

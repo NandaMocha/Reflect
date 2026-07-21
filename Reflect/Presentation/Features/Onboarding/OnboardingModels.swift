@@ -27,45 +27,45 @@ extension OnboardingPage {
         OnboardingPage(
             icon: "book.closed.fill",
             title: "Welcome to Reflect",
-            subtitle: "Your learning journal. Capture what you're learning, revisit it later, and grow with people you trust.",
+            subtitle: "A simple place to keep what you're learning.",
             color: .primaryDefault,
             highlights: [
-                OnboardingHighlight(icon: "square.and.pencil", text: "Write with text, photos, voice notes, or video"),
-                OnboardingHighlight(icon: "icloud.fill", text: "Backed up to your own private iCloud"),
-                OnboardingHighlight(icon: "widget.small.badge.plus", text: "Capture from the widget, Siri, or Spotlight")
+                OnboardingHighlight(icon: "square.and.pencil", text: "Write it, photograph it, or just say it"),
+                OnboardingHighlight(icon: "icloud.fill", text: "Saved to your own iCloud, on its own"),
+                OnboardingHighlight(icon: "widget.small.badge.plus", text: "Start from the widget, Siri, or Spotlight")
             ]
         ),
         OnboardingPage(
             icon: "book.fill",
             title: "Learnings",
-            subtitle: "A Learning is a topic you're working on. Every reflection you write lives inside one, so your progress stays organised.",
+            subtitle: "One topic, and everything you've written about it.",
             color: .primaryDefault,
             highlights: [
-                OnboardingHighlight(icon: "folder.fill", text: "Group reflections by topic — Swift, cooking, anything"),
-                OnboardingHighlight(icon: "mic.fill", text: "Dictate in Indonesian or English, get an instant transcript"),
-                OnboardingHighlight(icon: "rosette", text: "Unlock badges as your reflections add up")
+                OnboardingHighlight(icon: "folder.fill", text: "Add a topic in two taps"),
+                OnboardingHighlight(icon: "mic.fill", text: "Speak Indonesian or English — we'll type it out"),
+                OnboardingHighlight(icon: "rosette", text: "Badges arrive on their own as you write")
             ]
         ),
         OnboardingPage(
             icon: "lightbulb.fill",
             title: "Insights",
-            subtitle: "For the thoughts that don't need a full reflection yet. Catch them in seconds before they slip away.",
+            subtitle: "For a quick thought you don't want to lose.",
             color: .warning,
             highlights: [
-                OnboardingHighlight(icon: "questionmark.circle.fill", text: "Save a question to come back and answer"),
-                OnboardingHighlight(icon: "note.text", text: "Or a note you just want to keep close"),
-                OnboardingHighlight(icon: "bolt.fill", text: "Add one without even opening the app")
+                OnboardingHighlight(icon: "questionmark.circle.fill", text: "Keep a question for later"),
+                OnboardingHighlight(icon: "note.text", text: "Or a note, in one line"),
+                OnboardingHighlight(icon: "bolt.fill", text: "Add one without opening the app")
             ]
         ),
         OnboardingPage(
             icon: "person.3.fill",
             title: "Spaces",
-            subtitle: "Learning sticks better with feedback. Invite people you trust into a private, invite-only space.",
+            subtitle: "Share what you're learning with a few people you trust.",
             color: .success,
             highlights: [
-                OnboardingHighlight(icon: "person.badge.plus", text: "Only the people you invite can see it"),
-                OnboardingHighlight(icon: "text.bubble.fill", text: "Ask for feedback and talk it through in a thread"),
-                OnboardingHighlight(icon: "lock.fill", text: "Leave any time — owners can remove anyone")
+                OnboardingHighlight(icon: "person.badge.plus", text: "Send an invite — only they can see it"),
+                OnboardingHighlight(icon: "text.bubble.fill", text: "Ask for feedback, reply in a thread"),
+                OnboardingHighlight(icon: "lock.fill", text: "Leave whenever you want")
             ]
         )
     ]
