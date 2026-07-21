@@ -239,20 +239,24 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     // MARK: - Accept
 
     func acceptShare(metadata: CKShare.Metadata) async throws -> Space {
-        try await withRetry {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
-                operation.qualityOfService = .userInitiated
-                operation.acceptSharesResultBlock = { result in
-                    switch result {
-                    case .success:
-                        continuation.resume(returning: ())
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
+        do {
+            try await withRetry {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
+                    operation.qualityOfService = .userInitiated
+                    operation.acceptSharesResultBlock = { result in
+                        switch result {
+                        case .success:
+                            continuation.resume(returning: ())
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
                     }
+                    self.container.add(operation)
                 }
-                self.container.add(operation)
             }
+        } catch {
+            throw Self.acceptError(from: error)
         }
 
         // After acceptance the zone is mirrored into the SHARED database; fetch the
@@ -263,7 +267,12 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         guard let rootRecordID = metadata.hierarchicalRootRecordID else {
             throw SpaceError.acceptFailed("Share metadata has no root record ID")
         }
-        let rootRecord = try await withRetry { try await self.sharedDB.record(for: rootRecordID) }
+        let rootRecord: CKRecord
+        do {
+            rootRecord = try await withRetry { try await self.sharedDB.record(for: rootRecordID) }
+        } catch {
+            throw Self.acceptError(from: error)
+        }
         let participantCount = metadata.share.participants.count
 
         guard let space = SpaceRecordMapper.space(
@@ -275,6 +284,36 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             throw SpaceError.acceptFailed("Could not map the accepted Space record")
         }
         return space
+    }
+
+    /// Turns a raw `CKError` from the accept path into something a user can act on.
+    ///
+    /// The raw `localizedDescription` for these ("Record not found", "Invalid arguments")
+    /// tells the user nothing. The most common real cause in the field is an environment
+    /// mismatch — a share created by a Development-signed build can't be accepted by a
+    /// TestFlight/App Store build, because CloudKit's Development and Production
+    /// environments are entirely separate stores. That surfaces as `unknownItem` /
+    /// `zoneNotFound`, so the copy points at re-sending the invite from matching builds.
+    private static func acceptError(from error: Error) -> SpaceError {
+        guard let ckError = error as? CKError else {
+            return .acceptFailed(error.localizedDescription)
+        }
+        switch ckError.code {
+        case .unknownItem, .zoneNotFound, .invalidArguments:
+            return .acceptFailed(
+                "this invite is no longer valid, or it came from a different version of Reflect. Ask the owner to send a new one."
+            )
+        case .participantMayNeedVerification:
+            return .acceptFailed(
+                "sign in to iCloud with the account the invite was sent to."
+            )
+        case .notAuthenticated, .accountTemporarilyUnavailable:
+            return .iCloudUnavailable
+        case .networkUnavailable, .networkFailure, .serviceUnavailable, .requestRateLimited:
+            return .acceptFailed("iCloud is unreachable right now. Try again in a moment.")
+        default:
+            return .acceptFailed(ckError.localizedDescription)
+        }
     }
 
     // MARK: - Delete (owner) / Leave (participant)
