@@ -25,9 +25,21 @@ struct OnboardingView: View {
             color: .warning
         ),
         OnboardingPage(
+            icon: "lightbulb.fill",
+            title: "Catch Quick Insights",
+            subtitle: "Jot a question or a note the moment it hits you.",
+            color: .warning
+        ),
+        OnboardingPage(
+            icon: "person.3.fill",
+            title: "Learn Together in Spaces",
+            subtitle: "Invite people you trust and get feedback on what you're learning.",
+            color: .primaryDefault
+        ),
+        OnboardingPage(
             icon: "widget.small.badge.plus",
             title: "Very Accessible",
-            subtitle: "Ready to do reflection since you open your screen.",
+            subtitle: "Capture from the widget, Siri, or Spotlight — without opening the app.",
             color: .warning
         )
     ]
