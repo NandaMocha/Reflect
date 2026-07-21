@@ -4,10 +4,20 @@ import Combine
 import DSWaveformImage
 
 final class AudioRecorderService: NSObject, AudioRecorderServiceProtocol {
+    /// Waveform levels are emitted at 20Hz regardless of the display's refresh rate — see
+    /// `updateRecordingTime`. With the view's 60-bar window that spans ~3 seconds of audio.
+    private static let levelEmissionInterval: CFTimeInterval = 0.05
+    /// dBFS treated as silence. Metering runs to -160 dB, but nothing quieter than about
+    /// -50 dB is audible room tone, and mapping the full range would leave speech crammed
+    /// into the top few percent of the bar height.
+    private static let silenceFloorDB: Float = 50
+
     private var audioRecorder: AVAudioRecorder?
     private var displayLink: CADisplayLink?
     private var recordingURL: URL?
     private var startTime: Date?
+    private var pendingPeakLevel: Float = 0
+    private var lastLevelEmission: CFTimeInterval = 0
 
     private let recordingStateSubject = CurrentValueSubject<AudioRecordingState, Never>(.idle)
     private let audioLevelSubject = PassthroughSubject<Float, Never>()
@@ -144,6 +154,8 @@ final class AudioRecorderService: NSObject, AudioRecorderServiceProtocol {
 
     private func startDisplayLink() {
         stopDisplayLink()
+        pendingPeakLevel = 0
+        lastLevelEmission = CACurrentMediaTime()
         displayLink = CADisplayLink(target: self, selector: #selector(updateRecordingTime))
         displayLink?.add(to: .main, forMode: .common)
     }
@@ -157,9 +169,28 @@ final class AudioRecorderService: NSObject, AudioRecorderServiceProtocol {
         guard let recorder = audioRecorder, recorder.isRecording else { return }
 
         recorder.updateMeters()
-        let level = recorder.averagePower(forChannel: 0)
-        let normalizedLevel = max(0, (level + 60) / 60)
-        audioLevelSubject.send(normalizedLevel)
+
+        // Peak leads the blend: `averagePower` is already smoothed by AVAudioRecorder and on
+        // its own squashes speech into a narrow mid band, which draws as a nearly flat
+        // waveform. A little average mixed in keeps single-frame spikes from twitching.
+        let decibels = recorder.peakPower(forChannel: 0) * 0.7
+            + recorder.averagePower(forChannel: 0) * 0.3
+        let normalized = max(0, min(1, (decibels + Self.silenceFloorDB) / Self.silenceFloorDB))
+
+        // Hold the loudest reading seen since the last emission, so a transient between
+        // emissions still registers instead of being missed by whichever frame we sample on.
+        pendingPeakLevel = max(pendingPeakLevel, normalized)
+
+        // Emit on a fixed clock rather than once per frame. A display-link tick is 60Hz or
+        // 120Hz depending on the device, and the waveform view keeps a fixed-length rolling
+        // window — so emitting per frame made the waveform scroll twice as fast on a
+        // ProMotion device, and made the whole window span well under a second on any device.
+        let now = CACurrentMediaTime()
+        if now - lastLevelEmission >= Self.levelEmissionInterval {
+            lastLevelEmission = now
+            audioLevelSubject.send(pendingPeakLevel)
+            pendingPeakLevel = 0
+        }
 
         recordingStateSubject.send(.recording(duration: recorder.currentTime))
     }

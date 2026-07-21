@@ -40,12 +40,6 @@ struct VoiceAudioView: View {
     @State private var speechRecognizer = SpeechRecognizerWrapper()
 
     private let selectedLanguage: SpeechLanguage = .indonesian
-    private let waveformBarCount = 60
-    private let sampleInterval: TimeInterval = 0.05
-
-    private var defaultWaveformLevels: [Float] {
-        Array(repeating: Float(0.65), count: waveformBarCount)
-    }
 
     // MARK: - Init
 
@@ -93,13 +87,6 @@ struct VoiceAudioView: View {
             .onChange(of: audioRecorder.currentTime) { _, newValue in
                 if newValue > 0 { recordDuration = newValue }
             }
-            .onChange(of: audioRecorder.audioLevel) { _, newValue in
-                if screenState == .recording {
-                    let level = max(0, min(1, 1 - newValue))
-                    if waveformLevels.count >= waveformBarCount { waveformLevels.removeFirst() }
-                    waveformLevels.append(level)
-                }
-            }
             .onChange(of: speechRecognizer.transcription) { _, newValue in
                 transcription = newValue
             }
@@ -131,8 +118,11 @@ struct VoiceAudioView: View {
     private var waveformSection: some View {
         switch screenState {
         case .idle, .recording:
+            // Idle draws the recorder's all-silence window: a flat baseline, which reads as
+            // "armed, nothing coming in". The previous placeholder was a constant mid-level
+            // array, i.e. a fake waveform for audio that didn't exist.
             ReflectWaveform(
-                content: .live(samples: waveformLevels.isEmpty ? defaultWaveformLevels : waveformLevels),
+                content: .live(samples: audioRecorder.waveformSamples),
                 style: .full,
                 color: .primaryDefault
             )
@@ -316,14 +306,23 @@ struct VoiceAudioView: View {
     private func startRecording() async {
         do {
             try await audioRecorder.startRecording()
-            try await speechRecognizer.startRecording(language: selectedLanguage)
-            screenState = .recording
-            recordDuration = 0
-            waveformLevels = []
-            HapticManager.shared.lightImpact()
         } catch {
             HapticManager.shared.error()
+            return
         }
+
+        // Transcription rides along on top of the audio — it is not the point of the screen,
+        // so it must not gate it. Awaiting it here meant speech recognition could take the
+        // recording down with it in two different ways: by throwing (permission not granted,
+        // locale unsupported), which discarded a perfectly good recording with nothing but an
+        // error haptic; or by never returning at all, which left the audio queue running
+        // while the UI sat on "Tap to start recording" forever. Start it alongside instead,
+        // and treat a missing transcript as a degraded result rather than a failed one.
+        Task { try? await speechRecognizer.startRecording(language: selectedLanguage) }
+
+        screenState = .recording
+        recordDuration = 0
+        HapticManager.shared.lightImpact()
     }
 
     @MainActor
@@ -333,12 +332,18 @@ struct VoiceAudioView: View {
 
         do {
             let audioResult = try await audioRecorder.stopRecording()
-            let speechResult = try await speechRecognizer.stopRecording()
+            // Same reasoning as `startRecording`: never let the transcript take the audio
+            // down with it.
+            let speechResult = try? await speechRecognizer.stopRecording()
 
             recordingResult = audioResult
-            transcription = speechResult.transcription ?? ""
+            transcription = speechResult?.transcription ?? ""
 
-            waveformLevels = audioResult.waveformSamples.isEmpty ? waveformLevels : audioResult.waveformSamples
+            // Prefer the full-file analysis over the live rolling window: the window only
+            // holds the last few seconds, whereas playback needs the whole recording.
+            waveformLevels = audioResult.waveformSamples.isEmpty
+                ? audioRecorder.waveformSamples
+                : audioResult.waveformSamples
             setupPlayback(data: audioResult.data, duration: audioResult.duration)
             screenState = .playback
             HapticManager.shared.success()
@@ -449,15 +454,32 @@ struct VoiceAudioView: View {
 @Observable
 final class AudioRecorderWrapper {
     var currentTime: TimeInterval = 0
-    var audioLevel: Float = 0
 
+    /// Rolling window of the most recent levels, already in DSWaveformImage's convention
+    /// (`0` = loudest, `1` = silence).
+    ///
+    /// Always exactly `barCount` long: it starts full of silence and scrolls right-to-left,
+    /// so the waveform *grows into* the view as you speak. Keeping it a fixed length is what
+    /// makes the visualisation honest — a shorter array gets stretched across the full width
+    /// by `ReflectWaveform`, which made a half-second of audio look identical in extent to
+    /// thirty seconds of it.
+    ///
+    /// The buffer lives here rather than in the view because a `Float` level that repeats its
+    /// previous value — silence, most obviously — doesn't fire `onChange`, so a view-side
+    /// buffer stopped scrolling whenever the room went quiet.
+    private(set) var waveformSamples: [Float]
+
+    @ObservationIgnored private let barCount: Int
     @ObservationIgnored private let service = AudioRecorderService()
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
-    init() {
+    init(barCount: Int = 60) {
+        self.barCount = barCount
+        self.waveformSamples = Self.silence(barCount)
+
         service.audioLevelPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] level in self?.audioLevel = level }
+            .sink { [weak self] level in self?.appendLevel(level) }
             .store(in: &cancellables)
 
         service.recordingStatePublisher
@@ -468,9 +490,27 @@ final class AudioRecorderWrapper {
             .store(in: &cancellables)
     }
 
-    func startRecording() async throws { try await service.startRecording() }
+    func startRecording() async throws {
+        waveformSamples = Self.silence(barCount)
+        try await service.startRecording()
+    }
+
     func stopRecording() async throws -> AudioRecordingResult { try await service.stopRecording() }
     func cancelRecording() { service.cancelRecording() }
+
+    /// Shifts the window one bar to the left and drops the new level on the right. The
+    /// service publishes normalised loudness (`1` = loudest), which inverts here into the
+    /// renderer's convention.
+    private func appendLevel(_ level: Float) {
+        var next = waveformSamples
+        next.removeFirst()
+        next.append(max(0, min(1, 1 - level)))
+        waveformSamples = next
+    }
+
+    private static func silence(_ count: Int) -> [Float] {
+        Array(repeating: 1.0, count: count)
+    }
 }
 
 @Observable
