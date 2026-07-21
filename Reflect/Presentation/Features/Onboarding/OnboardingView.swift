@@ -1,64 +1,40 @@
 import SwiftUI
 
+/// First-run walkthrough: a swipeable pager introducing Reflect and its three pillars —
+/// Learnings, Insights, Spaces.
+///
+/// Two deliberate constraints:
+/// - The **Get Started** button only appears on the last page, so the walkthrough is read
+///   rather than skipped. Earlier pages show a swipe hint in the same slot, which is
+///   height-matched so the footer never jumps as you page through.
+/// - The sheet is **not** interactively dismissable (`interactiveDismissDisabled`). Leaving
+///   is only possible through the CTA, which is what marks onboarding complete — a
+///   swipe-away would otherwise re-present it on the next launch.
 struct OnboardingView: View {
     @Binding var isPresented: Bool
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: OnboardingViewModel?
+    @State private var currentPage: Int = 0
 
-    private let features: [OnboardingPage] = [
-        OnboardingPage(
-            icon: "book.closed.fill",
-            title: "Capture Everything",
-            subtitle: "Save learnings with voice, text, and images in seconds.",
-            color: .primaryDefault
-        ),
-        OnboardingPage(
-            icon: "folder.fill.badge.gearshape",
-            title: "Organize Your Learnings",
-            subtitle: "Create categories and find any insight instantly.",
-            color: .success
-        ),
-        OnboardingPage(
-            icon: "mic.fill",
-            title: "Speak Your Thoughts",
-            subtitle: "Dictate in Indonesian or English and get an instant transcript.",
-            color: .warning
-        ),
-        OnboardingPage(
-            icon: "lightbulb.fill",
-            title: "Catch Quick Insights",
-            subtitle: "Jot a question or a note the moment it hits you.",
-            color: .warning
-        ),
-        OnboardingPage(
-            icon: "person.3.fill",
-            title: "Learn Together in Spaces",
-            subtitle: "Invite people you trust and get feedback on what you're learning.",
-            color: .primaryDefault
-        ),
-        OnboardingPage(
-            icon: "widget.small.badge.plus",
-            title: "Very Accessible",
-            subtitle: "Capture from the widget, Siri, or Spotlight — without opening the app.",
-            color: .warning
-        )
-    ]
+    private let pages = OnboardingPage.all
+
+    private var isLastPage: Bool { currentPage == pages.count - 1 }
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: Constants.Spacing.xl) {
-                    heroSection
-                    featureListSection
-                    iCloudSection
+            TabView(selection: $currentPage) {
+                ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
+                    OnboardingPageView(page: page)
+                        .tag(index)
                 }
-                .padding(.horizontal, Constants.Spacing.lg)
-                .padding(.top, Constants.Spacing.xxl)
-                .padding(.bottom, Constants.Spacing.lg)
             }
-            ctaFooter
+            // Dots are drawn in the footer instead, so the built-in ones are suppressed.
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            footer
         }
         .background(Color(.systemBackground))
+        .interactiveDismissDisabled()
         .onAppear {
             if viewModel == nil {
                 viewModel = OnboardingViewModel(modelContext: modelContext)
@@ -69,42 +45,76 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Hero Section
+    // MARK: - Footer
 
-    private var heroSection: some View {
+    private var footer: some View {
         VStack(spacing: Constants.Spacing.md) {
-            ZStack {
-                Circle()
-                    .fill(Color.primaryDefault.opacity(0.12))
-                    .frame(width: 100, height: 100)
-                Image(systemName: "book.closed.fill")
-                    .font(.system(size: 44, weight: .medium))
-                    .foregroundStyle(Color.primaryDefault)
+            // Restore is only offered at the end — surfacing it mid-walkthrough would
+            // compete with the pages for attention.
+            if isLastPage {
+                iCloudSection
             }
-            VStack(spacing: Constants.Spacing.xs) {
-                Text("Welcome to \(Constants.App.name)")
-                    .font(.largeTitle.weight(.bold))
-                    .multilineTextAlignment(.center)
-                Text("Your personal learning companion")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+
+            OnboardingPageIndicator(pageCount: pages.count, currentPage: currentPage)
+
+            callToAction
+                // Reserve the CTA's height on every page so the dots don't shift when the
+                // button fades in on the last one.
+                .frame(minHeight: 50)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, Constants.Spacing.lg)
+        .padding(.top, Constants.Spacing.md)
+        .padding(.bottom, Constants.Spacing.xl)
+        .background(Color(.systemBackground))
+        .animation(.easeInOut(duration: 0.25), value: isLastPage)
     }
 
-    // MARK: - Feature List Section
-
-    private var featureListSection: some View {
-        VStack(spacing: 0) {
-            ForEach(features) { page in
-                FeatureRowView(page: page)
-                if page.id != features.last?.id {
-                    Divider()
-                        .padding(.leading, 44 + Constants.Spacing.md)
+    @ViewBuilder
+    private var callToAction: some View {
+        if !isLastPage {
+            Button {
+                withAnimation { currentPage += 1 }
+            } label: {
+                HStack(spacing: Constants.Spacing.xxs) {
+                    Text("Swipe to continue")
+                    Image(systemName: "chevron.right")
                 }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
+            .transition(.opacity)
+        } else if viewModel?.cloudDataSummary != nil {
+            // Previous data found: restoring is the primary action, starting clean the
+            // secondary one. Both complete onboarding.
+            VStack(spacing: Constants.Spacing.sm) {
+                PrimaryButton(
+                    viewModel?.isRestoring == true ? "Restoring..." : "Restore from iCloud",
+                    icon: "icloud.and.arrow.down",
+                    isLoading: viewModel?.isRestoring == true,
+                    isDisabled: viewModel?.isRestoring == true
+                ) {
+                    Task {
+                        let success = await viewModel?.restoreFromCloud() ?? false
+                        if success { completeOnboarding() }
+                    }
+                }
+                Button("Start Fresh") {
+                    completeOnboarding()
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .disabled(viewModel?.isRestoring == true)
+            }
+            .transition(.opacity)
+        } else {
+            PrimaryButton(
+                "Get Started",
+                icon: "arrow.right",
+                isDisabled: viewModel?.isCheckingCloud == true
+            ) {
+                completeOnboarding()
+            }
+            .transition(.opacity)
         }
     }
 
@@ -113,21 +123,16 @@ struct OnboardingView: View {
     @ViewBuilder
     private var iCloudSection: some View {
         if viewModel?.isCheckingCloud == true {
-            HStack(spacing: Constants.Spacing.md) {
+            HStack(spacing: Constants.Spacing.sm) {
                 NativeLoadingSpinner()
-                    .frame(width: 44, height: 44)
-                VStack(alignment: .leading, spacing: Constants.Spacing.xxs) {
-                    Text("Checking iCloud...")
-                        .font(.body.weight(.semibold))
-                    Text("Looking for your previous data")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                    .frame(width: 24, height: 24)
+                Text("Checking iCloud for your previous data…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
-            .padding(.vertical, Constants.Spacing.sm)
         } else if let summary = viewModel?.cloudDataSummary {
-            VStack(spacing: Constants.Spacing.md) {
+            VStack(spacing: Constants.Spacing.sm) {
                 HStack(spacing: Constants.Spacing.sm) {
                     Image(systemName: "icloud.fill")
                         .font(.system(size: 20, weight: .medium))
@@ -158,44 +163,6 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
         }
-    }
-
-    // MARK: - CTA Footer
-
-    private var ctaFooter: some View {
-        VStack(spacing: Constants.Spacing.sm) {
-            if viewModel?.isCheckingCloud == false, viewModel?.cloudDataSummary != nil {
-                PrimaryButton(
-                    viewModel?.isRestoring == true ? "Restoring..." : "Restore from iCloud",
-                    icon: "icloud.and.arrow.down",
-                    isLoading: viewModel?.isRestoring == true,
-                    isDisabled: viewModel?.isRestoring == true
-                ) {
-                    Task {
-                        let success = await viewModel?.restoreFromCloud() ?? false
-                        if success { completeOnboarding() }
-                    }
-                }
-                Button("Start Fresh") {
-                    completeOnboarding()
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .disabled(viewModel?.isRestoring == true)
-            } else {
-                PrimaryButton(
-                    "Get Started",
-                    icon: "arrow.right",
-                    isDisabled: viewModel?.isCheckingCloud == true
-                ) {
-                    completeOnboarding()
-                }
-            }
-        }
-        .padding(.horizontal, Constants.Spacing.lg)
-        .padding(.top, Constants.Spacing.md)
-        .padding(.bottom, Constants.Spacing.xl)
-        .background(Color(.systemBackground))
     }
 
     // MARK: - Actions
