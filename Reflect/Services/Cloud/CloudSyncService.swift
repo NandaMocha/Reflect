@@ -190,6 +190,16 @@ final class CloudSyncService: CloudSyncServiceProtocol {
         do {
             let snapshot = try await fetchBackupSnapshot()
 
+            // Never wipe local data for an empty download. `apply` deletes the local store
+            // before inserting, so restoring an empty snapshot would destroy everything and
+            // still report success. If the backup came back empty (deleted elsewhere, or a
+            // transient fetch failure), bail out and leave the local store untouched.
+            guard !snapshot.isEmpty else {
+                let error = SyncError.emptyBackup
+                syncStatusSubject.send(.failed(error.localizedDescription ?? "No backup found"))
+                throw error
+            }
+
             // The download is the slow half; the write is fast but not instant, so the bar
             // parks at 90% rather than jumping to done before anything is on disk.
             syncStatusSubject.send(.syncing(progress: 0.9))

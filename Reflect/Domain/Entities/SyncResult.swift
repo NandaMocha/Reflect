@@ -26,6 +26,9 @@ enum SyncError: Error, LocalizedError {
     case uploadFailed(String)
     case downloadFailed(String)
     case conflictDetected(String)
+    /// The iCloud backup came back empty at restore time. Surfaced instead of wiping the
+    /// local store and reporting a success that silently destroyed the user's data.
+    case emptyBackup
     case unknown(Error)
 
     var errorDescription: String? {
@@ -42,6 +45,8 @@ enum SyncError: Error, LocalizedError {
             return "Download failed: \(message)"
         case .conflictDetected(let message):
             return "Conflict detected: \(message)"
+        case .emptyBackup:
+            return "No backup was found to restore. Your local data has been left unchanged."
         case .unknown(let error):
             return "An unknown error occurred: \(error.localizedDescription)"
         }
