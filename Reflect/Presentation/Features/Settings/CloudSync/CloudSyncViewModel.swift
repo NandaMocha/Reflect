@@ -17,16 +17,19 @@ final class CloudSyncViewModel {
     // MARK: - Dependencies
     private let modelContext: ModelContext
     private let cloudSyncService: CloudSyncServiceProtocol
+    private let restoreUseCase: RestoreFromCloudUseCaseProtocol?
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
         modelContext: ModelContext,
-        cloudSyncService: CloudSyncServiceProtocol? = nil
+        cloudSyncService: CloudSyncServiceProtocol? = nil,
+        restoreUseCase: RestoreFromCloudUseCaseProtocol? = nil
     ) {
         self.modelContext = modelContext
         self.cloudSyncService = cloudSyncService ?? CloudSyncService()
+        self.restoreUseCase = restoreUseCase
 
         setupSubscriptions()
     }
@@ -202,7 +205,11 @@ final class CloudSyncViewModel {
         errorMessage = nil
 
         do {
-            let result = try await cloudSyncService.restore()
+            let useCase = restoreUseCase ?? RestoreFromCloudUseCase(
+                modelContext: modelContext,
+                cloudSyncService: cloudSyncService
+            )
+            let result = try await useCase.execute()
 
             if result.success {
                 saveLastSyncDate()

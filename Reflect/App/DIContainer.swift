@@ -292,6 +292,24 @@ final class DIContainer {
         CloudSyncService()
     }
 
+    // MARK: - Use Cases - Sync
+
+    @MainActor
+    func makeRestoreFromCloudUseCase(
+        cloudSyncService: CloudSyncServiceProtocol
+    ) -> RestoreFromCloudUseCaseProtocol {
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured")
+        }
+        // The service is passed in rather than built here: the caller's view model is already
+        // subscribed to that instance's status publisher, and a second instance would restore
+        // without ever moving the caller's progress bar.
+        return RestoreFromCloudUseCase(
+            modelContext: context,
+            cloudSyncService: cloudSyncService
+        )
+    }
+
     // MARK: - Services - Achievement
 
     func makeBadgeEvaluationService() -> BadgeEvaluationService {
@@ -367,9 +385,11 @@ final class DIContainer {
         guard let context = modelContext else {
             fatalError("ModelContext not configured")
         }
+        let cloudSyncService = makeCloudSyncService()
         return CloudSyncViewModel(
             modelContext: context,
-            cloudSyncService: makeCloudSyncService()
+            cloudSyncService: cloudSyncService,
+            restoreUseCase: makeRestoreFromCloudUseCase(cloudSyncService: cloudSyncService)
         )
     }
 
@@ -377,9 +397,11 @@ final class DIContainer {
         guard let context = modelContext else {
             fatalError("ModelContext not configured")
         }
+        let cloudSyncService = makeCloudSyncService()
         return OnboardingViewModel(
             modelContext: context,
-            cloudSyncService: makeCloudSyncService()
+            cloudSyncService: cloudSyncService,
+            restoreUseCase: makeRestoreFromCloudUseCase(cloudSyncService: cloudSyncService)
         )
     }
 }
