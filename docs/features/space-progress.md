@@ -5,24 +5,53 @@
 > decisions), [space-tasks.md](space-tasks.md) (the 25-ticket breakdown — the source of truth
 > for what each ticket does, its files, acceptance, executor, and the wave/lock tables).
 
-_Last updated: 2026-07-19 (P1 UI built on `feature/space-p1`)._
+_Last updated: 2026-07-20 (feature merged to `develop`; post-P2 UX + launch screen + icon fix)._
 
-## TL;DR status
+## TL;DR status (2026-07-20)
 
-**P0 is CODE-COMPLETE + committed on `feature/space`.** A runtime bug the H2 Device-A spike
-surfaced (owned-spaces `CKQuery` → "Field 'recordName' is not marked queryable") is **fixed** on
-`feature/space` @ `16bfd31` (root-record lookup now uses `CKFetchRecordZoneChangesOperation`, no
-index needed).
+**The entire Space feature is CODE-COMPLETE and MERGED into local `develop`** (merge commit
+`80b1e59`, `--no-ff`). P0 (CloudKit foundation) + P1 (UI, R3 review) + P2 (child records/UI/push,
+R4 review) all landed. `develop` builds green on the iPhone 17 (iOS 26.2) simulator and is
+**installed on _Nanda iPhone 16_**. **Nothing is pushed** — `develop` is ~90 commits ahead of
+`origin/develop`, all local.
 
-**P1 (Spaces UI) BUILD-COMPLETE on `feature/space-p1`** (+ R3 review done). **P2 (child records,
-UI, push) BUILD-COMPLETE on `feature/space-p2`** (T17–T22 + R4 review done) — so the **entire Space
-feature is code-complete**. Everything was built ahead of the two-device hardware gates at the
-user's request, in stacked isolated branches. **Remaining is all hardware/human:** H2/H3 (two-device
-verification), H4 (deploy schema to Production), H5 (TestFlight E2E), then R5 + T25 final audit.
+**Feature branches/worktrees still exist** (untouched, as history/backup): `feature/space`
+(P0 @`16bfd31`), `feature/space-p1` (@`8a86611`), `feature/space-p2` (@`8d63ece`). New work is now
+done directly on **`develop`** (in the `.../Reflect/Reflect` worktree) — the stacked-worktree phase
+is over.
 
-> **H2 is only partially verified.** Device A passed availability/create/share/probe-write (+ the
-> query fix). The **accept round-trip still needs Device B (second iCloud account)** — scheduled by
-> the user for the next day. Don't start P2 until R3 + H3 pass.
+### Done since P2 (all on `develop`)
+- **Response editing** + split the thread into a **"Your feedback"** compose page and a separate
+  **"All feedback"** page (toolbar button) — write your own before seeing others.
+- **Peer-feedback reframe (UI copy only):** a space's seed post is now a **feedback request**
+  ("Ask for Feedback"), replies are **feedback**. Personal side stays **Reflection** →
+  Reflect(privately) / Feedback(from others) duality. **CloudKit record types + Swift types are
+  UNCHANGED** (`SpaceReflection`/`Response`), so the schema is untouched. See
+  [space-appreview-notes.md](space-appreview-notes.md).
+- **swift-latest codebase review** (4 Fable passes, swift-pro skills) → [swift-latest-review.md](../reviews/swift-latest-review.md);
+  Tier 1/2/3 fixes applied. Key discovery: target sets `SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor`,
+  which made several "off-main races" already safe (so SpaceCloudService→actor was NOT needed).
+  Deferred: schema migration plan, deep SpeechRecognitionService rewrite, N+1 reconcile (documented).
+- **UX:** brand-green `AccentColor` (tab bar + accents now green, not system blue); Settings gear on
+  ALL tabs (shared `SettingsToolbarButton`); tab bar hides on push **except** the reflection list
+  (it's the restore-to default landing); date-grouped feedback list (`SpaceReflectionDateGroup`);
+  search field hidden on empty lists (`ConditionalSearchable`); destructive confirms use `.alert`.
+- **Launch screen:** centered app icon (100pt, light/dark) on an adaptive `LaunchBackground`
+  (`UILaunchScreen` in Info.plist; `UILaunchScreen_Generation=NO`).
+- **App-icon fix (App Store 90717):** primary 1024 icon had a transparent margin → **flattened to
+  opaque** (filled with its light-sage edge color). Dark/tinted keep alpha per HIG. Re-archive/upload
+  should now pass.
+
+### Remaining before ship (ALL hardware/human — none are code)
+- **H2** two-device spike accept round-trip (needs **Device B** = 2nd iCloud account; Device A
+  passed avail/create/share/probe-write). Use Settings → 🧪 Space Debug on the installed build.
+- **H3** two-device P1 UI verification (incl. the R4-F1 `isMine` authorship check on the shared lane,
+  + cold-launch invite).
+- **H4** CloudKit Console: **deploy schema Dev→Production** (record types `Space`/`SpaceReflection`/
+  `Response` + subscriptions) — release footgun; TestFlight talks to Production.
+- **H5** TestFlight two-device E2E incl. silent push.
+- **R5** review (triage H5 findings) + **T25** final regression/decoupling audit.
+- Optional: **push `develop`** to origin when ready (agents never push).
 
 ## P1 status (built on `feature/space-p1`)
 
