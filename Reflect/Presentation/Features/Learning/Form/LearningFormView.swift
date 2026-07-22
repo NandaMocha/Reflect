@@ -48,7 +48,9 @@ struct LearningFormView: View {
     }
 
     private var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        // Match the "too long" footer warning so Save can't submit an over-limit title.
+        return !trimmed.isEmpty && title.count <= Constants.Limits.learningTitleMaxLength
     }
 
     var body: some View {
@@ -156,7 +158,12 @@ struct LearningFormView: View {
 
     private var colorSection: some View {
         Section {
-            HStack(spacing: 12) {
+            // A grid (not a fixed HStack) so the swatches distribute across the row and wrap on
+            // narrow devices instead of overflowing/clipping the trailing colors.
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 40), spacing: Constants.Spacing.sm)],
+                spacing: Constants.Spacing.sm
+            ) {
                 ForEach(Constants.LearningColors.all, id: \.self) { colorHex in
                     colorButton(for: colorHex)
                 }
@@ -168,7 +175,8 @@ struct LearningFormView: View {
     }
 
     private func colorButton(for colorHex: String) -> some View {
-        Button {
+        let isSelected = selectedColor == colorHex
+        return Button {
             HapticManager.shared.selection()
             selectedColor = colorHex
         } label: {
@@ -176,12 +184,22 @@ struct LearningFormView: View {
                 .fill(Color(hex: colorHex))
                 .frame(width: 36, height: 36)
                 .overlay {
-                    if selectedColor == colorHex {
+                    if isSelected {
                         Image(systemName: "checkmark")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(.white)
+                            // Legible even on the lighter swatches.
+                            .shadow(color: .black.opacity(0.35), radius: 1)
                     }
                 }
+                // A halo ring makes the selection obvious regardless of swatch color.
+                .overlay {
+                    Circle()
+                        .stroke(Color.primary, lineWidth: 2)
+                        .padding(-3)
+                        .opacity(isSelected ? 1 : 0)
+                }
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
     }
