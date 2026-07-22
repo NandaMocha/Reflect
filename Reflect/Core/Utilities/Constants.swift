@@ -108,6 +108,9 @@ enum Constants {
         static let selectedTheme = "selectedTheme"
         static let defaultLanguage = "defaultLanguage"
         static let lastSyncDate = "lastSyncDate"
+        /// Whether the one-time camera-reflection intro sheet has been shown. After this is set,
+        /// the camera opens straight to the remembered `preferredCameraPosition`.
+        static let hasSeenCameraIntro = "hasSeenCameraIntro"
     }
 
     // MARK: - Speech Languages
