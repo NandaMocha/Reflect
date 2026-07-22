@@ -49,11 +49,14 @@ final class SpaceRepository: SpaceRepositoryProtocol {
 
     // MARK: - Write (cloud leads, cache follows)
 
-    func createSpace(name: String, detail: String?, emoji: String?) async throws -> Space {
-        let (space, _) = try await cloudService.createSpace(name: name, detail: detail, emoji: emoji)
+    func createSpace(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare) {
+        let (space, share) = try await cloudService.createSpace(name: name, detail: detail, emoji: emoji)
         try upsert(space)
         try modelContext.save()
-        return space
+        // Hand back the share the cloud service already created; re-fetching it here (or in the
+        // caller) races CloudKit's read-after-write on the just-written zone and can spuriously
+        // throw `.notFound`.
+        return (space, share)
     }
 
     func shareForSpace(_ space: Space) async throws -> CKShare {

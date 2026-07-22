@@ -1,7 +1,10 @@
+import CloudKit
 import Foundation
 
 protocol CreateSpaceUseCaseProtocol {
-    func execute(name: String, detail: String?, emoji: String?) async throws -> Space
+    /// Returns the created space and the `CKShare` backing its root record, so the caller
+    /// can immediately present the sharing controller without re-fetching the share.
+    func execute(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare)
 }
 
 /// Validates the space name (the last line of defense — not the ViewModel) before
@@ -14,7 +17,7 @@ final class CreateSpaceUseCase: CreateSpaceUseCaseProtocol {
         self.repository = repository
     }
 
-    func execute(name: String, detail: String?, emoji: String?) async throws -> Space {
+    func execute(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { throw SpaceError.nameRequired }
         guard trimmedName.count <= Constants.Limits.spaceNameMaxLength else { throw SpaceError.nameTooLong }

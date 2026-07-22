@@ -17,7 +17,9 @@ protocol SpaceRepositoryProtocol {
     func fetchSpaces(forceRefresh: Bool) async throws -> [Space]
 
     /// Creates a space (custom zone + root record + share) in CloudKit, then caches it.
-    func createSpace(name: String, detail: String?, emoji: String?) async throws -> Space
+    /// Returns the new space together with the `CKShare` the cloud service created, so the
+    /// caller can present the sharing controller without a race-prone re-fetch.
+    func createSpace(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare)
 
     /// The `CKShare` backing a space's root record, for the sharing controller.
     func shareForSpace(_ space: Space) async throws -> CKShare

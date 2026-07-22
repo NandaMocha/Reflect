@@ -24,13 +24,11 @@ final class SpaceFormViewModel {
     // MARK: - Dependencies
 
     private let createUseCase: CreateSpaceUseCaseProtocol
-    private let repository: SpaceRepositoryProtocol
 
     // MARK: - Initialization
 
-    init(createUseCase: CreateSpaceUseCaseProtocol, repository: SpaceRepositoryProtocol) {
+    init(createUseCase: CreateSpaceUseCaseProtocol) {
         self.createUseCase = createUseCase
-        self.repository = repository
     }
 
     // MARK: - Computed
@@ -55,12 +53,14 @@ final class SpaceFormViewModel {
         errorMessage = nil
 
         do {
-            let space = try await createUseCase.execute(
+            // The use case hands back the CKShare it just created alongside the space — use it
+            // directly. Re-fetching the share here previously raced CloudKit's read-after-write
+            // on the new zone and threw `.notFound` ("That space could not be found").
+            let (space, share) = try await createUseCase.execute(
                 name: name,
                 detail: detail,
                 emoji: emoji.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : emoji
             )
-            let share = try await repository.shareForSpace(space)
 
             createdSpace = space
             createdShare = share

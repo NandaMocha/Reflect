@@ -118,8 +118,7 @@ final class DIContainer {
     @MainActor
     func makeSpaceFormViewModel() -> SpaceFormViewModel {
         SpaceFormViewModel(
-            createUseCase: makeCreateSpaceUseCase(),
-            repository: makeSpaceRepository()
+            createUseCase: makeCreateSpaceUseCase()
         )
     }
 
