@@ -7,13 +7,12 @@ struct ReflectShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: CreateInsightIntent(),
             phrases: [
-                // Type-specific — lets the user say "Add a question / note".
+                // Type-specific — lets the user say "Add a question / note". The generic
+                // "Add an insight" phrasing was dropped as redundant now that both types are
+                // directly sayable and "Add Reflection" covers the third capture path.
                 "Add a \(\.$type) to \(.applicationName)",
                 "Capture a \(\.$type) in \(.applicationName)",
-                "New \(\.$type) in \(.applicationName)",
-                // Generic — the app then asks which type.
-                "Add an insight to \(.applicationName)",
-                "Capture an insight in \(.applicationName)"
+                "New \(\.$type) in \(.applicationName)"
             ],
             shortTitle: "Add Insight",
             systemImageName: "lightbulb.fill"
