@@ -130,9 +130,11 @@ struct ReflectionEditorView: View {
                     }
                 }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
-                .fullScreenCover(isPresented: $showMediaPicker) {
-                    mediaPickerSheet
-                }
+                .cameraReflectionFlow(
+                    isPresented: $showMediaPicker,
+                    onPhotoPicked: { image in processCapturedImage(image) },
+                    onVideoPicked: { url, _, _ in processCapturedVideo(url) }
+                )
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
                 .sheet(isPresented: $showTemplatePicker) { templatePickerSheet }

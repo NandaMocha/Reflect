@@ -13,6 +13,9 @@ enum MediaPickerResult {
 
 struct ImagePickerView: UIViewControllerRepresentable {
     let sourceType: UIImagePickerController.SourceType
+    /// Which camera to open with (only used when `sourceType == .camera`). Defaults to `.front`
+    /// to preserve the original selfie-style behavior for any caller that doesn't specify one.
+    var cameraPosition: CameraPosition = .front
     var onPhotoPicked: ((UIImage) -> Void)?
     var onVideoPicked: ((URL, UIImage, TimeInterval) -> Void)?
     @Environment(\.dismiss) private var dismiss
@@ -26,9 +29,13 @@ struct ImagePickerView: UIViewControllerRepresentable {
         // Support both photo and video
         picker.mediaTypes = ["public.image", "public.movie"]
 
-        // Set camera to front-facing and mirrored
+        // Open with the requested camera (front is mirrored below); fall back to front if the
+        // requested device isn't available on this hardware.
         if sourceType == .camera {
-            if UIImagePickerController.isCameraDeviceAvailable(.front) {
+            let requested = cameraPosition.device
+            if UIImagePickerController.isCameraDeviceAvailable(requested) {
+                picker.cameraDevice = requested
+            } else if UIImagePickerController.isCameraDeviceAvailable(.front) {
                 picker.cameraDevice = .front
             }
         }

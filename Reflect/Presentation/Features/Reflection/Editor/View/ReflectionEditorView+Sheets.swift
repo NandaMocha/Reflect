@@ -38,21 +38,6 @@ extension ReflectionEditorView {
     }
 
     @ViewBuilder
-    var mediaPickerSheet: some View {
-        ImagePickerView(
-            sourceType: .camera,
-            onPhotoPicked: { image in
-                processCapturedImage(image)
-                showMediaPicker = false
-            },
-            onVideoPicked: { url, thumbnail, duration in
-                processCapturedVideo(url)
-                showMediaPicker = false
-            }
-        )
-    }
-
-    @ViewBuilder
     var videoPlayerSheet: some View {
         if let index = selectedVideoIndex, index < videos.count {
             VideoPlayerView(videoData: videos[index].videoData)

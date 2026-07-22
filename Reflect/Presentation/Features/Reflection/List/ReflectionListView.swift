@@ -71,9 +71,15 @@ struct ReflectionListView: View {
             prompt: "Search reflections...",
             isActive: searchFieldActive
         )
-        .fullScreenCover(isPresented: $showCameraPicker) {
-            cameraPickerView
-        }
+        .cameraReflectionFlow(
+            isPresented: $showCameraPicker,
+            onPhotoPicked: { image in
+                Task { await handlePhotoPicked(image) }
+            },
+            onVideoPicked: { url, thumbnail, duration in
+                Task { await handleVideoPicked(url: url, thumbnail: thumbnail, duration: duration) }
+            }
+        )
         .fullScreenCover(isPresented: $showEditor) {
             ReflectionEditorView(mode: .create, preselectedLearning: learning, onDismiss: {
                 showEditor = false
@@ -198,27 +204,6 @@ struct ReflectionListView: View {
                 showVoiceRecorder = true
             }
         )
-    }
-
-    // MARK: - Camera Picker
-
-    private var cameraPickerView: some View {
-        ImagePickerView(
-            sourceType: .camera,
-            onPhotoPicked: { image in
-                Task {
-                    await handlePhotoPicked(image)
-                }
-                showCameraPicker = false
-            },
-            onVideoPicked: { url, thumbnail, duration in
-                Task {
-                    await handleVideoPicked(url: url, thumbnail: thumbnail, duration: duration)
-                }
-                showCameraPicker = false
-            }
-        )
-        .ignoresSafeArea()
     }
 
     // MARK: - Voice Recorder Sheet
