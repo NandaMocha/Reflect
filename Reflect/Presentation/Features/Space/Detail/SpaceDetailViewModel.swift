@@ -107,6 +107,9 @@ final class SpaceDetailViewModel {
         guard canSave else { return false }
         isSaving = true
         defer { isSaving = false }
+        // Register our name before the reflection lands (covers a name changed since open),
+        // so other members see who posted it.
+        await registerMyDisplayNameIfKnown()
         do {
             let reflection = try await createUseCase.execute(in: space, title: newTitle, promptText: newPrompt)
             reflections.append(reflection)

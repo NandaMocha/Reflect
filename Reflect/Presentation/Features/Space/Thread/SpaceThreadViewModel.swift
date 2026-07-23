@@ -95,6 +95,9 @@ final class SpaceThreadViewModel {
         guard canPost else { return }
         isPosting = true
         defer { isPosting = false }
+        // Land our display name in the zone before the response, so other members see who
+        // posted instead of "A member".
+        await registerMyDisplayNameIfKnown()
         do {
             let response = try await createUseCase.execute(to: reflection, in: space, body: draft)
             responses.append(response)
@@ -104,6 +107,13 @@ final class SpaceThreadViewModel {
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
         }
+    }
+
+    /// Best-effort mirror of the saved display name into the space's zone. Silent — a failed
+    /// registration must never block posting.
+    private func registerMyDisplayNameIfKnown() async {
+        guard let name = UserDefaults.standard.spaceDisplayName() else { return }
+        try? await repository.registerDisplayName(name, in: space)
     }
 
     /// Returns true on success so the edit sheet dismisses only when the save landed.
