@@ -37,6 +37,7 @@ struct CloudSyncView: View {
         }
         .navigationTitle("iCloud Sync")
         .navigationBarTitleDisplayMode(.inline)
+        .firstOpenIntro(.cloudSync, flagKey: Constants.UserDefaults.hasSeenCloudSyncIntro)
         .onAppear {
             setupViewModel()
         }

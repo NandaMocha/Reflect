@@ -20,6 +20,10 @@ struct VoiceAudioView: View {
     private enum ScreenState { case idle, recording, playback }
     @State private var screenState: ScreenState = .idle
 
+    // One-time voice-notes intro (record mode only). Its dismissal primes the mic + speech
+    // permissions, mirroring the camera-reflection intro → permission hand-off.
+    @State private var showIntro = false
+
     // Recording state
     @State private var waveformLevels: [Float] = []
     @State private var recordDuration: TimeInterval = 0
@@ -106,10 +110,27 @@ struct VoiceAudioView: View {
                     }
                 }
             }
+
+            // Record mode: show the one-time voice-notes intro before the recorder.
+            if case .record = mode,
+               !UserDefaults.standard.bool(forKey: Constants.UserDefaults.hasSeenVoiceIntro) {
+                showIntro = true
+            }
         }
         .onDisappear {
             cleanupPlayback()
         }
+        .fullScreenCover(isPresented: $showIntro, onDismiss: handleIntroDismissed) {
+            FeatureIntroView(intro: .voice) { showIntro = false }
+        }
+    }
+
+    /// Persists the "seen" flag and primes the Microphone + Speech Recognition permissions so the
+    /// system prompts appear right after the instruction rather than on the first record tap.
+    /// Runs from the cover's `onDismiss`, i.e. after it has finished dismissing.
+    private func handleIntroDismissed() {
+        UserDefaults.standard.set(true, forKey: Constants.UserDefaults.hasSeenVoiceIntro)
+        Task { _ = await speechRecognizer.requestPermission() }
     }
 
     // MARK: - Waveform section
@@ -526,6 +547,10 @@ final class SpeechRecognizerWrapper {
             .sink { [weak self] text in self?.transcription = text }
             .store(in: &cancellables)
     }
+
+    /// Requests Speech Recognition *and* Microphone authorization in one shot (the service asks
+    /// for both). Used to prime permissions from the voice-notes intro.
+    func requestPermission() async -> Bool { await service.requestPermission() }
 
     func startRecording(language: SpeechLanguage) async throws { try await service.startRecording(language: language) }
     func stopRecording() async throws -> VoiceRecordingResult { try await service.stopRecording() }

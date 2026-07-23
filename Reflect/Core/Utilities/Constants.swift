@@ -111,6 +111,23 @@ enum Constants {
         /// Whether the one-time camera-reflection intro sheet has been shown. After this is set,
         /// the camera opens straight to the remembered `preferredCameraPosition`.
         static let hasSeenCameraIntro = "hasSeenCameraIntro"
+
+        // MARK: First-open feature intros
+        // Each key gates a one-time, onboarding-styled intro shown the first time its feature is
+        // opened (see `FeatureIntroView` / `View.firstOpenIntro`). Mirrors `hasSeenCameraIntro`.
+
+        /// First time a Space's detail is opened — explains the invite-only model and the
+        /// blind-feedback rule (write your own feedback before you can read others').
+        static let hasSeenSpaceIntro = "hasSeenSpaceIntro"
+        /// First time the Achievements gallery is opened — explains how badges unlock.
+        static let hasSeenBadgesIntro = "hasSeenBadgesIntro"
+        /// First time the iCloud Sync screen is opened — explains what syncs and where it lives.
+        static let hasSeenCloudSyncIntro = "hasSeenCloudSyncIntro"
+        /// First time the voice recorder is opened — explains voice notes + on-device
+        /// transcription and primes the Microphone + Speech Recognition permissions.
+        static let hasSeenVoiceIntro = "hasSeenVoiceIntro"
+        /// One-time inline hint on the reflection list surfacing the hidden swipe → Move gesture.
+        static let hasSeenReflectionListHint = "hasSeenReflectionListHint"
     }
 
     // MARK: - Speech Languages

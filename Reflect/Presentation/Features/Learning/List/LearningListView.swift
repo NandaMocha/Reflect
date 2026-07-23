@@ -334,6 +334,7 @@ private struct AchievementGallerySheet: View {
             BadgeGridView(viewModel: viewModel)
                 .navigationTitle("Achievements")
                 .navigationBarTitleDisplayMode(.inline)
+                .firstOpenIntro(.badges, flagKey: Constants.UserDefaults.hasSeenBadgesIntro)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { isPresented = false }
