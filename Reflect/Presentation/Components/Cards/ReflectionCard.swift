@@ -16,8 +16,21 @@ struct ReflectionCard: View {
             hasVoiceRecordings: reflection.hasVoiceRecordings,
             hasVideos: reflection.hasVideos,
             thumbnail: reflection.firstThumbnailImage,
-            extraMediaCount: mediaCount > 1 ? mediaCount - 1 : 0
+            extraMediaCount: mediaCount > 1 ? mediaCount - 1 : 0,
+            voiceDurationText: voiceDurationText
         )
+    }
+
+    /// Duration of the first voice recording, but only for a voice-only reflection (no
+    /// image/video). `nil` otherwise, so the trailing voice tile stays hidden. Also `nil`
+    /// when the duration is unknown (0), so the tile shows just the waveform glyph.
+    private var voiceDurationText: String? {
+        guard !reflection.hasImages, !reflection.hasVideos,
+              let voice = reflection.voiceRecordings.min(by: { $0.sortOrder < $1.sortOrder }),
+              voice.duration > 0 else {
+            return nil
+        }
+        return voice.formattedDuration
     }
 }
 

@@ -32,11 +32,25 @@ struct EntryCard: View {
     var hasVideos: Bool = false
     var thumbnail: UIImage? = nil
     var extraMediaCount: Int = 0
+    /// Duration string for a voice-only entry (e.g. "0:42"). Shown under the trailing
+    /// voice tile when there's no image/video thumbnail to display.
+    var voiceDurationText: String? = nil
 
     /// Insight "Followed up" badge.
     var showFollowedUp: Bool = false
 
     private var hasMedia: Bool { hasImages || hasVoiceRecordings || hasVideos }
+
+    /// A reflection whose only media is voice (no image/video thumbnail). These get a
+    /// waveform tile in the trailing column instead of the empty space a plain text or
+    /// text-with-no-thumbnail entry would leave there.
+    private var isVoiceOnly: Bool { hasVoiceRecordings && !hasImages && !hasVideos }
+
+    /// Show the inline media-icon row only when there's actually an icon to show. The mic
+    /// is redundant for voice-only entries (the trailing waveform tile already signals it).
+    private var showsMediaIcons: Bool {
+        hasImages || hasVideos || (hasVoiceRecordings && !isVoiceOnly)
+    }
 
     var body: some View {
         HStack(alignment: .top) {
@@ -69,14 +83,14 @@ struct EntryCard: View {
                 Spacer(minLength: 8)
 
                 HStack(spacing: Constants.Spacing.xs) {
-                    if hasMedia {
+                    if showsMediaIcons {
                         HStack(spacing: Constants.Spacing.xxs) {
                             if hasImages {
                                 Image(systemName: "photo")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
-                            if hasVoiceRecordings {
+                            if hasVoiceRecordings && !isVoiceOnly {
                                 Image(systemName: "mic")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
@@ -122,6 +136,8 @@ struct EntryCard: View {
                                 )
                         }
                     }
+                } else if isVoiceOnly {
+                    voiceTile
                 }
 
                 if extraMediaCount > 0 {
@@ -136,6 +152,28 @@ struct EntryCard: View {
     }
 
     // MARK: - Subviews
+
+    /// Trailing tile for a voice-only entry: a waveform glyph sized like the image
+    /// thumbnail, with the recording's duration beneath it.
+    private var voiceTile: some View {
+        VStack(spacing: Constants.Spacing.xxs) {
+            Image(systemName: "waveform")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color.primaryDefault)
+                .frame(width: 50, height: 50)
+                .background(
+                    RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                        .fill(Color.primaryDefault.opacity(0.12))
+                )
+
+            if let voiceDurationText {
+                Text(voiceDurationText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+    }
 
     private func tagPill(_ tag: EntryCardTag) -> some View {
         let color = Color(hex: tag.colorHex)
