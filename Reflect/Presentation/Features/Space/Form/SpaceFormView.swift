@@ -4,10 +4,11 @@ import CloudKit
 /// Sheet for creating a new space. On successful create it presents the CloudKit sharing
 /// controller (`CloudSharingView`) so the owner can invite members without an extra step.
 ///
-/// The layout deliberately mirrors `LearningFormView` — name, a grid-based icon picker, an
-/// optional description, and a live preview — so creating a space feels the same as creating
-/// a learning. Spaces store an emoji (not an SF Symbol + color), so the icon picker is an
-/// emoji grid with a free-entry field for anything outside the curated set.
+/// The layout deliberately mirrors `LearningFormView` — name, an optional description, a
+/// grid-based icon picker, and a live preview — so creating a space feels the same as
+/// creating a learning. Spaces store an emoji (not an SF Symbol + color), so the icon
+/// picker is an emoji grid. One emoji is always selected (defaulted on appear), so a space
+/// can never end up with no icon.
 struct SpaceFormView: View {
     @State private var viewModel = DIContainer.shared.makeSpaceFormViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -33,8 +34,8 @@ struct SpaceFormView: View {
         NavigationStack {
             Form {
                 nameSection
-                iconSection
                 descriptionSection
+                iconSection
                 previewSection
 
                 if let errorMessage = viewModel.errorMessage {
@@ -68,7 +69,14 @@ struct SpaceFormView: View {
                     }
                 }
             }
-            .onAppear { nameFocused = true }
+            .onAppear {
+                nameFocused = true
+                // Default to a selected icon so a space always has one — the grid is never
+                // in a "nothing selected" state.
+                if viewModel.emoji.isEmpty {
+                    viewModel.emoji = availableEmojis.first ?? "📚"
+                }
+            }
             // The share sheet's own dismissal is delegate-driven; when it goes away
             // (saved or stopped) we close the whole form back to the list.
             .sheet(isPresented: $showShareSheet, onDismiss: { dismiss() }) {
@@ -114,20 +122,8 @@ struct SpaceFormView: View {
                 }
             }
             .padding(.vertical, 8)
-
-            // Keep the ability to pick any emoji, not just the curated grid above. Both this
-            // field and the grid write the same `emoji` value, so they stay in sync.
-            TextField("Or type your own emoji", text: $viewModel.emoji)
-                .onChange(of: viewModel.emoji) { _, newValue in
-                    // Keep it to a single emoji glyph.
-                    if let first = newValue.first {
-                        viewModel.emoji = String(first)
-                    } else {
-                        viewModel.emoji = ""
-                    }
-                }
         } header: {
-            Text("Icon (Optional)")
+            Text("Icon")
         }
     }
 
