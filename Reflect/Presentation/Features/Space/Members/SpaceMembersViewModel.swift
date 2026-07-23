@@ -15,16 +15,15 @@ final class SpaceMembersViewModel {
     let space: Space
     var members: [SpaceMember] = []
     var isLoading: Bool = false
+    /// Flips true once the first roster fetch resolves (success or failure). Gates the empty
+    /// state so it can't flash before the initial load — until then the view shows the
+    /// loading indicator, keeping it fixed in place instead of appearing after an empty flash.
+    var hasLoaded: Bool = false
     var errorMessage: String?
 
     /// The name the current user appears as to other members. Persisted in UserDefaults and
     /// mirrored into the space's zone so participants can see who's who.
     var myDisplayName: String = UserDefaults.standard.spaceDisplayName() ?? ""
-
-    /// True when the user hasn't chosen a display name yet — the view prompts for one.
-    var needsDisplayName: Bool {
-        myDisplayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
 
     /// Set once the share has been fetched, which is what drives the sharing controller.
     /// Nil until then — the invite button loads it on demand rather than up front.
@@ -59,12 +58,21 @@ final class SpaceMembersViewModel {
 
     var isEmpty: Bool { members.isEmpty && !isLoading }
 
+    /// Drives the full-screen loading indicator. True until the first fetch resolves, and on
+    /// any later reload that starts from an empty roster. Because it's true from the very
+    /// first frame (before `.task` runs), the spinner shows immediately rather than after a
+    /// flash of the empty state — which is what kept the indicator from staying put.
+    var showsLoadingState: Bool { !hasLoaded || (isLoading && members.isEmpty) }
+
     // MARK: - Actions
 
     func load() async {
         guard !isLoading else { return }
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            hasLoaded = true
+        }
         // Mirror our own name into the space before reading the roster, so it's present for
         // everyone (and resolves for us on this very fetch).
         await registerMyDisplayNameIfKnown()

@@ -12,7 +12,8 @@ struct SpaceMembersView: View {
     @State private var viewModel: SpaceMembersViewModel
     @Environment(\.dismiss) private var dismiss
 
-    /// Display-name capture (shown automatically the first time, editable via the row).
+    /// Display-name capture. Opened only when the user taps the "Your name" row — never
+    /// presented automatically on open.
     @State private var showNamePrompt = false
     @State private var draftName = ""
 
@@ -26,7 +27,7 @@ struct SpaceMembersView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.isLoading && viewModel.members.isEmpty {
+                if viewModel.showsLoadingState {
                     loadingState
                 } else if viewModel.isEmpty {
                     emptyState
@@ -43,11 +44,6 @@ struct SpaceMembersView: View {
             }
             .task {
                 await viewModel.load()
-                // First time in a space: ask how they want to appear to other members.
-                if viewModel.needsDisplayName {
-                    draftName = viewModel.myDisplayName
-                    showNamePrompt = true
-                }
             }
             .errorAlert($viewModel.errorMessage)
             .alert("Your name", isPresented: $showNamePrompt) {
