@@ -52,6 +52,13 @@ struct EntryCard: View {
         hasImages || hasVideos || (hasVoiceRecordings && !isVoiceOnly)
     }
 
+    /// Whether there's any body/preview text to show. A reflection can have an empty body
+    /// (e.g. an image- or voice-only entry), in which case the text line is skipped so the
+    /// date stays tucked right under the title instead of sitting past an empty gap.
+    private var hasBodyText: Bool {
+        !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: Constants.Spacing.xxs) {
@@ -59,20 +66,26 @@ struct EntryCard: View {
                     tagPill(tag)
                 }
 
-                if let title {
+                if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    Text(bodyText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                } else {
-                    // No title (insights): the text itself is the primary line.
+                    // The description sits under the title only when there is one, so a
+                    // reflection with no body (image- or voice-only) doesn't leave an
+                    // empty line pushing the date away from the title.
+                    if hasBodyText {
+                        Text(bodyText)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
+                } else if hasBodyText {
+                    // No title (insights, or a media-only reflection): the text itself is
+                    // the primary line.
                     Text(bodyText)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
@@ -80,7 +93,12 @@ struct EntryCard: View {
                         .multilineTextAlignment(.leading)
                 }
 
-                Spacer(minLength: 8)
+                // Push the date to the bottom (aligning it with the thumbnail) only when
+                // there's body text above it. Without a description the date stays close
+                // under the title rather than floating far below it.
+                if hasBodyText {
+                    Spacer(minLength: 8)
+                }
 
                 HStack(spacing: Constants.Spacing.xs) {
                     if showsMediaIcons {
