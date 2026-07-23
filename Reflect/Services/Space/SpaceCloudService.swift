@@ -249,8 +249,9 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             Self.member(from: participant, index: index, myUserRecordName: myUserRecordName, storedNames: storedNames)
         }
 
-        // Owner first, then joined members, then pending invites; alphabetical inside each
-        // bucket so the list doesn't reshuffle between fetches.
+        // You first (each viewer sees themselves pinned to the top), then the owner, then
+        // joined members, then pending invites; alphabetical inside each bucket so the list
+        // doesn't reshuffle between fetches.
         return members.sorted { lhs, rhs in
             let lhsRank = Self.sortRank(lhs)
             let rhsRank = Self.sortRank(rhs)
@@ -260,8 +261,9 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     }
 
     private static func sortRank(_ member: SpaceMember) -> Int {
-        if member.role == .owner { return 0 }
-        return member.status == .joined ? 1 : 2
+        if member.isMe { return 0 }
+        if member.role == .owner { return 1 }
+        return member.status == .joined ? 2 : 3
     }
 
     /// Flattens a `CKShare.Participant`. Returns nil for participants CloudKit still lists
