@@ -91,9 +91,10 @@ struct ReflectionEditorView: View {
     }
 
     var isValid: Bool {
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
         let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
         let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
-        return (hasContent || hasMedia) && selectedLearning != nil
+        return (hasTitle || hasContent || hasMedia) && selectedLearning != nil
     }
 
     var isIOS17_2OrNewer: Bool {
