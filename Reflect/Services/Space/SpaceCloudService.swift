@@ -722,21 +722,34 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         }
     }
 
-    /// Maps participant record names → formatted display names, using the zone's `CKShare`.
-    /// The root `Space` record is found in the already-fetched `records` (avoiding a second
-    /// zone scan); only the share record itself is fetched. Best-effort: any failure yields
-    /// an empty map and the caller falls back to "A member".
+    /// Maps author record names → display names for posts by other members.
+    ///
+    /// Prefers each member's **self-registered** name (the `MemberProfile` records already in
+    /// `records`, readable by everyone) over CloudKit's identity name, which is usually
+    /// withheld from other participants for privacy — the same precedence the roster uses in
+    /// `member(from:)`. Without this, a post by someone whose identity name is hidden falls
+    /// back to "A member" even though they set a name. Best-effort: an unresolved author just
+    /// stays absent from the map and the caller shows "A member".
     private func authorNames(from records: [CKRecord], database: CKDatabase) async -> [String: String] {
+        // 1. Self-registered names — visible to every participant.
+        var map: [String: String] = [:]
+        for record in records {
+            if let profile = SpaceRecordMapper.memberProfile(from: record) {
+                map[profile.memberRecordName] = profile.displayName
+            }
+        }
+
+        // 2. Fill any gaps with CloudKit's identity name, where it happens to be exposed.
         guard let root = records.first(where: { $0.recordType == SpaceRecordType.space }),
               let shareReference = root.share,
               let shareRecord = try? await database.record(for: shareReference.recordID),
               let share = shareRecord as? CKShare else {
-            return [:]
+            return map
         }
         let formatter = PersonNameComponentsFormatter()
-        var map: [String: String] = [:]
         for participant in share.participants {
             guard let recordName = participant.userIdentity.userRecordID?.recordName,
+                  map[recordName] == nil,   // a registered name always wins
                   let components = participant.userIdentity.nameComponents else { continue }
             let name = formatter.string(from: components)
             if !name.isEmpty { map[recordName] = name }
