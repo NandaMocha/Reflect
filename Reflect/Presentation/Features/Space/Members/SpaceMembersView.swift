@@ -196,6 +196,11 @@ struct SpaceMemberRow: View {
             Spacer(minLength: 0)
 
             HStack(spacing: Constants.Spacing.xs) {
+                // Once your row shows your chosen name (not "You"), this badge is how you
+                // still spot yourself in the roster.
+                if member.isMe, let name = member.displayName, !name.isEmpty {
+                    badge("You", color: .secondary)
+                }
                 if member.role == .owner {
                     badge("Owner", color: .primaryDefault)
                 }

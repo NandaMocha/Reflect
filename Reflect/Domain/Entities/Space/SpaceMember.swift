@@ -29,11 +29,14 @@ struct SpaceMember: Identifiable, Hashable, Sendable {
     var canPost: Bool
     var isMe: Bool
 
-    /// What to render as the row's primary label. Falls back through name → invited
-    /// handle → a neutral placeholder, so a row is never blank.
+    /// What to render as the row's primary label. Prefers the member's registered display
+    /// name — *including your own*, so your row reflects the name you set — then the invited
+    /// handle, then "You" for yourself before a name exists, then a neutral placeholder so a
+    /// row is never blank. The "this is you" cue is a separate badge on the row, not this
+    /// label, so your chosen name is what shows once you've set one.
     var displayTitle: String {
-        if isMe { return "You" }
         if let displayName, !displayName.isEmpty { return displayName }
+        if isMe { return "You" }
         if let contactHandle, !contactHandle.isEmpty { return contactHandle }
         return "A member"
     }
