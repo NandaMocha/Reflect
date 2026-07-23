@@ -9,6 +9,8 @@ enum SpaceRecordType {
     static let space = "Space"
     static let spaceReflection = "SpaceReflection"
     static let response = "Response"
+    /// A participant's self-registered display name, so members can see who each other are.
+    static let memberProfile = "MemberProfile"
 }
 
 // MARK: - Field Keys
@@ -28,6 +30,10 @@ enum SpaceRecordField {
     // Response (child of SpaceReflection)
     static let reflectionID = "reflectionID"
     static let body = "body"
+
+    // MemberProfile (child of Space)
+    static let displayName = "displayName"
+    static let memberRecordName = "memberRecordName"
 }
 
 // MARK: - CKRecord <-> Entity Mapping
@@ -95,6 +101,40 @@ enum SpaceRecordMapper {
             createdAt: record.creationDate,
             participantCount: participantCount
         )
+    }
+
+    // MARK: MemberProfile
+
+    /// Builds (or rebuilds) the current user's `MemberProfile` record. The record name is
+    /// deterministic — `member-<userRecordName>` — so re-saving overwrites the same record
+    /// (one profile per member per zone). The `parent` reference to the root `Space` record
+    /// carries the zone's `CKShare` down, the same trick reflections/responses use, so every
+    /// participant can read the name.
+    static func makeMemberProfileRecord(
+        zoneID: CKRecordZone.ID,
+        spaceID: String,
+        memberRecordName: String,
+        displayName: String
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: "member-\(memberRecordName)", zoneID: zoneID)
+        let record = CKRecord(recordType: SpaceRecordType.memberProfile, recordID: recordID)
+        record[SpaceRecordField.displayName] = displayName as CKRecordValue
+        record[SpaceRecordField.memberRecordName] = memberRecordName as CKRecordValue
+        let parentID = CKRecord.ID(recordName: spaceID, zoneID: zoneID)
+        record.parent = CKRecord.Reference(recordID: parentID, action: .none)
+        return record
+    }
+
+    /// Extracts a `(memberRecordName, displayName)` pair from a `MemberProfile` record, or
+    /// `nil` if the record isn't one / is missing either field.
+    static func memberProfile(from record: CKRecord) -> (memberRecordName: String, displayName: String)? {
+        guard record.recordType == SpaceRecordType.memberProfile,
+              let key = record[SpaceRecordField.memberRecordName] as? String,
+              let name = record[SpaceRecordField.displayName] as? String,
+              !name.isEmpty else {
+            return nil
+        }
+        return (key, name)
     }
 
     // MARK: SpaceReflection / Response mapping helpers

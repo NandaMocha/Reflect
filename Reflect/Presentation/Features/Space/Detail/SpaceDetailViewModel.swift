@@ -74,7 +74,17 @@ final class SpaceDetailViewModel {
 
     func load() async {
         reflections = repository.cachedReflections(spaceID: space.id)
+        // If the user has already chosen a display name, mirror it into this space on open
+        // so their name propagates to other members without needing to open the roster.
+        await registerMyDisplayNameIfKnown()
         await refresh()
+    }
+
+    /// Best-effort: writes the user's saved display name (if any) into the space's zone.
+    /// Silent — a failed registration must never disrupt loading the space.
+    private func registerMyDisplayNameIfKnown() async {
+        guard let name = UserDefaults.standard.spaceDisplayName() else { return }
+        try? await repository.registerDisplayName(name, in: space)
     }
 
     func refresh() async {

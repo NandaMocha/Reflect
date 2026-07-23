@@ -12,6 +12,10 @@ struct SpaceMembersView: View {
     @State private var viewModel: SpaceMembersViewModel
     @Environment(\.dismiss) private var dismiss
 
+    /// Display-name capture (shown automatically the first time, editable via the row).
+    @State private var showNamePrompt = false
+    @State private var draftName = ""
+
     /// Must match the entitlement / `SpaceCloudService`'s container identifier.
     private let spaceContainer = CKContainer(identifier: "iCloud.xyz.nandamochammad.Reflect")
 
@@ -37,8 +41,25 @@ struct SpaceMembersView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task { await viewModel.load() }
+            .task {
+                await viewModel.load()
+                // First time in a space: ask how they want to appear to other members.
+                if viewModel.needsDisplayName {
+                    draftName = viewModel.myDisplayName
+                    showNamePrompt = true
+                }
+            }
             .errorAlert($viewModel.errorMessage)
+            .alert("Your name", isPresented: $showNamePrompt) {
+                TextField("Display name", text: $draftName)
+                Button("Save") {
+                    let name = draftName
+                    Task { await viewModel.saveDisplayName(name) }
+                }
+                Button("Not now", role: .cancel) {}
+            } message: {
+                Text("Choose the name other members of this space will see.")
+            }
             // Presented once the share has been fetched; clearing it on dismiss also
             // re-reads the roster, so a just-sent invite shows up immediately.
             .sheet(
@@ -96,6 +117,24 @@ struct SpaceMembersView: View {
                     }
                     .disabled(viewModel.isPreparingInvite)
                 }
+            }
+
+            Section {
+                Button {
+                    draftName = viewModel.myDisplayName
+                    showNamePrompt = true
+                } label: {
+                    HStack {
+                        Text("Your name")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(viewModel.myDisplayName.isEmpty ? "Set name" : viewModel.myDisplayName)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            } footer: {
+                Text("This is how you appear to other members of this space.")
             }
         }
         .refreshable { await viewModel.load() }

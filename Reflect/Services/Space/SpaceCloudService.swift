@@ -241,9 +241,12 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     func fetchMembers(for zone: SpaceZoneRef) async throws -> [SpaceMember] {
         let share = try await fetchShare(for: zone)
         let myUserRecordName = await currentUserRecordName()
+        // Self-registered names, keyed by user record name — these are visible to every
+        // participant, unlike CloudKit's identity name.
+        let storedNames = await storedDisplayNames(for: zone)
 
         let members = share.participants.enumerated().compactMap { index, participant in
-            Self.member(from: participant, index: index, myUserRecordName: myUserRecordName)
+            Self.member(from: participant, index: index, myUserRecordName: myUserRecordName, storedNames: storedNames)
         }
 
         // Owner first, then joined members, then pending invites; alphabetical inside each
@@ -269,7 +272,8 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private static func member(
         from participant: CKShare.Participant,
         index: Int,
-        myUserRecordName: String?
+        myUserRecordName: String?,
+        storedNames: [String: String]
     ) -> SpaceMember? {
         guard participant.acceptanceStatus != .removed else { return nil }
 
@@ -277,11 +281,15 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         let recordName = identity.userRecordID?.recordName
         let handle = identity.lookupInfo?.emailAddress ?? identity.lookupInfo?.phoneNumber
 
-        let name = identity.nameComponents.map { PersonNameComponentsFormatter().string(from: $0) }
+        // Prefer a self-registered name (readable by everyone) over CloudKit's identity
+        // name (usually withheld from other participants for privacy).
+        let storedName = recordName.flatMap { storedNames[$0] }
+        let ckName = identity.nameComponents.map { PersonNameComponentsFormatter().string(from: $0) }
+        let resolvedName = [storedName, ckName].compactMap { $0 }.first { !$0.isEmpty }
 
         return SpaceMember(
             id: recordName ?? handle ?? "participant-\(index)",
-            displayName: (name?.isEmpty == false) ? name : nil,
+            displayName: resolvedName,
             contactHandle: handle,
             role: participant.role == .owner ? .owner : .member,
             status: participant.acceptanceStatus == .accepted ? .joined : .invited,
@@ -289,6 +297,63 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             // `userRecordID` is nil for pending invites, so an unresolved id is never "me".
             isMe: recordName != nil && recordName == myUserRecordName
         )
+    }
+
+    /// Self-registered display names in the zone, keyed by the member's user record name.
+    /// Best-effort — any failure yields an empty map and the caller falls back to CloudKit's
+    /// identity name (then the invite handle, then a placeholder).
+    private func storedDisplayNames(for zone: SpaceZoneRef) async -> [String: String] {
+        let database = database(for: zone.lane)
+        let zoneID = ckZoneID(for: zone)
+        guard let records = try? await fetchAllRecords(in: zoneID, database: database) else { return [:] }
+        var map: [String: String] = [:]
+        for record in records {
+            if let profile = SpaceRecordMapper.memberProfile(from: record) {
+                map[profile.memberRecordName] = profile.displayName
+            }
+        }
+        return map
+    }
+
+    // MARK: - Register display name
+
+    func registerDisplayName(_ displayName: String, in zone: SpaceZoneRef, spaceID: String) async throws {
+        let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        // Keyed by the current user's record name; without it there's no stable identity to
+        // register under, so skip rather than write an unattributable record.
+        guard let myRecordName = await currentUserRecordName() else { return }
+
+        let database = database(for: zone.lane)
+        let record = SpaceRecordMapper.makeMemberProfileRecord(
+            zoneID: ckZoneID(for: zone),
+            spaceID: spaceID,
+            memberRecordName: myRecordName,
+            displayName: trimmed
+        )
+        try await saveOverwriting(record, in: database)
+    }
+
+    /// Saves one record with `.allKeys`, so a deterministic-name record (like a member
+    /// profile) overwrites unconditionally — last write wins, no change-tag conflict to
+    /// reconcile.
+    private func saveOverwriting(_ record: CKRecord, in database: CKDatabase) async throws {
+        try await withRetry {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let operation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+                operation.savePolicy = .allKeys
+                operation.qualityOfService = .userInitiated
+                operation.modifyRecordsResultBlock = { result in
+                    switch result {
+                    case .success:
+                        continuation.resume(returning: ())
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+                database.add(operation)
+            }
+        }
     }
 
     // MARK: - Accept

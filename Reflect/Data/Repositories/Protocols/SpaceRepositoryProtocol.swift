@@ -28,6 +28,11 @@ protocol SpaceRepositoryProtocol {
     /// the share, not in a record, so there's nothing in `SpaceStore` to reconcile.
     func members(of space: Space) async throws -> [SpaceMember]
 
+    /// Registers the current user's display name into a space's shared zone so other
+    /// members can see who they are. Best-effort and not cached — names live on
+    /// `MemberProfile` records, resolved live inside `members(of:)`.
+    func registerDisplayName(_ displayName: String, in space: Space) async throws
+
     /// Accepts an incoming invite and caches the resulting joined space.
     func acceptInvite(metadata: CKShare.Metadata) async throws -> Space
 

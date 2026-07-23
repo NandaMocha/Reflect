@@ -67,6 +67,10 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         try await cloudService.fetchMembers(for: space.zoneID)
     }
 
+    func registerDisplayName(_ displayName: String, in space: Space) async throws {
+        try await cloudService.registerDisplayName(displayName, in: space.zoneID, spaceID: space.id)
+    }
+
     func acceptInvite(metadata: CKShare.Metadata) async throws -> Space {
         let space = try await cloudService.acceptShare(metadata: metadata)
         try upsert(space)

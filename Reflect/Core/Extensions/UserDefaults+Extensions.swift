@@ -5,6 +5,20 @@ import Foundation
 extension UserDefaults {
     private static let lastUsedLearningIdKey = "lastUsedLearningId"
     private static let preferredCameraPositionKey = "preferredCameraPosition"
+    private static let spaceDisplayNameKey = "spaceDisplayName"
+
+    /// The name the user chose to appear as to other members of shared spaces. `nil` until
+    /// they set one. Trimmed; an all-whitespace value reads back as `nil`.
+    func spaceDisplayName() -> String? {
+        let name = string(forKey: UserDefaults.spaceDisplayNameKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return (name?.isEmpty ?? true) ? nil : name
+    }
+
+    /// Save the display name the user appears as in shared spaces.
+    func setSpaceDisplayName(_ name: String) {
+        set(name, forKey: UserDefaults.spaceDisplayNameKey)
+    }
 
     /// The camera (front/back) the user last chose for a camera reflection, if any.
     func preferredCameraPosition() -> CameraPosition? {

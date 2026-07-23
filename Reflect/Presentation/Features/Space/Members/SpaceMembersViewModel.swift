@@ -17,6 +17,15 @@ final class SpaceMembersViewModel {
     var isLoading: Bool = false
     var errorMessage: String?
 
+    /// The name the current user appears as to other members. Persisted in UserDefaults and
+    /// mirrored into the space's zone so participants can see who's who.
+    var myDisplayName: String = UserDefaults.standard.spaceDisplayName() ?? ""
+
+    /// True when the user hasn't chosen a display name yet — the view prompts for one.
+    var needsDisplayName: Bool {
+        myDisplayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     /// Set once the share has been fetched, which is what drives the sharing controller.
     /// Nil until then — the invite button loads it on demand rather than up front.
     var shareToPresent: CKShare?
@@ -56,6 +65,9 @@ final class SpaceMembersViewModel {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
+        // Mirror our own name into the space before reading the roster, so it's present for
+        // everyone (and resolves for us on this very fetch).
+        await registerMyDisplayNameIfKnown()
         do {
             members = try await fetchUseCase.execute(for: space)
             errorMessage = nil
@@ -64,6 +76,24 @@ final class SpaceMembersViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Persists the chosen display name and reloads, which mirrors it into the space and
+    /// re-reads the roster so it reflects the change.
+    func saveDisplayName(_ name: String) async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        myDisplayName = trimmed
+        UserDefaults.standard.setSpaceDisplayName(trimmed)
+        await load()
+    }
+
+    /// Best-effort mirror of the current display name (if set) into the space's zone.
+    /// Never surfaces an error — failing to register a name shouldn't break the roster.
+    private func registerMyDisplayNameIfKnown() async {
+        let trimmed = myDisplayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        try? await repository.registerDisplayName(trimmed, in: space)
     }
 
     /// Fetches the share and hands it to the view, which presents `CloudSharingView`.
