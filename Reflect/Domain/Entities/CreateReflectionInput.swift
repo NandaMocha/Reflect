@@ -6,10 +6,13 @@ struct CreateReflectionInput {
     var title: String
     var content: String
     var learningId: UUID?
-    var promptID: String?  // ID of the prompt if reflection was created from a prompt
+    var promptID: String?
     var images: [ImageInput]
+    var videos: [VideoInput]
     var voiceRecordings: [VoiceRecordingInput]
-    var modelContext: ModelContext?  // Context for badge evaluation
+    var createdAt: Date
+    var capturedLocation: CapturedLocation?
+    var modelContext: ModelContext?
 
     init(
         title: String = "",
@@ -17,7 +20,10 @@ struct CreateReflectionInput {
         learningId: UUID? = nil,
         promptID: String? = nil,
         images: [ImageInput] = [],
+        videos: [VideoInput] = [],
         voiceRecordings: [VoiceRecordingInput] = [],
+        createdAt: Date = Date(),
+        capturedLocation: CapturedLocation? = nil,
         modelContext: ModelContext? = nil
     ) {
         self.title = title
@@ -25,26 +31,33 @@ struct CreateReflectionInput {
         self.learningId = learningId
         self.promptID = promptID
         self.images = images
+        self.videos = videos
         self.voiceRecordings = voiceRecordings
+        self.createdAt = createdAt
+        self.capturedLocation = capturedLocation
         self.modelContext = modelContext
     }
 
+    /// Valid when the reflection carries *something* — a title, a description, or any media
+    /// (image, video, or voice). Title and content are no longer individually required, so an
+    /// image-only (or voice-only) reflection saves fine. Only a completely empty entry fails.
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !content.trimmingCharacters(in: .whitespaces).isEmpty &&
-        learningId != nil
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        return (hasTitle || hasContent || hasMedia) && learningId != nil
     }
 
     var validationErrors: [String] {
         var errors: [String] = []
-        if title.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Title is required")
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        if !hasTitle && !hasContent && !hasMedia {
+            errors.append("Add a title, description, or media before saving")
         }
         if title.count > Constants.Limits.reflectionTitleMaxLength {
             errors.append("Title is too long")
-        }
-        if content.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Content is required")
         }
         if learningId == nil {
             errors.append("Please select a learning")
@@ -94,6 +107,7 @@ struct VoiceRecordingInput: Identifiable {
     var transcription: String?
     let language: String
     let duration: TimeInterval
+    let waveformSamples: [Float]
     let fromWidget: Bool  // Track if recording originated from widget
 
     init(
@@ -103,6 +117,7 @@ struct VoiceRecordingInput: Identifiable {
         transcription: String? = nil,
         language: String,
         duration: TimeInterval,
+        waveformSamples: [Float] = [],
         fromWidget: Bool = false
     ) {
         self.id = id
@@ -111,6 +126,7 @@ struct VoiceRecordingInput: Identifiable {
         self.transcription = transcription
         self.language = language
         self.duration = duration
+        self.waveformSamples = waveformSamples
         self.fromWidget = fromWidget
     }
 }
@@ -120,16 +136,32 @@ struct UpdateReflectionInput {
     var title: String
     var content: String
     var learningId: UUID?
-    var imagesToAdd: [ImageInput]
-    var imageIdsToRemove: [UUID]
-    var videosToAdd: [VideoInput]
-    var videoIdsToRemove: [UUID]
-    var voiceRecordingsToAdd: [VoiceRecordingInput]
-    var voiceRecordingIdsToRemove: [UUID]
+    var createdAt: Date
+    var capturedLocation: CapturedLocation?
+    /// All images the user wants on the saved reflection after this update. The use case diffs
+    /// against the current SwiftData state to decide what to add, keep, or remove.
+    var images: [ImageInput]
+    /// IDs among `images` that already exist in the database (so the use case treats them as
+    /// updates-in-place rather than new attachments to compress).
+    var existingImageIds: Set<UUID>
+    var videos: [VideoInput]
+    var existingVideoIds: Set<UUID>
+    var voiceRecordings: [VoiceRecordingInput]
+    var modelContext: ModelContext?
 
+    /// Same rule as `CreateReflectionInput`: valid as long as the reflection still has a
+    /// title, a description, or any media — so editing away all the text on a media-only
+    /// reflection is allowed.
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !content.trimmingCharacters(in: .whitespaces).isEmpty &&
-        learningId != nil
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        return (hasTitle || hasContent || hasMedia) && learningId != nil
     }
+}
+
+struct CapturedLocation {
+    let latitude: Double
+    let longitude: Double
+    let name: String?
 }

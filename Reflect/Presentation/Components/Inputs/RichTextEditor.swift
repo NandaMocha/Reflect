@@ -22,7 +22,7 @@ struct RichTextEditor: View {
             // Placeholder
             if text.isEmpty && !isFocused {
                 Text(placeholder)
-                    .foregroundColor(.secondary.opacity(0.7))
+                    .foregroundStyle(.secondary.opacity(0.7))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 8)
             }
@@ -52,7 +52,7 @@ struct FormattingToolbar: View {
     var onInsertDivider: (() -> Void)?
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack(spacing: Constants.Spacing.xs) {
                 FormatButton(icon: "bold", label: "B") {
                     insertFormatting("**", "**")
@@ -95,6 +95,7 @@ struct FormattingToolbar: View {
             .padding(.horizontal, Constants.Spacing.sm)
             .padding(.vertical, Constants.Spacing.xs)
         }
+        .scrollIndicators(.hidden)
         .background(
             RoundedRectangle(cornerRadius: Constants.CornerRadius.small)
                 .fill(.ultraThinMaterial)
@@ -132,7 +133,7 @@ struct FormatButton: View {
                         .font(.body)
                 }
             }
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
             .frame(width: 36, height: 36)
             .contentShape(Rectangle())
         }

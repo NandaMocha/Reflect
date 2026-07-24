@@ -18,6 +18,7 @@ struct ReflectionListView: View {
     @State private var showVoiceRecorder = false
     @State private var showNoLearningAlert = false
     @State private var showEditor = false
+    @State private var reflectionToMove: Reflection?
 
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
@@ -29,22 +30,37 @@ struct ReflectionListView: View {
         self._widgetAction = widgetAction
     }
 
+    /// Show the search field only when there's data, or the user has an active search /
+    /// favorites filter (so a zero-result search can still be cleared). Hidden on the
+    /// genuinely-empty state (learning with no reflections yet).
+    private var searchFieldActive: Bool {
+        guard let vm = viewModel else { return false }
+        return !vm.isEmpty || !vm.searchQuery.isEmpty || vm.showFavoritesOnly
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Group {
-                if let viewModel = viewModel {
-                    if viewModel.isLoading && viewModel.reflections.isEmpty {
-                        loadingView
-                    } else if viewModel.isEmpty {
-                        emptyState
-                    } else if viewModel.reflections.isEmpty {
-                        noResultsState
+            VStack(spacing: 0) {
+                // Show the learning's own description at the top of its detail so the text
+                // entered in the New/Edit Learning form is actually visible somewhere.
+                learningDescriptionBanner
+
+                Group {
+                    if let viewModel = viewModel {
+                        if viewModel.isLoading && viewModel.reflections.isEmpty {
+                            loadingView
+                        } else if viewModel.isEmpty {
+                            emptyState
+                        } else if viewModel.reflections.isEmpty {
+                            noResultsState
+                        } else {
+                            reflectionList
+                        }
                     } else {
-                        reflectionList
+                        loadingView
                     }
-                } else {
-                    loadingView
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             // FAB with quick actions
@@ -54,17 +70,25 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
-        .searchable(text:Binding(
-            get: { viewModel?.searchQuery ?? "" },
-            set: { newValue in
-                viewModel?.updateSearchQuery(newValue)
+        .searchable(
+            text: Binding(
+                get: { viewModel?.searchQuery ?? "" },
+                set: { newValue in viewModel?.updateSearchQuery(newValue) }
+            ),
+            prompt: "Search reflections...",
+            isActive: searchFieldActive
+        )
+        .cameraReflectionFlow(
+            isPresented: $showCameraPicker,
+            onPhotoPicked: { image in
+                Task { await handlePhotoPicked(image) }
+            },
+            onVideoPicked: { url, thumbnail, duration in
+                Task { await handleVideoPicked(url: url, thumbnail: thumbnail, duration: duration) }
             }
-        ), prompt: "Search reflections...")
-        .fullScreenCover(isPresented: $showCameraPicker) {
-            cameraPickerView
-        }
+        )
         .fullScreenCover(isPresented: $showEditor) {
-            ReflectionEditorView(mode: .create, onDismiss: {
+            ReflectionEditorView(mode: .create, preselectedLearning: learning, onDismiss: {
                 showEditor = false
                 Task {
                     await viewModel?.loadReflections()
@@ -74,20 +98,27 @@ struct ReflectionListView: View {
         .sheet(isPresented: $showVoiceRecorder) {
             voiceRecorderSheet
         }
+        .sheet(item: $reflectionToMove) { reflection in
+            LearningPickerSheet(
+                title: "Move to Learning",
+                learnings: learnings.filter { $0.id != reflection.learning?.id },
+                currentSelection: nil,
+                onSelect: { target in
+                    Task {
+                        await viewModel?.moveReflection(reflection, to: target)
+                    }
+                }
+            )
+        }
         .alert("No Learning", isPresented: $showNoLearningAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Please create a Learning first before adding reflections")
         }
-        .alert("Error", isPresented: .constant(viewModel?.errorMessage != nil)) {
-            Button("OK", role: .cancel) {
-                viewModel?.errorMessage = nil
-            }
-        } message: {
-            if let error = viewModel?.errorMessage {
-                Text(error)
-            }
-        }
+        .errorAlert(
+            Binding(get: { viewModel?.errorMessage }, set: { viewModel?.errorMessage = $0 }),
+            title: "Error"
+        )
         .onAppear {
             // Initialize ViewModel with proper modelContext
             if viewModel == nil {
@@ -100,7 +131,7 @@ struct ReflectionListView: View {
                 await viewModel?.loadReflections()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .init("ReflectionDidSave"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .reflectionDidSave)) { _ in
             // Reload reflections when a notification is received after saving
             Task {
                 await viewModel?.loadReflections()
@@ -133,6 +164,8 @@ struct ReflectionListView: View {
             showCameraPicker = true
         case .voice:
             showVoiceRecorder = true
+        case .insight:
+            break
         }
 
         // Reset action after triggering
@@ -148,7 +181,7 @@ struct ReflectionListView: View {
             ProgressView()
             Text("Loading reflections...")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -180,38 +213,15 @@ struct ReflectionListView: View {
         )
     }
 
-    // MARK: - Camera Picker
-
-    private var cameraPickerView: some View {
-        ImagePickerView(
-            sourceType: .camera,
-            onPhotoPicked: { image in
-                Task {
-                    await handlePhotoPicked(image)
-                }
-                showCameraPicker = false
-            },
-            onVideoPicked: { url, thumbnail, duration in
-                Task {
-                    await handleVideoPicked(url: url, thumbnail: thumbnail, duration: duration)
-                }
-                showCameraPicker = false
-            }
-        )
-        .ignoresSafeArea()
-    }
-
     // MARK: - Voice Recorder Sheet
 
     private var voiceRecorderSheet: some View {
-        VoiceRecorderView(
-            isPresented: $showVoiceRecorder,
-            fromWidget: widgetAction == .voice  // Detect widget origin
-        ) { recording in
-            Task {
-                await handleVoiceRecording(recording)
-            }
-        }
+        VoiceAudioView(
+            mode: .record(onComplete: { recording in
+                Task { await handleVoiceRecording(recording) }
+            }, fromWidget: widgetAction == .voice),
+            isPresented: $showVoiceRecorder
+        )
     }
 
     // MARK: - Handlers
@@ -258,7 +268,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -313,7 +323,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -350,7 +360,8 @@ struct ReflectionListView: View {
             audioData: recording.audioData,
             transcription: recording.transcription,
             language: recording.language,
-            duration: recording.duration
+            duration: recording.duration,
+            waveformSamples: recording.waveformSamples
         )
         voiceRecording.sortOrder = 0
         reflection.voiceRecordings.append(voiceRecording)
@@ -360,7 +371,7 @@ struct ReflectionListView: View {
         try? modelContext.save()
 
         // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .init("ReflectionDidSave"), object: nil)
+        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
 
         // Reload reflections
         await viewModel?.loadReflections()
@@ -397,6 +408,37 @@ struct ReflectionListView: View {
 
     // MARK: - Views
 
+    /// A compact banner showing the learning's icon + description above its reflections.
+    /// Only rendered for a specific learning that actually has a description — the "All
+    /// Reflections" view (`learning == nil`) and description-less learnings show nothing.
+    @ViewBuilder
+    private var learningDescriptionBanner: some View {
+        if let learning,
+           let description = learning.descriptionText?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !description.isEmpty {
+            HStack(alignment: .top, spacing: Constants.Spacing.sm) {
+                Image(systemName: learning.iconName)
+                    .font(.title3)
+                    .foregroundStyle(Color(hex: learning.colorHex))
+                    .frame(width: 40, height: 40)
+                    .background(
+                        RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                            .fill(Color(hex: learning.colorHex).opacity(0.15))
+                    )
+
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Constants.Spacing.lg)
+            .padding(.top, Constants.Spacing.sm)
+            .padding(.bottom, Constants.Spacing.xs)
+        }
+    }
+
     private var emptyState: some View {
         VStack(spacing: Constants.Spacing.lg) {
             EmptyStateView(
@@ -428,12 +470,16 @@ struct ReflectionListView: View {
             ForEach(viewModel?.sortedDateGroups ?? [], id: \.self) { group in
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
+                        // Title as a scrolling row (not a Section `header:`) so it renders
+                        // identically to the insight list — a plain-List header is auto-lightened
+                        // by the system and can't colour-match a row.
+                        DateGroupSectionTitle(title: group.title)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
+
                         ForEach(reflections) { reflection in
-                            ZStack {
-                                NavigationLink(value: reflection) { EmptyView() }
-                                    .opacity(.zero)
-                                
-                                ReflectionCard(reflection: reflection) {}
+                            NavigationLink(value: reflection) {
+                                ReflectionCard(reflection: reflection)
                             }
                             .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -444,20 +490,25 @@ struct ReflectionListView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                Button {
+                                    reflectionToMove = reflection
+                                } label: {
+                                    Label("Move", systemImage: "folder")
+                                }
+                                .tint(.blue)
                             }
                             .listRowSeparator(.hidden)
                         }
-                    } header: {
-                        Text(group.title)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .padding(.leading, 4)
                     }
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 }
             }
         }
+        // Match the insight list: plain style over a hidden (white) scroll background, instead
+        // of the default inset-grouped style that gave this screen a lavender background.
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     private var sortingMenu: some View {

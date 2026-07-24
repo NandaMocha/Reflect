@@ -9,7 +9,7 @@ typealias ThemeOption = Constants.ThemeOption
 enum Constants {
     // MARK: - App Info
     enum App {
-        static let name = "ReflectLearn"
+        static let name = "Reflect"
         static let bundleIdentifier = "com.reflectlearn.app"
         static let iCloudContainerIdentifier = "iCloud.com.reflectlearn.app"
     }
@@ -24,6 +24,11 @@ enum Constants {
         static let maxVoiceNotesPerReflection = 5
         static let maxImageSizeMB = 10
         static let maxVoiceDurationMinutes = 5
+        static let insightTextMaxLength = 500
+        static let spaceNameMaxLength = 50
+        static let spaceReflectionTitleMaxLength = 200
+        static let spaceReflectionPromptMaxLength = 5000
+        static let spaceResponseMaxLength = 5000
     }
 
     // MARK: - Spacing Tokens
@@ -96,9 +101,33 @@ enum Constants {
     // MARK: - User Defaults Keys
     enum UserDefaults {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        /// DEBUG-only override: when true, the onboarding sheet is shown on every launch
+        /// regardless of `hasCompletedOnboarding`. Read only from inside `#if DEBUG`, so a
+        /// release build ignores it even if the key is somehow set.
+        static let debugAlwaysShowOnboarding = "debugAlwaysShowOnboarding"
         static let selectedTheme = "selectedTheme"
         static let defaultLanguage = "defaultLanguage"
         static let lastSyncDate = "lastSyncDate"
+        /// Whether the one-time camera-reflection intro sheet has been shown. After this is set,
+        /// the camera opens straight to the remembered `preferredCameraPosition`.
+        static let hasSeenCameraIntro = "hasSeenCameraIntro"
+
+        // MARK: First-open feature intros
+        // Each key gates a one-time, onboarding-styled intro shown the first time its feature is
+        // opened (see `FeatureIntroView` / `View.firstOpenIntro`). Mirrors `hasSeenCameraIntro`.
+
+        /// First time a Space's detail is opened — explains the invite-only model and the
+        /// blind-feedback rule (write your own feedback before you can read others').
+        static let hasSeenSpaceIntro = "hasSeenSpaceIntro"
+        /// First time the Achievements gallery is opened — explains how badges unlock.
+        static let hasSeenBadgesIntro = "hasSeenBadgesIntro"
+        /// First time the iCloud Sync screen is opened — explains what syncs and where it lives.
+        static let hasSeenCloudSyncIntro = "hasSeenCloudSyncIntro"
+        /// First time the voice recorder is opened — explains voice notes + on-device
+        /// transcription and primes the Microphone + Speech Recognition permissions.
+        static let hasSeenVoiceIntro = "hasSeenVoiceIntro"
+        /// One-time inline hint on the reflection list surfacing the hidden swipe → Move gesture.
+        static let hasSeenReflectionListHint = "hasSeenReflectionListHint"
     }
 
     // MARK: - Speech Languages

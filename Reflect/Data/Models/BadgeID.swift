@@ -4,6 +4,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
     // MARK: - Achievement Badges - Reflection Milestones (Permanent)
 
+    case firstReflection = "first-reflection"
     case fiveReflections = "5-reflections"
     case tenReflections = "10-reflections"
     case twentyFiveReflections = "25-reflections"
@@ -25,18 +26,17 @@ enum BadgeID: String, CaseIterable, Identifiable {
     case fiftyPrompts = "50-prompts"
     case hundredPrompts = "100-prompts"
 
-    // MARK: - Achievement Badges - Special (Permanent except Perfectionist)
+    // MARK: - Achievement Badges - Special (Permanent)
 
-    case monthlyChampion = "monthly-champion"
     case quarterlyChampion = "quarterly-champion"
     case halfYearHero = "half-year-hero"
-    case perfectionist = "perfectionist" // Repeatable monthly
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
         // Reflection Milestones
+        case .firstReflection: return "First Step"
         case .fiveReflections: return "Curious Mind"
         case .tenReflections: return "Dedicated Learner"
         case .twentyFiveReflections: return "Consistent Creator"
@@ -57,16 +57,15 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .hundredPrompts: return "Philosopher's Path"
 
         // Special
-        case .monthlyChampion: return "Monthly Champion"
         case .quarterlyChampion: return "Quarterly Champion"
         case .halfYearHero: return "Half-Year Hero"
-        case .perfectionist: return "Perfectionist"
         }
     }
 
     var badgeDescription: String {
         switch self {
         // Reflection Milestones
+        case .firstReflection: return "Your journey begins with a single reflection!"
         case .fiveReflections: return "Every journey begins with a single step. You've started yours!"
         case .tenReflections: return "Building momentum, one reflection at a time"
         case .twentyFiveReflections: return "Making reflection your daily superpower"
@@ -87,16 +86,15 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .hundredPrompts: return "Mastering the art of self-discovery"
 
         // Special
-        case .monthlyChampion: return "Completed your first full month of journaling"
         case .quarterlyChampion: return "90 total reflections"
         case .halfYearHero: return "180 total reflections"
-        case .perfectionist: return "30+ reflections in a single month"
         }
     }
 
     var requirementDescription: String {
         switch self {
         // Reflection Milestones
+        case .firstReflection: return "Complete your first reflection"
         case .fiveReflections: return "5 reflections completed"
         case .tenReflections: return "10 reflections completed"
         case .twentyFiveReflections: return "25 reflections completed"
@@ -117,16 +115,15 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .hundredPrompts: return "100 reflections with guided prompts"
 
         // Special
-        case .monthlyChampion: return "Complete 30 reflections in a single month"
         case .quarterlyChampion: return "Complete 90 total reflections"
         case .halfYearHero: return "Complete 180 total reflections"
-        case .perfectionist: return "Achieve 30+ reflections in a single month"
         }
     }
 
     var icon: String {
         switch self {
             // Reflection Milestones
+            case .firstReflection: return "star"
             case .fiveReflections: return "star.fill"
             case .tenReflections: return "star.circle.fill"
             case .twentyFiveReflections: return "sparkles"
@@ -147,10 +144,8 @@ enum BadgeID: String, CaseIterable, Identifiable {
             case .hundredPrompts: return "building.columns.fill"
 
             // Special
-            case .monthlyChampion: return "trophy.fill"
             case .quarterlyChampion: return "medal.fill"
             case .halfYearHero: return "figure.run"
-            case .perfectionist: return "diamond.fill"
         }
     }
 
@@ -162,7 +157,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var badgeCategory: BadgeCategory {
         switch self {
         // Reflection Milestones
-        case .fiveReflections, .tenReflections, .twentyFiveReflections, .fiftyReflections,
+        case .firstReflection, .fiveReflections, .tenReflections, .twentyFiveReflections, .fiftyReflections,
              .hundredReflections, .twoHundredFiftyReflections, .fiveHundredReflections, .thousandReflections:
             return .reflections
 
@@ -175,13 +170,14 @@ enum BadgeID: String, CaseIterable, Identifiable {
             return .prompts
 
         // Special
-        case .monthlyChampion, .quarterlyChampion, .halfYearHero, .perfectionist:
+        case .quarterlyChampion, .halfYearHero:
             return .special
         }
     }
 
     var requiredCount: Int {
         switch self {
+        case .firstReflection: return 1
         case .fiveReflections: return 5
         case .tenReflections, .tenMedia, .tenPrompts: return 10
         case .twentyFiveReflections: return 25
@@ -190,10 +186,8 @@ enum BadgeID: String, CaseIterable, Identifiable {
         case .twoHundredFiftyReflections: return 250
         case .fiveHundredReflections: return 500
         case .thousandReflections: return 1000
-        case .monthlyChampion: return 1
         case .quarterlyChampion: return 90
         case .halfYearHero: return 180
-        case .perfectionist: return 30
         }
     }
 
@@ -217,7 +211,7 @@ enum BadgeID: String, CaseIterable, Identifiable {
     var celebration: BadgeUnlockEvent.CelebrationTrigger {
         switch self {
         // First reflection milestone
-        case .fiveReflections:
+        case .firstReflection, .fiveReflections:
             return .confetti
 
         // Higher reflection milestones
@@ -249,13 +243,9 @@ enum BadgeID: String, CaseIterable, Identifiable {
             return .fireworks
 
         // Special achievements
-        case .monthlyChampion:
-            return .sparkles
         case .quarterlyChampion:
             return .fireworks
         case .halfYearHero:
-            return .maximum
-        case .perfectionist:
             return .maximum
         }
     }
@@ -263,6 +253,33 @@ enum BadgeID: String, CaseIterable, Identifiable {
 
 enum BadgeType: String, Codable {
     case permanent = "permanent"  // Earned once, kept forever
+}
+
+extension BadgeID {
+    /// When several badges unlock at once, pick the one with the most dramatic celebration
+    /// tier so the UI reflects the biggest achievement.
+    static func headline(from badges: [BadgeID]) -> BadgeID? {
+        badges.max { a, b in celebrationRank(a.celebration) < celebrationRank(b.celebration) }
+    }
+
+    private static func celebrationRank(_ trigger: BadgeUnlockEvent.CelebrationTrigger) -> Int {
+        switch trigger {
+        case .none: return 0
+        case .confetti: return 1
+        case .sparkles: return 2
+        case .fireworks: return 3
+        case .maximum: return 4
+        }
+    }
+
+    /// The next higher-threshold badge in the same category, if any. `nil` means this
+    /// badge is the last one in its category (e.g. 1000-reflections) — the CelebrationView
+    /// uses that to skip the "Next up" teaser in that case.
+    var nextInCategory: BadgeID? {
+        BadgeID.allCases
+            .filter { $0.badgeCategory == self.badgeCategory && $0.requiredCount > self.requiredCount }
+            .min { $0.requiredCount < $1.requiredCount }
+    }
 }
 
 enum BadgeCategory: String, Codable {

@@ -4,21 +4,19 @@ import SwiftUI
 
 extension ReflectionDetailView {
     func learningBadge(_ learning: Learning) -> some View {
-        NavigationLink(destination: ReflectionListView(learning: learning)) {
-            HStack(spacing: Constants.Spacing.xs) {
-                Image(systemName: learning.iconName)
-                    .font(.caption)
-                Text(learning.title)
-                    .font(.caption.weight(.medium))
-            }
-            .foregroundColor(Color(hex: learning.colorHex))
-            .padding(.horizontal, Constants.Spacing.sm)
-            .padding(.vertical, Constants.Spacing.xs)
-            .background(
-                Capsule()
-                    .fill(Color(hex: learning.colorHex).opacity(0.15))
-            )
+        HStack(spacing: Constants.Spacing.xs) {
+            Image(systemName: learning.iconName)
+                .font(.caption)
+            Text(learning.title)
+                .font(.caption.weight(.medium))
         }
+        .foregroundStyle(Color(hex: learning.colorHex))
+        .padding(.horizontal, Constants.Spacing.sm)
+        .padding(.vertical, Constants.Spacing.xs)
+        .background(
+            Capsule()
+                .fill(Color(hex: learning.colorHex).opacity(0.15))
+        )
     }
 
     var headerSection: some View {
@@ -31,7 +29,7 @@ extension ReflectionDetailView {
     var contentSection: some View {
         Text(reflection.plainTextContent)
             .font(.body)
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
             .textSelection(.enabled)
     }
 

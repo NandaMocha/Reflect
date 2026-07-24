@@ -10,7 +10,7 @@ struct SearchBar: View {
     var body: some View {
         HStack(spacing: Constants.Spacing.xs) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
@@ -26,7 +26,7 @@ struct SearchBar: View {
                     HapticManager.shared.lightImpact()
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
         }

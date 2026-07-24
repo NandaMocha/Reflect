@@ -11,12 +11,13 @@ struct BadgeDetailView: View {
         return 1
     }
 
+    /// See AchievementCard.currentProgress — cap at threshold for display.
     private var currentProgress: Int {
-        badge.unlockedCount
+        min(badge.unlockedCount, requiredCount)
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 32) {
                     // Badge Icon
@@ -40,7 +41,7 @@ struct BadgeDetailView: View {
                     }
 
                     // How to Achieve Section
-                    howToAchieveSection
+                    HowToAchieveCard(badge: badge)
 
                     // Status Info
                     VStack(spacing: 12) {
@@ -59,7 +60,7 @@ struct BadgeDetailView: View {
             .navigationTitle("Achievement Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
@@ -165,7 +166,7 @@ struct BadgeDetailView: View {
                     Image(systemName: "repeat")
                         .foregroundStyle(.secondary)
 
-                    Text("Earned \(badge.unlockedCount) times")
+                    Text("Earned after: \(badge.unlockedCount) reflections")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
@@ -176,34 +177,6 @@ struct BadgeDetailView: View {
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var howToAchieveSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "info.circle.fill")
-                    .foregroundStyle(.blue)
-
-                Text("How to Achieve")
-                    .font(.headline)
-            }
-
-            Text(requirementDescription)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.leading)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var requirementDescription: String {
-        if let badgeID = BadgeID(rawValue: badge.id) {
-            return badgeID.requirementDescription
-        }
-        return badge.badgeDescription
     }
 
     private var iconBackgroundColor: Color {

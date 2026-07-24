@@ -18,6 +18,24 @@ extension ReflectionListViewModel {
     }
 
     @MainActor
+    func moveReflection(_ reflection: Reflection, to learning: Learning) async {
+        do {
+            _ = try await moveUseCase.execute(reflectionId: reflection.id, toLearningId: learning.id)
+            // If the list is filtered to a specific learning that isn't the target, the moved
+            // reflection no longer belongs here. Drop it from the local array so the row
+            // animates out without a full reload.
+            if let currentFilter = learningFilter, currentFilter.id != learning.id {
+                reflections.removeAll { $0.id == reflection.id }
+                await groupReflectionsByDate()
+            }
+            HapticManager.shared.success()
+        } catch {
+            errorMessage = error.localizedDescription
+            HapticManager.shared.error()
+        }
+    }
+
+    @MainActor
     func toggleFavorite(_ reflection: Reflection) async {
         reflection.isFavorite.toggle()
         reflection.updatedAt = Date()

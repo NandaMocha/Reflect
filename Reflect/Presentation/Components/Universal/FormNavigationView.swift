@@ -68,7 +68,7 @@ struct FormNavigationView<Content: View>: View {
                     if let icon = saveIcon {
                         Image(systemName: icon)
                             .fontWeight(.semibold)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .frame(width: 32, height: 32)
                             .background(Color.primaryDefault)
                             .clipShape(Circle())
@@ -136,7 +136,7 @@ struct EditorNavigationView<Content: View>: View {
                         } label: {
                             Image(systemName: "checkmark")
                                 .fontWeight(.semibold)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(width: 32, height: 32)
                                 .background(isValid && !isSaving ? Color.primaryDefault : Color.secondary)
                                 .clipShape(Circle())

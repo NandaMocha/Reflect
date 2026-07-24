@@ -103,7 +103,7 @@ struct ImageAttachmentGridView: View {
                         .fill(Color.secondary.opacity(0.2))
                         .overlay {
                             Image(systemName: "photo")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                 }
             }

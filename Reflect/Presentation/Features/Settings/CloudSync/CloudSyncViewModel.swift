@@ -17,16 +17,19 @@ final class CloudSyncViewModel {
     // MARK: - Dependencies
     private let modelContext: ModelContext
     private let cloudSyncService: CloudSyncServiceProtocol
+    private let restoreUseCase: RestoreFromCloudUseCaseProtocol?
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
     init(
         modelContext: ModelContext,
-        cloudSyncService: CloudSyncServiceProtocol? = nil
+        cloudSyncService: CloudSyncServiceProtocol? = nil,
+        restoreUseCase: RestoreFromCloudUseCaseProtocol? = nil
     ) {
         self.modelContext = modelContext
         self.cloudSyncService = cloudSyncService ?? CloudSyncService()
+        self.restoreUseCase = restoreUseCase
 
         setupSubscriptions()
     }
@@ -160,6 +163,14 @@ final class CloudSyncViewModel {
 
         errorMessage = nil
 
+        // A manual full backup is a delete-then-reupload; it must not race the incremental
+        // auto-sync coordinator pushing the same records. `beginPause` pauses drains (and
+        // awaits any already in flight) but — `suppressEnqueue: false` — keeps enqueueing user
+        // edits made mid-backup, so they aren't lost, just drained after the backup finishes.
+        let coordinator = DIContainer.shared.makeSyncCoordinator()
+        await coordinator.beginPause(suppressEnqueue: false)
+        defer { coordinator.endPause(suppressEnqueue: false) }
+
         do {
             // Fetch all data
             let learningsDescriptor = FetchDescriptor<Learning>()
@@ -202,7 +213,11 @@ final class CloudSyncViewModel {
         errorMessage = nil
 
         do {
-            let result = try await cloudSyncService.restore()
+            let useCase = restoreUseCase ?? RestoreFromCloudUseCase(
+                modelContext: modelContext,
+                cloudSyncService: cloudSyncService
+            )
+            let result = try await useCase.execute()
 
             if result.success {
                 saveLastSyncDate()

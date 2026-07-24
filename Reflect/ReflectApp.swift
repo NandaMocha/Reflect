@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import AppIntents
 
 // MARK: - Widget Action Enum
 
@@ -14,12 +15,15 @@ enum WidgetAction {
     case write
     case camera
     case voice
+    case insight
 }
 
 @main
 struct ReflectApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     let modelContainer: ModelContainer
     @AppStorage(Constants.UserDefaults.selectedTheme) private var selectedTheme: String = "system"
+    @Environment(\.scenePhase) private var scenePhase
 
     // Widget action handling
     @State private var widgetAction: WidgetAction?
@@ -34,12 +38,21 @@ struct ReflectApp: App {
                 VideoAttachment.self,
                 // Badge models
                 Badge.self,
-                MonthlyAchievement.self
+                MonthlyAchievement.self,
+                // Auto-sync transactional outbox
+                PendingSyncOp.self
             ])
 
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false,
+                // Pin to the app's OWN container. Without this, SwiftData's default
+                // `groupContainer: .automatic` silently relocates this store into the
+                // App Group (added for the Insight feature), where it would (a) collide
+                // with Insight's own store on `default.store` and (b) move existing
+                // users' data. Insight uses the App Group with a distinct store name;
+                // the main app must stay out of it.
+                groupContainer: .none,
                 cloudKitDatabase: .none // Manual sync, not automatic
             )
 
@@ -47,6 +60,9 @@ struct ReflectApp: App {
                 for: schema,
                 configurations: [modelConfiguration]
             )
+            // Wire the DIContainer with the live ModelContext so make...() factories work
+            // (ReflectionEditorView's init relies on makeReflectionEditorViewModel).
+            DIContainer.shared.configure(with: modelContainer.mainContext)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
@@ -61,9 +77,25 @@ struct ReflectApp: App {
                 }
                 .onAppear {
                     initializeBadges()
+                    // Nudge the system to (re)ingest ReflectShortcuts. Without this, the
+                    // App Shortcuts can fail to surface in Shortcuts/Spotlight/Siri on a
+                    // fresh install — they'd otherwise wait on first-launch indexing.
+                    ReflectShortcuts.updateAppShortcutParameters()
                 }
         }
         .modelContainer(modelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            // Auto-sync lifecycle flush: drain the outbox when returning to the foreground,
+            // and flush + schedule the BG backstop when heading to the background.
+            switch newPhase {
+            case .active:
+                SyncBackgroundScheduler.flushForeground()
+            case .background:
+                SyncBackgroundScheduler.flushBackground()
+            default:
+                break
+            }
+        }
     }
 
     // MARK: - Badge Initialization
@@ -208,6 +240,8 @@ struct ReflectApp: App {
             widgetAction = .camera
         case "voice":
             widgetAction = .voice
+        case "insight":
+            widgetAction = .insight
         default:
             break
         }

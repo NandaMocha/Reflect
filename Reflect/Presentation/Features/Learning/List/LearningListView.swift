@@ -64,14 +64,8 @@ struct LearningListView: View {
                     }
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        HapticManager.shared.lightImpact()
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.title3)
-                    }
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton { showSettings = true }
                 }
 
                 ToolbarItem(placement: .primaryAction) {
@@ -93,19 +87,7 @@ struct LearningListView: View {
                 SettingsView()
             }
             .sheet(isPresented: $showAchievementGallery) {
-                let viewModel = BadgeGridViewModel(modelContext: modelContext)
-                NavigationView {
-                    BadgeGridView(viewModel: viewModel)
-                        .navigationTitle("Achievements")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") {
-                                    showAchievementGallery = false
-                                }
-                            }
-                        }
-                }
+                AchievementGallerySheet(isPresented: $showAchievementGallery, modelContext: modelContext)
             }
             .onDisappear {
                 // Observers are automatically cleaned up when view is deallocated
@@ -122,6 +104,12 @@ struct LearningListView: View {
                 }
             }
         }
+        // Keep the tab bar on the learnings list (depth 0) AND the reflection list (depth 1)
+        // — the reflection list is the default landing page (state restoration opens the
+        // last-used learning), so it must stay reachable. Only hide it in the deeper
+        // reflection detail (depth 2+).
+        .toolbar(navigationPath.count >= 2 ? .hidden : .automatic, for: .tabBar)
+        .animation(.easeInOut(duration: 0.3), value: navigationPath.count)
         .onAppear {
             loadBadges()
             restoreState()
@@ -146,6 +134,8 @@ struct LearningListView: View {
     // MARK: - Widget Action Handling
 
     private func handleWidgetAction(_ action: WidgetAction?) {
+        if action == .insight { return }
+
         guard let action = action else { return }
 
         // Get the target learning
@@ -324,6 +314,33 @@ struct LearningListView: View {
     private func loadBadges() {
         let descriptor = FetchDescriptor<Badge>()
         badges = (try? modelContext.fetch(descriptor)) ?? []
+    }
+}
+
+/// Owns its `BadgeGridViewModel` via `@State` so it's created once, not rebuilt on every
+/// parent re-render (the previous inline-in-sheet-closure VM was the documented "orphaned
+/// ViewModel" bug — see docs/reviews/achievement-counter-root-cause.md).
+private struct AchievementGallerySheet: View {
+    @Binding var isPresented: Bool
+    @State private var viewModel: BadgeGridViewModel
+
+    init(isPresented: Binding<Bool>, modelContext: ModelContext) {
+        _isPresented = isPresented
+        _viewModel = State(initialValue: BadgeGridViewModel(modelContext: modelContext))
+    }
+
+    var body: some View {
+        NavigationStack {
+            BadgeGridView(viewModel: viewModel)
+                .navigationTitle("Achievements")
+                .navigationBarTitleDisplayMode(.inline)
+                .firstOpenIntro(.badges, flagKey: Constants.UserDefaults.hasSeenBadgesIntro)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { isPresented = false }
+                    }
+                }
+        }
     }
 }
 

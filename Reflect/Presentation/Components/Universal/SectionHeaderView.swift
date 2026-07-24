@@ -40,7 +40,7 @@ struct SectionHeaderView<Accessory: View>: View {
                     if let subtitle = subtitle {
                         Text(subtitle)
                             .font(subtitleFont)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -55,7 +55,7 @@ struct SectionHeaderView<Accessory: View>: View {
                     if let subtitle = subtitle {
                         Text(subtitle)
                             .font(subtitleFont)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -98,19 +98,19 @@ struct ListSectionHeader: View {
         HStack(spacing: 12) {
             if let icon = icon {
                 Image(systemName: icon)
-                    .foregroundColor(iconColor ?? Color.primaryDefault)
+                    .foregroundStyle(iconColor ?? Color.primaryDefault)
                     .font(.callout)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 if let subtitle = subtitle {
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -118,6 +118,24 @@ struct ListSectionHeader: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Date Group Section Title
+
+/// The per-date-group section title shared by the Reflection list and the Insight list, so both
+/// render an identical title (same color, weight, and leading position). Kept style-only — the
+/// caller supplies the row/header container and its insets.
+struct DateGroupSectionTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.subheadline)
+            .fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .padding(.leading, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -140,7 +158,7 @@ struct DetailSectionHeader: View {
             if let date = date {
                 Text(date.formatted())
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -159,7 +177,7 @@ struct SettingsSectionHeader: View {
             if let icon = icon {
                 Image(systemName: icon)
                     .font(.callout)
-                    .foregroundColor(color ?? Color.primaryDefault)
+                    .foregroundStyle(color ?? Color.primaryDefault)
                     .frame(width: 28)
             }
 
@@ -189,18 +207,18 @@ struct CollapsibleSectionHeader: View {
             HStack {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .foregroundColor(Color.primaryDefault)
+                        .foregroundStyle(Color.primaryDefault)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     if let subtitle = subtitle, isExpanded {
                         Text(subtitle)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -209,7 +227,7 @@ struct CollapsibleSectionHeader: View {
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .rotationEffect(.degrees(isExpanded ? 90 : 0))
             }
             .contentShape(Rectangle())
@@ -231,12 +249,12 @@ struct PaddedSectionHeader: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             if let subtitle = subtitle {
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, horizontalPadding)

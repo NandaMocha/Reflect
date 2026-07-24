@@ -189,7 +189,8 @@ extension ReflectionListViewModel {
             audioData: recording.audioData,
             transcription: recording.transcription,
             language: recording.language,
-            duration: recording.duration
+            duration: recording.duration,
+            waveformSamples: recording.waveformSamples
         )
         voiceRecording.sortOrder = 0
         reflection.voiceRecordings.append(voiceRecording)

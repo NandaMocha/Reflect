@@ -10,10 +10,9 @@
 		04F260712F33602B00BF5E99 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260702F33602B00BF5E99 /* WidgetKit.framework */; };
 		04F260732F33602B00BF5E99 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260722F33602B00BF5E99 /* SwiftUI.framework */; };
 		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		153AF6CCD848B91FC767DF7F /* DSWaveformImageViews in Frameworks */ = {isa = PBXBuildFile; productRef = DBB814AFA67536633EFF9DDB /* DSWaveformImageViews */; };
+		D7C8DFC6E7726E03C07703DE /* DSWaveformImage in Frameworks */ = {isa = PBXBuildFile; productRef = F93A04F213FA82B6592668B6 /* DSWaveformImage */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXBuildRule section */
-																										/* End PBXBuildRule section */
 
 /* Begin PBXContainerItemProxy section */
 		04F2607C2F33602C00BF5E99 /* PBXContainerItemProxy */ = {
@@ -80,6 +79,11 @@
 			path = "Quick Actions";
 			sourceTree = "<group>";
 		};
+		19A28503CC25FB806F38FF04 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +91,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D7C8DFC6E7726E03C07703DE /* DSWaveformImage in Frameworks */,
+				153AF6CCD848B91FC767DF7F /* DSWaveformImageViews in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -107,6 +113,7 @@
 			children = (
 				042635F22F288EA100BB939D /* Reflect */,
 				04F260742F33602B00BF5E99 /* Quick Actions */,
+				19A28503CC25FB806F38FF04 /* Shared */,
 				04F2606F2F33602B00BF5E99 /* Frameworks */,
 				042635F12F288EA100BB939D /* Products */,
 			);
@@ -149,9 +156,12 @@
 			);
 			fileSystemSynchronizedGroups = (
 				042635F22F288EA100BB939D /* Reflect */,
+				19A28503CC25FB806F38FF04 /* Shared */,
 			);
 			name = Reflect;
 			packageProductDependencies = (
+				F93A04F213FA82B6592668B6 /* DSWaveformImage */,
+				DBB814AFA67536633EFF9DDB /* DSWaveformImageViews */,
 			);
 			productName = Reflect;
 			productReference = 042635F02F288EA100BB939D /* Reflect.app */;
@@ -171,6 +181,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				04F260742F33602B00BF5E99 /* Quick Actions */,
+				19A28503CC25FB806F38FF04 /* Shared */,
 			);
 			name = "Quick ActionsExtension";
 			packageProductDependencies = (
@@ -206,6 +217,9 @@
 			);
 			mainGroup = 042635E72F288EA100BB939D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5DCEFB00DD1C7FE31C337CA0 /* XCRemoteSwiftPackageReference "DSWaveformImage" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 042635F12F288EA100BB939D /* Products */;
 			projectDirPath = "";
@@ -216,9 +230,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXShellScriptBuildPhase section */
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		042635EE2F288EA100BB939D /* Resources */ = {
@@ -381,34 +392,38 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Reflect/Reflect.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reflect/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Need camera access to attach image which represent your day";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need microphone access to record today reflection";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Need speech Recognition access to transcribe your recorder";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Reflect uses the camera so you can add a photo or video to a reflection.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Reflect uses the microphone to record voice notes for your reflections.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Reflect uses speech recognition to transcribe your voice notes into text.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -419,34 +434,38 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Reflect/Reflect.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reflect/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Need camera access to attach image which represent your day";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need microphone access to record today reflection";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Need speech Recognition access to transcribe your recorder";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Reflect uses the camera so you can add a photo or video to a reflection.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Reflect uses the microphone to record voice notes for your reflections.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Reflect uses speech recognition to transcribe your voice notes into text.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -455,8 +474,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Quick Actions/Quick_Actions.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -468,7 +488,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "xyz.nandamochammad.Reflect.Quick-Actions";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -486,8 +506,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Quick Actions/Quick_Actions.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -499,7 +520,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "xyz.nandamochammad.Reflect.Quick-Actions";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -543,6 +564,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5DCEFB00DD1C7FE31C337CA0 /* XCRemoteSwiftPackageReference "DSWaveformImage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dmrschmidt/DSWaveformImage";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 14.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DBB814AFA67536633EFF9DDB /* DSWaveformImageViews */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5DCEFB00DD1C7FE31C337CA0 /* XCRemoteSwiftPackageReference "DSWaveformImage" */;
+			productName = DSWaveformImageViews;
+		};
+		F93A04F213FA82B6592668B6 /* DSWaveformImage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5DCEFB00DD1C7FE31C337CA0 /* XCRemoteSwiftPackageReference "DSWaveformImage" */;
+			productName = DSWaveformImage;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 042635E82F288EA100BB939D /* Project object */;
 }

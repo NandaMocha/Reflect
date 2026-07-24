@@ -154,7 +154,7 @@ struct UniversalMediaGridItem: View {
                         .fill(Color.secondary.opacity(0.2))
                         .overlay {
                             Image(systemName: isVideo ? "video.fill" : "photo")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                 }
 
@@ -166,7 +166,7 @@ struct UniversalMediaGridItem: View {
                         .overlay(
                             Image(systemName: "play.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         )
 
                     // Duration badge
@@ -176,7 +176,7 @@ struct UniversalMediaGridItem: View {
                             HStack {
                                 Text(durationText(from: duration))
                                     .font(.caption.bold())
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(Capsule().fill(Color.black.opacity(0.6)))
@@ -203,7 +203,7 @@ struct UniversalMediaGridItem: View {
 
                         Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
                 .buttonStyle(PlainButtonStyle())

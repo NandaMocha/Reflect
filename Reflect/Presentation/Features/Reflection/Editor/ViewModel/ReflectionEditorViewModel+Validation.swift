@@ -3,25 +3,28 @@ import Foundation
 // MARK: - Validation
 
 extension ReflectionEditorViewModel {
+    /// A reflection is valid when it has at least one of a non-empty title, non-empty
+    /// content, images, videos, or voice recordings. The learning assignment is guaranteed
+    /// by the caller — the editor is always opened from a specific learning's list — so it's
+    /// not part of the gate here. `selectedLearning == nil` is still checked as a last-mile
+    /// safety net because the use case requires a learningId.
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !content.trimmingCharacters(in: .whitespaces).isEmpty &&
-        selectedLearning != nil
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        return (hasTitle || hasContent || hasMedia) && selectedLearning != nil
     }
 
     var validationErrors: [String] {
         var errors: [String] = []
-        if title.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Title is required")
-        }
         if title.count > Constants.Limits.reflectionTitleMaxLength {
             errors.append("Title is too long")
         }
-        if content.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Content is required")
-        }
-        if selectedLearning == nil {
-            errors.append("Please select a learning")
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        if !hasTitle && !hasContent && !hasMedia {
+            errors.append("Add a title, description, or media before saving")
         }
         if images.count > Constants.Limits.maxImagesPerReflection {
             errors.append("Too many images (max \(Constants.Limits.maxImagesPerReflection))")

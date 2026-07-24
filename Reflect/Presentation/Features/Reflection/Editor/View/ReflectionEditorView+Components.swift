@@ -63,12 +63,12 @@ extension ReflectionEditorView {
 
                 Text(isEditing ? "Saving Changes" : "Creating Reflection")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 if !images.isEmpty || !videos.isEmpty {
                     Text("Processing media...")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding(Constants.Spacing.xl)
@@ -82,14 +82,6 @@ extension ReflectionEditorView {
         ReflectionEditorHeaderView(
             selectedLearning: selectedLearning,
             selectedDate: selectedDate,
-            learningsCount: learnings.count,
-            onSelectLearning: {
-                if learnings.isEmpty {
-                    showCreateLearning = true
-                } else {
-                    showLearningPicker = true
-                }
-            },
             onSelectDate: { showDatePicker = true }
         )
     }
@@ -100,7 +92,7 @@ extension ReflectionEditorView {
                 if title.isEmpty {
                     Text(defaultTitle)
                         .font(.title2.weight(.semibold))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .foregroundStyle(.secondary.opacity(0.5))
                         .padding(.top, 1)
                         .allowsHitTesting(false)
                 }
@@ -137,7 +129,7 @@ extension ReflectionEditorView {
                 if content.isEmpty {
                     Text("Write your reflection here...")
                         .font(.body)
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .foregroundStyle(.secondary.opacity(0.5))
                         .padding(.top, 8)
                         .padding(.leading, 5)
                         .allowsHitTesting(false)

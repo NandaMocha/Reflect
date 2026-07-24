@@ -6,6 +6,10 @@ final class DIContainer {
 
     private var modelContext: ModelContext?
 
+    /// The one auto-sync coordinator, shared between the repositories that enqueue ops and the
+    /// app lifecycle that flushes them. Created lazily on first `makeSyncCoordinator()`.
+    private var _syncCoordinator: SyncCoordinator?
+
     private init() {}
 
     // MARK: - Configuration
@@ -28,6 +32,172 @@ final class DIContainer {
             fatalError("ModelContext not configured. Call configure(with:) first.")
         }
         return ReflectionRepository(modelContext: context)
+    }
+
+    // MARK: - Insight
+
+    @MainActor
+    func makeInsightRepository() -> InsightRepositoryProtocol {
+        InsightRepository(modelContext: InsightStore.container.mainContext)
+    }
+
+    @MainActor
+    func makeCreateInsightUseCase() -> CreateInsightUseCaseProtocol {
+        CreateInsightUseCase(repository: makeInsightRepository())
+    }
+
+    @MainActor
+    func makeUpdateInsightUseCase() -> UpdateInsightUseCaseProtocol {
+        UpdateInsightUseCase(repository: makeInsightRepository())
+    }
+
+    @MainActor
+    func makeDeleteInsightUseCase() -> DeleteInsightUseCaseProtocol {
+        DeleteInsightUseCase(repository: makeInsightRepository())
+    }
+
+    @MainActor
+    func makeFetchInsightsUseCase() -> FetchInsightsUseCaseProtocol {
+        FetchInsightsUseCase(repository: makeInsightRepository())
+    }
+
+    @MainActor
+    func makeInsightEditorViewModel(mode: InsightEditorViewModel.Mode = .create) -> InsightEditorViewModel {
+        InsightEditorViewModel(
+            mode: mode,
+            createUseCase: makeCreateInsightUseCase(),
+            updateUseCase: makeUpdateInsightUseCase()
+        )
+    }
+
+    @MainActor
+    func makeInsightListViewModel() -> InsightListViewModel {
+        InsightListViewModel(deleteUseCase: makeDeleteInsightUseCase())
+    }
+
+    // MARK: - Space
+
+    func makeSpaceCloudService() -> SpaceCloudServiceProtocol {
+        SpaceCloudService()
+    }
+
+    @MainActor
+    func makeSpaceRepository() -> SpaceRepositoryProtocol {
+        SpaceRepository(
+            cloudService: makeSpaceCloudService(),
+            modelContext: SpaceStore.container.mainContext
+        )
+    }
+
+    @MainActor
+    func makeCreateSpaceUseCase() -> CreateSpaceUseCaseProtocol {
+        CreateSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpacesUseCase() -> FetchSpacesUseCaseProtocol {
+        FetchSpacesUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteSpaceUseCase() -> DeleteSpaceUseCaseProtocol {
+        DeleteSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeLeaveSpaceUseCase() -> LeaveSpaceUseCaseProtocol {
+        LeaveSpaceUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeAcceptSpaceInviteUseCase() -> AcceptSpaceInviteUseCaseProtocol {
+        AcceptSpaceInviteUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpaceMembersUseCase() -> FetchSpaceMembersUseCaseProtocol {
+        FetchSpaceMembersUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeSpaceFormViewModel() -> SpaceFormViewModel {
+        SpaceFormViewModel(
+            createUseCase: makeCreateSpaceUseCase()
+        )
+    }
+
+    @MainActor
+    func makeSpaceListViewModel() -> SpaceListViewModel {
+        SpaceListViewModel(
+            fetchUseCase: makeFetchSpacesUseCase(),
+            deleteUseCase: makeDeleteSpaceUseCase(),
+            leaveUseCase: makeLeaveSpaceUseCase(),
+            repository: makeSpaceRepository(),
+            cloudService: makeSpaceCloudService()
+        )
+    }
+
+    @MainActor
+    func makeCreateSpaceReflectionUseCase() -> CreateSpaceReflectionUseCaseProtocol {
+        CreateSpaceReflectionUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpaceReflectionsUseCase() -> FetchSpaceReflectionsUseCaseProtocol {
+        FetchSpaceReflectionsUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeCreateSpaceResponseUseCase() -> CreateSpaceResponseUseCaseProtocol {
+        CreateSpaceResponseUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeFetchSpaceResponsesUseCase() -> FetchSpaceResponsesUseCaseProtocol {
+        FetchSpaceResponsesUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteOwnSpaceContentUseCase() -> DeleteOwnSpaceContentUseCaseProtocol {
+        DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeEditOwnSpaceResponseUseCase() -> EditOwnSpaceResponseUseCaseProtocol {
+        EditOwnSpaceResponseUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeSpaceDetailViewModel(space: Space) -> SpaceDetailViewModel {
+        SpaceDetailViewModel(
+            space: space,
+            fetchUseCase: makeFetchSpaceReflectionsUseCase(),
+            createUseCase: makeCreateSpaceReflectionUseCase(),
+            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
+    @MainActor
+    func makeSpaceMembersViewModel(space: Space) -> SpaceMembersViewModel {
+        SpaceMembersViewModel(
+            space: space,
+            fetchUseCase: makeFetchSpaceMembersUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
+    @MainActor
+    func makeSpaceThreadViewModel(reflection: SpaceReflection, space: Space) -> SpaceThreadViewModel {
+        SpaceThreadViewModel(
+            space: space,
+            reflection: reflection,
+            fetchUseCase: makeFetchSpaceResponsesUseCase(),
+            createUseCase: makeCreateSpaceResponseUseCase(),
+            editUseCase: makeEditOwnSpaceResponseUseCase(),
+            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            repository: makeSpaceRepository()
+        )
     }
 
     // MARK: - Repositories - Achievement
@@ -79,12 +249,20 @@ final class DIContainer {
         UpdateReflectionUseCase(
             reflectionRepository: makeReflectionRepository(),
             learningRepository: makeLearningRepository(),
-            imageService: makeImageProcessingService()
+            imageService: makeImageProcessingService(),
+            evaluateBadgesUseCase: makeEvaluateBadgesUseCase()
         )
     }
 
     func makeDeleteReflectionUseCase() -> DeleteReflectionUseCaseProtocol {
         DeleteReflectionUseCase(reflectionRepository: makeReflectionRepository())
+    }
+
+    func makeMoveReflectionUseCase() -> MoveReflectionUseCaseProtocol {
+        MoveReflectionUseCase(
+            reflectionRepository: makeReflectionRepository(),
+            learningRepository: makeLearningRepository()
+        )
     }
 
     func makeFetchReflectionsUseCase() -> FetchReflectionsUseCaseProtocol {
@@ -115,6 +293,42 @@ final class DIContainer {
 
     func makeCloudSyncService() -> CloudSyncServiceProtocol {
         CloudSyncService()
+    }
+
+    /// The shared auto-sync coordinator. Returns the same instance on every call so the
+    /// repositories that enqueue and the lifecycle that drains talk to one outbox owner.
+    @MainActor
+    func makeSyncCoordinator() -> SyncCoordinator {
+        if let existing = _syncCoordinator {
+            return existing
+        }
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured. Call configure(with:) first.")
+        }
+        let coordinator = SyncCoordinator(
+            cloudSyncService: makeCloudSyncService(),
+            modelContext: context
+        )
+        _syncCoordinator = coordinator
+        return coordinator
+    }
+
+    // MARK: - Use Cases - Sync
+
+    @MainActor
+    func makeRestoreFromCloudUseCase(
+        cloudSyncService: CloudSyncServiceProtocol
+    ) -> RestoreFromCloudUseCaseProtocol {
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured")
+        }
+        // The service is passed in rather than built here: the caller's view model is already
+        // subscribed to that instance's status publisher, and a second instance would restore
+        // without ever moving the caller's progress bar.
+        return RestoreFromCloudUseCase(
+            modelContext: context,
+            cloudSyncService: cloudSyncService
+        )
     }
 
     // MARK: - Services - Achievement
@@ -192,9 +406,11 @@ final class DIContainer {
         guard let context = modelContext else {
             fatalError("ModelContext not configured")
         }
+        let cloudSyncService = makeCloudSyncService()
         return CloudSyncViewModel(
             modelContext: context,
-            cloudSyncService: makeCloudSyncService()
+            cloudSyncService: cloudSyncService,
+            restoreUseCase: makeRestoreFromCloudUseCase(cloudSyncService: cloudSyncService)
         )
     }
 
@@ -202,9 +418,11 @@ final class DIContainer {
         guard let context = modelContext else {
             fatalError("ModelContext not configured")
         }
+        let cloudSyncService = makeCloudSyncService()
         return OnboardingViewModel(
             modelContext: context,
-            cloudSyncService: makeCloudSyncService()
+            cloudSyncService: cloudSyncService,
+            restoreUseCase: makeRestoreFromCloudUseCase(cloudSyncService: cloudSyncService)
         )
     }
 }

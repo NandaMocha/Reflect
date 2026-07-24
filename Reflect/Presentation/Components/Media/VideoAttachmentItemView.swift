@@ -22,7 +22,7 @@ struct VideoAttachmentItemView: View {
                     .overlay(
                         Image(systemName: "play.fill")
                             .font(.system(size: 12))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     )
             }
 
@@ -30,18 +30,18 @@ struct VideoAttachmentItemView: View {
             VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
                 Text("Video")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Text(durationText)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 Button(action: onRemove) {
                     Image(systemName: "trash")
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                 }
             }
 

@@ -11,7 +11,7 @@ struct LoadingView: View {
             if let message = message {
                 Text(message)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -41,7 +41,7 @@ struct LoadingOverlay: ViewModifier {
                     if let message = message {
                         Text(message)
                             .font(.subheadline)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                     }
                 }
                 .padding(Constants.Spacing.lg)
@@ -74,11 +74,11 @@ struct SyncProgressView: View {
 
             Text(message)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
 
             Text("\(Int(progress * 100))%")
                 .font(.headline)
-                .foregroundColor(.primaryDefault)
+                .foregroundStyle(Color.primaryDefault)
         }
         .padding(Constants.Spacing.lg)
         .glassCard()

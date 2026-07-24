@@ -65,7 +65,8 @@ extension ReflectionEditorView {
                         audioData: data,
                         transcription: $0.transcription,
                         language: $0.language,
-                        duration: $0.duration
+                        duration: $0.duration,
+                        waveformSamples: $0.waveformSamples
                     )
                 }
             os_log("🎤 [PERF] Loaded %d voice recordings in %.3fms", log: .default, type: .info, voiceCount, (CFAbsoluteTimeGetCurrent() - voiceStart) * 1000)

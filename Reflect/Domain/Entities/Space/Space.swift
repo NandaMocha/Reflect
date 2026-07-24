@@ -1,0 +1,12 @@
+import Foundation
+
+struct Space: Identifiable, Hashable, Sendable {
+    let id: String            // CKRecord name
+    var name: String
+    var detail: String?
+    var emoji: String?
+    var isOwner: Bool
+    var zoneID: SpaceZoneRef
+    var createdAt: Date?
+    var participantCount: Int
+}

@@ -6,16 +6,16 @@ struct SettingsAboutView: View {
             VStack(spacing: Constants.Spacing.xl) {
                 Image(systemName: "book.closed.fill")
                     .font(.system(size: 80))
-                    .foregroundColor(.primaryDefault)
+                    .foregroundStyle(Color.primaryDefault)
                     .padding(.top, Constants.Spacing.xl)
 
                 VStack(spacing: Constants.Spacing.xs) {
-                    Text("ReflectLearn")
+                    Text(Constants.App.name)
                         .font(.largeTitle.weight(.bold))
 
                     Text("Capture your learning journey")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: Constants.Spacing.md) {
@@ -43,7 +43,7 @@ struct SettingsFeatureRow: View {
         HStack(spacing: Constants.Spacing.md) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(.primaryDefault)
+                .foregroundStyle(Color.primaryDefault)
                 .frame(width: 44, height: 44)
                 .background(Color.primaryDefault.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -53,7 +53,7 @@ struct SettingsFeatureRow: View {
                     .font(.headline)
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
     }
