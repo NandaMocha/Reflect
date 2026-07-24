@@ -129,6 +129,17 @@ struct InsightListView: View {
         List {
             ForEach(groupedInsights, id: \.group) { entry in
                 Section {
+                    // Render the group title as a regular row (not a Section `header:`) so it
+                    // scrolls away with the content. A plain-List section header stays pinned to
+                    // the top while scrolling, which is the behavior we don't want here.
+                    Text(entry.group.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .padding(.leading, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+
                     ForEach(entry.insights) { insight in
                         InsightCard(insight: insight) {
                             insightToEdit = insight
@@ -145,11 +156,6 @@ struct InsightListView: View {
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                     }
-                } header: {
-                    Text(entry.group.title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .padding(.leading, 4)
                 }
                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
             }
