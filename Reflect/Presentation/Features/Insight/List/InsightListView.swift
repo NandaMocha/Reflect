@@ -135,7 +135,7 @@ struct InsightListView: View {
                     DateGroupSectionTitle(title: entry.group.title)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
 
                     ForEach(entry.insights) { insight in
                         InsightCard(insight: insight) {
