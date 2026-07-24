@@ -105,7 +105,7 @@ final class SyncCoordinator {
 
     /// Pushes all pending ops now (bypassing the debounce). Safe to call from lifecycle events.
     func drain() async {
-        guard !paused else { return }
+        guard isEnabled, !paused else { return }
 
         // Coalesce overlapping drains: if one is already in flight, ask it to run once more when
         // it finishes rather than racing it.

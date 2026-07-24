@@ -34,6 +34,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
+        // Register the auto-sync background drain handler. Must happen before launch completes,
+        // and the identifier must match Info.plist's BGTaskSchedulerPermittedIdentifiers.
+        SyncBackgroundScheduler.register()
+
         // Silent pushes need no permission prompt — this just enables the
         // device token registration required to receive them.
         UIApplication.shared.registerForRemoteNotifications()

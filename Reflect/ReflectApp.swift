@@ -23,6 +23,7 @@ struct ReflectApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     let modelContainer: ModelContainer
     @AppStorage(Constants.UserDefaults.selectedTheme) private var selectedTheme: String = "system"
+    @Environment(\.scenePhase) private var scenePhase
 
     // Widget action handling
     @State private var widgetAction: WidgetAction?
@@ -83,6 +84,18 @@ struct ReflectApp: App {
                 }
         }
         .modelContainer(modelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            // Auto-sync lifecycle flush: drain the outbox when returning to the foreground,
+            // and flush + schedule the BG backstop when heading to the background.
+            switch newPhase {
+            case .active:
+                SyncBackgroundScheduler.flushForeground()
+            case .background:
+                SyncBackgroundScheduler.flushBackground()
+            default:
+                break
+            }
+        }
     }
 
     // MARK: - Badge Initialization
