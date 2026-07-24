@@ -135,6 +135,7 @@ struct InsightListView: View {
                     Text(entry.group.title)
                         .font(.subheadline)
                         .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)   // match the reflection-list section header color
                         .padding(.leading, 4)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .listRowSeparator(.hidden)
