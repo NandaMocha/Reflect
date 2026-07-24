@@ -125,12 +125,16 @@ struct VoiceAudioView: View {
         }
     }
 
-    /// Persists the "seen" flag and primes the Microphone + Speech Recognition permissions so the
-    /// system prompts appear right after the instruction rather than on the first record tap.
-    /// Runs from the cover's `onDismiss`, i.e. after it has finished dismissing.
+    /// Persists the "seen" flag when the one-time voice intro is dismissed.
+    ///
+    /// We deliberately do NOT prime Microphone/Speech permissions here. Firing the system
+    /// permission dialogs from the cover's `onDismiss` — while it tears down inside the recorder
+    /// sheet — collided with the dismissal and could leave the intro stuck on screen, unable to
+    /// close. Both permissions are already requested at point of use instead: the microphone via
+    /// `AudioRecorderService.startRecording()` and speech via `SpeechRecognitionService`, both on
+    /// the first record tap.
     private func handleIntroDismissed() {
         UserDefaults.standard.set(true, forKey: Constants.UserDefaults.hasSeenVoiceIntro)
-        Task { _ = await speechRecognizer.requestPermission() }
     }
 
     // MARK: - Waveform section
