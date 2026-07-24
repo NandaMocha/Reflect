@@ -470,6 +470,12 @@ struct ReflectionListView: View {
             ForEach(viewModel?.sortedDateGroups ?? [], id: \.self) { group in
                 if let reflections = viewModel?.groupedReflections[group], !reflections.isEmpty {
                     Section {
+                        // Title as a scrolling row (not a Section `header:`) so it renders
+                        // identically to the insight list — a plain-List header is auto-lightened
+                        // by the system and can't colour-match a row.
+                        DateGroupSectionTitle(title: group.title)
+                            .listRowSeparator(.hidden)
+
                         ForEach(reflections) { reflection in
                             NavigationLink(value: reflection) {
                                 ReflectionCard(reflection: reflection)
@@ -492,8 +498,6 @@ struct ReflectionListView: View {
                             }
                             .listRowSeparator(.hidden)
                         }
-                    } header: {
-                        DateGroupSectionTitle(title: group.title)
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
