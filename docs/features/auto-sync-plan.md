@@ -1,15 +1,29 @@
 # Auto-Sync to iCloud — Implementation Plan (Path B: Transactional Outbox)
 
-**Status:** Proposed — v2 (revised after Fable + Sonnet review)
+**Status:** In progress (Tasks 1–5 implemented; Tasks 6–7 in progress)
 **Author:** Claude (design), reviewed by Fable + Sonnet agents
 **Target:** iOS 17+, Swift 6, SwiftData + CloudKit (private DB)
 **Base branch:** `feature/first-open-instructions` (verified against this, not `origin/main`)
-**Feature branch:** `feature/auto-sync`
+**Feature branch:** `feature/auto-sync-impl` (active development worktree)
 
 > **v2 changelog:** Fixed the load-bearing wrong assumption (CloudKit records are keyed by a
 > `localID` attribute, NOT by recordName); corrected conflict semantics to last-push-wins;
 > moved the Sendable-DTO fix into the push API; made the outbox write transactional; handle
 > child-record deletes via `reflectionID`; expanded repo hook coverage; corrected file paths.
+
+---
+
+## Implementation Status
+
+**Tasks 1–5** (PendingSyncOp model, incremental push API, SyncCoordinator, repository enqueue hooks, lifecycle flush + BGProcessingTask) have been implemented on `feature/auto-sync-impl` and verified:
+- Build: `xcodebuild ... | grep error:` passes (no compile errors).
+- Code review: each task reviewed by a code-review skill pass for concurrency correctness, architecture alignment, and error handling.
+
+**Tasks 6–7** (restore/seed guard + first-enable re-key, settings toggle + status surfacing) are in progress.
+
+**Verification:** CloudKit Dashboard schema prerequisite (see [auto-sync-verification.md](auto-sync-verification.md#prerequisites)) and manual acceptance checks are pending. Each check is documented in [auto-sync-verification.md](auto-sync-verification.md).
+
+---
 
 ---
 
