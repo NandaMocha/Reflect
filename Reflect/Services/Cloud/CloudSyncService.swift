@@ -308,6 +308,7 @@ final class CloudSyncService: CloudSyncServiceProtocol {
     /// as an error.
     private func forEachPage(
         recordType: String,
+        predicate: NSPredicate = NSPredicate(value: true),
         desiredKeys: [CKRecord.FieldKey]?,
         handlePage: ([(CKRecord.ID, Result<CKRecord, Error>)]) -> Void
     ) async throws {
@@ -315,7 +316,7 @@ final class CloudSyncService: CloudSyncServiceProtocol {
 
         do {
             let firstPage = try await uploadWithRetry(maxRetries: 2) {
-                let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+                let query = CKQuery(recordType: recordType, predicate: predicate)
                 return try await self.database.records(matching: query, desiredKeys: desiredKeys)
             }
             handlePage(firstPage.matchResults)
@@ -532,50 +533,34 @@ final class CloudSyncService: CloudSyncServiceProtocol {
     }
 
     // MARK: - Individual Upload Methods
+    //
+    // The full `backup()` path deletes the cloud first, then creates fresh records, so a plain
+    // `database.save` (default `.ifServerRecordUnchanged` policy) never hits a conflict here.
+    // Both this path and the incremental `pushUpserts` path build their records through the
+    // shared `makeRecord` builders below, so record shape is defined in exactly one place — and
+    // both now write deterministic `CKRecord.ID`s (see `makeRecord`), which is what re-keys any
+    // prior random-named backup on the first full backup (auto-sync first-enable, Task 6).
 
     private func uploadLearning(_ learning: Learning) async throws {
-        let record = CKRecord(recordType: RecordType.learning)
-        record["localID"] = learning.id.uuidString
-        record["title"] = learning.title
-        record["descriptionText"] = learning.descriptionText
-        record["colorHex"] = learning.colorHex
-        record["iconName"] = learning.iconName
-        record["sortOrder"] = learning.sortOrder
-        record["createdAt"] = learning.createdAt
-        record["updatedAt"] = learning.updatedAt
-
-        _ = try await database.save(record)
+        _ = try await database.save(Self.makeRecord(CloudLearningRecord(from: learning)))
     }
 
     private func uploadReflection(_ reflection: Reflection) async throws {
-        let record = CKRecord(recordType: RecordType.reflection)
-        record["localID"] = reflection.id.uuidString
-        record["learningID"] = reflection.learning?.id.uuidString
-        record["title"] = reflection.title
-        record["plainTextContent"] = reflection.plainTextContent
-        record["isFavorite"] = reflection.isFavorite
-        record["createdAt"] = reflection.createdAt
-        record["updatedAt"] = reflection.updatedAt
+        _ = try await database.save(Self.makeRecord(CloudReflectionRecord(from: reflection)))
 
-        if let contentData = reflection.contentData {
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try contentData.write(to: tempURL)
-            record["contentData"] = CKAsset(fileURL: tempURL)
-        }
-
-        _ = try await database.save(record)
+        let reflectionID = reflection.id
 
         // Upload images
         for image in reflection.images {
             try await uploadWithRetry(maxRetries: 2) {
-                try await self.uploadImageAttachment(image, reflectionID: reflection.id)
+                try await self.uploadImageAttachment(image, reflectionID: reflectionID)
             }
         }
 
         // Upload voice recordings
         for voice in reflection.voiceRecordings {
             try await uploadWithRetry(maxRetries: 2) {
-                try await self.uploadVoiceRecording(voice, reflectionID: reflection.id)
+                try await self.uploadVoiceRecording(voice, reflectionID: reflectionID)
             }
         }
 
@@ -583,77 +568,274 @@ final class CloudSyncService: CloudSyncServiceProtocol {
         // here would be destroyed by the next restore rather than merely left unsynced.
         for video in reflection.videos {
             try await uploadWithRetry(maxRetries: 2) {
-                try await self.uploadVideoAttachment(video, reflectionID: reflection.id)
+                try await self.uploadVideoAttachment(video, reflectionID: reflectionID)
             }
         }
     }
 
     private func uploadImageAttachment(_ image: ImageAttachment, reflectionID: UUID) async throws {
-        let record = CKRecord(recordType: RecordType.image)
-        record["localID"] = image.id.uuidString
-        record["reflectionID"] = reflectionID.uuidString
-        record["caption"] = image.caption
-        record["sortOrder"] = image.sortOrder
-        record["createdAt"] = image.createdAt
-
-        if let imageData = image.imageData {
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
-            try imageData.write(to: tempURL)
-            record["imageAsset"] = CKAsset(fileURL: tempURL)
-        }
-
-        if let thumbnailData = image.thumbnailData {
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "_thumb.jpg")
-            try thumbnailData.write(to: tempURL)
-            record["thumbnailAsset"] = CKAsset(fileURL: tempURL)
-        }
-
-        _ = try await database.save(record)
+        _ = try await database.save(Self.makeRecord(CloudImageRecord(from: image, reflectionID: reflectionID)))
     }
 
     private func uploadVoiceRecording(_ voice: VoiceRecording, reflectionID: UUID) async throws {
-        let record = CKRecord(recordType: RecordType.voice)
-        record["localID"] = voice.id.uuidString
-        record["reflectionID"] = reflectionID.uuidString
-        record["transcription"] = voice.transcription
-        record["language"] = voice.language
-        record["duration"] = voice.duration
-        if !voice.waveformSamples.isEmpty {
-            record["waveformSamples"] = voice.waveformSamples.map { NSNumber(value: $0) } as NSArray
-        }
-        record["sortOrder"] = voice.sortOrder
-        record["createdAt"] = voice.createdAt
-
-        if let audioData = voice.audioData {
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".m4a")
-            try audioData.write(to: tempURL)
-            record["audioAsset"] = CKAsset(fileURL: tempURL)
-        }
-
-        _ = try await database.save(record)
+        _ = try await database.save(Self.makeRecord(CloudVoiceRecord(from: voice, reflectionID: reflectionID)))
     }
 
     private func uploadVideoAttachment(_ video: VideoAttachment, reflectionID: UUID) async throws {
-        let record = CKRecord(recordType: RecordType.video)
-        record["localID"] = video.id.uuidString
-        record["reflectionID"] = reflectionID.uuidString
-        record["caption"] = video.caption
-        record["duration"] = video.duration
-        record["sortOrder"] = video.sortOrder
-        record["createdAt"] = video.createdAt
+        _ = try await database.save(Self.makeRecord(CloudVideoRecord(from: video, reflectionID: reflectionID)))
+    }
 
-        if let videoData = video.videoData {
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
-            try videoData.write(to: tempURL)
-            record["videoAsset"] = CKAsset(fileURL: tempURL)
+    // MARK: - Record Builders (deterministic IDs)
+
+    /// Stages `data` as a `CKAsset` in the temporary directory. CloudKit copies the file
+    /// during upload; the temp file is left for the system to reclaim (matching prior behavior).
+    private static func makeAsset(_ data: Data, suffix: String) throws -> CKAsset {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + suffix)
+        try data.write(to: tempURL)
+        return CKAsset(fileURL: tempURL)
+    }
+
+    /// Builds a record with a deterministic `CKRecord.ID(recordName:)` == the entity's `localID`.
+    /// This is what makes upserts idempotent: pushing the same entity twice overwrites in place
+    /// instead of creating a duplicate. `localID` is still written as a field for the restore
+    /// decode path, which matches on the field, not the recordName.
+    private static func makeRecord(_ dto: CloudLearningRecord) -> CKRecord {
+        let record = CKRecord(recordType: RecordType.learning, recordID: recordID(dto.id))
+        record["localID"] = dto.id.uuidString
+        record["title"] = dto.title
+        record["descriptionText"] = dto.descriptionText
+        record["colorHex"] = dto.colorHex
+        record["iconName"] = dto.iconName
+        record["sortOrder"] = dto.sortOrder
+        record["createdAt"] = dto.createdAt
+        record["updatedAt"] = dto.updatedAt
+        return record
+    }
+
+    private static func makeRecord(_ dto: CloudReflectionRecord) throws -> CKRecord {
+        let record = CKRecord(recordType: RecordType.reflection, recordID: recordID(dto.id))
+        record["localID"] = dto.id.uuidString
+        // Written even when nil (empty string) so an incremental `.changedKeys` upsert can
+        // actually clear a stale link — a nil/absent key would leave the server's old value.
+        // The decode reads it as a UUID, and `UUID(uuidString: "")` is nil, so "" == unlinked.
+        record["learningID"] = dto.learningID?.uuidString ?? ""
+        record["title"] = dto.title
+        record["plainTextContent"] = dto.plainTextContent
+        record["isFavorite"] = dto.isFavorite
+        record["createdAt"] = dto.createdAt
+        record["updatedAt"] = dto.updatedAt
+        if let contentData = dto.contentData {
+            record["contentData"] = try makeAsset(contentData, suffix: "")
+        }
+        return record
+    }
+
+    private static func makeRecord(_ dto: CloudImageRecord) throws -> CKRecord {
+        let record = CKRecord(recordType: RecordType.image, recordID: recordID(dto.id))
+        record["localID"] = dto.id.uuidString
+        record["reflectionID"] = dto.reflectionID.uuidString
+        record["caption"] = dto.caption
+        record["sortOrder"] = dto.sortOrder
+        record["createdAt"] = dto.createdAt
+        if let imageData = dto.imageData {
+            record["imageAsset"] = try makeAsset(imageData, suffix: ".jpg")
+        }
+        if let thumbnailData = dto.thumbnailData {
+            record["thumbnailAsset"] = try makeAsset(thumbnailData, suffix: "_thumb.jpg")
+        }
+        return record
+    }
+
+    private static func makeRecord(_ dto: CloudVoiceRecord) throws -> CKRecord {
+        let record = CKRecord(recordType: RecordType.voice, recordID: recordID(dto.id))
+        record["localID"] = dto.id.uuidString
+        record["reflectionID"] = dto.reflectionID.uuidString
+        record["transcription"] = dto.transcription
+        record["language"] = dto.language
+        record["duration"] = dto.duration
+        if !dto.waveformSamples.isEmpty {
+            record["waveformSamples"] = dto.waveformSamples.map { NSNumber(value: $0) } as NSArray
+        }
+        record["sortOrder"] = dto.sortOrder
+        record["createdAt"] = dto.createdAt
+        if let audioData = dto.audioData {
+            record["audioAsset"] = try makeAsset(audioData, suffix: ".m4a")
+        }
+        return record
+    }
+
+    private static func makeRecord(_ dto: CloudVideoRecord) throws -> CKRecord {
+        let record = CKRecord(recordType: RecordType.video, recordID: recordID(dto.id))
+        record["localID"] = dto.id.uuidString
+        record["reflectionID"] = dto.reflectionID.uuidString
+        record["caption"] = dto.caption
+        record["duration"] = dto.duration
+        record["sortOrder"] = dto.sortOrder
+        record["createdAt"] = dto.createdAt
+        if let videoData = dto.videoData {
+            record["videoAsset"] = try makeAsset(videoData, suffix: ".mov")
+        }
+        if let thumbnailData = dto.thumbnailData {
+            record["thumbnailAsset"] = try makeAsset(thumbnailData, suffix: "_thumb.jpg")
+        }
+        return record
+    }
+
+    private static func recordID(_ id: UUID) -> CKRecord.ID {
+        CKRecord.ID(recordName: id.uuidString)
+    }
+
+    // MARK: - Incremental Push (auto-sync)
+
+    func pushUpserts(
+        learnings: [CloudLearningRecord],
+        reflections: [ReflectionUpsert]
+    ) async throws {
+        guard await checkCloudAvailability() == .available else {
+            throw SyncError.iCloudAccountNotFound
         }
 
-        if let thumbnailData = video.thumbnailData {
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "_thumb.jpg")
-            try thumbnailData.write(to: tempURL)
-            record["thumbnailAsset"] = CKAsset(fileURL: tempURL)
+        var recordsToSave: [CKRecord] = []
+        var recordIDsToDelete: [CKRecord.ID] = []
+
+        for dto in learnings {
+            recordsToSave.append(Self.makeRecord(dto))
         }
 
-        _ = try await database.save(record)
+        for upsert in reflections {
+            recordsToSave.append(try Self.makeRecord(upsert.reflection))
+            for image in upsert.images { recordsToSave.append(try Self.makeRecord(image)) }
+            for voice in upsert.voiceRecordings { recordsToSave.append(try Self.makeRecord(voice)) }
+            for video in upsert.videos { recordsToSave.append(try Self.makeRecord(video)) }
+
+            // Reconcile: drop server-side children no longer attached to this reflection.
+            let stale = try await staleChildRecordIDs(
+                reflectionID: upsert.reflection.id,
+                keeping: upsert.currentChildIDs
+            )
+            recordIDsToDelete.append(contentsOf: stale)
+        }
+
+        try await modify(saving: recordsToSave, deleting: recordIDsToDelete)
+    }
+
+    func pushDeletes(_ deletions: [SyncDeletion]) async throws {
+        guard await checkCloudAvailability() == .available else {
+            throw SyncError.iCloudAccountNotFound
+        }
+
+        var recordIDsToDelete: [CKRecord.ID] = []
+        for deletion in deletions {
+            recordIDsToDelete.append(Self.recordID(deletion.entityID))
+            if deletion.entityType == .reflection {
+                // Also remove the reflection's attachments (matched by reflectionID, so this
+                // finds them regardless of how their recordName was keyed).
+                let children = try await staleChildRecordIDs(
+                    reflectionID: deletion.entityID,
+                    keeping: []
+                )
+                recordIDsToDelete.append(contentsOf: children)
+            }
+        }
+
+        try await modify(saving: [], deleting: recordIDsToDelete)
+    }
+
+    /// Server-side child-record IDs for `reflectionID` whose entity UUID is not in `keep`.
+    ///
+    /// Identity is taken from the `localID` field (falling back to recordName) so records
+    /// written before the deterministic-ID re-key are still matched correctly. A missing record
+    /// type (first sync) or a not-yet-queryable `reflectionID` field degrades to "no children"
+    /// rather than failing the whole push; genuine transient errors still propagate via retry.
+    private func staleChildRecordIDs(
+        reflectionID: UUID,
+        keeping keep: Set<UUID>
+    ) async throws -> [CKRecord.ID] {
+        var stale: [CKRecord.ID] = []
+        let childTypes = [RecordType.image, RecordType.voice, RecordType.video]
+        let predicate = NSPredicate(format: "reflectionID == %@", reflectionID.uuidString)
+
+        for type in childTypes {
+            do {
+                try await forEachPage(recordType: type, predicate: predicate, desiredKeys: ["localID"]) { matchResults in
+                    for (recordID, result) in matchResults {
+                        var childUUID: UUID?
+                        if case .success(let record) = result, let raw = record["localID"] as? String {
+                            childUUID = UUID(uuidString: raw)
+                        }
+                        if childUUID == nil {
+                            childUUID = UUID(uuidString: recordID.recordName)
+                        }
+                        // Only delete records whose identity we could resolve and that are no
+                        // longer attached; never blind-delete an unresolvable record.
+                        if let childUUID, !keep.contains(childUUID) {
+                            stale.append(recordID)
+                        }
+                    }
+                }
+            } catch let error as CKError where error.code == .invalidArguments {
+                // `reflectionID` not marked queryable in the CloudKit schema yet — skip
+                // reconciliation for this type rather than failing the sync. (Manual step:
+                // set reflectionID to Queryable in the CloudKit Dashboard.)
+                continue
+            }
+        }
+
+        return stale
+    }
+
+    /// Batched save/delete via `modifyRecords` with a last-push-wins policy.
+    ///
+    /// `savePolicy: .changedKeys` overwrites freshly built records without a prior fetch;
+    /// `atomically: false` is required in the default zone and lets a bad record fail in
+    /// isolation. Deletes tolerate already-missing records (idempotent).
+    private func modify(
+        saving recordsToSave: [CKRecord],
+        deleting recordIDsToDelete: [CKRecord.ID]
+    ) async throws {
+        let batchSize = 200
+
+        for start in stride(from: 0, to: recordsToSave.count, by: batchSize) {
+            let batch = Array(recordsToSave[start..<min(start + batchSize, recordsToSave.count)])
+            try await uploadWithRetry(maxRetries: 3) {
+                let (saveResults, _) = try await self.database.modifyRecords(
+                    saving: batch,
+                    deleting: [],
+                    savePolicy: .changedKeys,
+                    atomically: false
+                )
+                try Self.throwFirstSaveFailure(in: saveResults)
+            }
+        }
+
+        for start in stride(from: 0, to: recordIDsToDelete.count, by: batchSize) {
+            let batch = Array(recordIDsToDelete[start..<min(start + batchSize, recordIDsToDelete.count)])
+            try await uploadWithRetry(maxRetries: 3) {
+                let (_, deleteResults) = try await self.database.modifyRecords(
+                    saving: [],
+                    deleting: batch,
+                    savePolicy: .changedKeys,
+                    atomically: false
+                )
+                try Self.throwFirstDeleteFailure(in: deleteResults)
+            }
+        }
+    }
+
+    private static func throwFirstSaveFailure(in results: [CKRecord.ID: Result<CKRecord, Error>]) throws {
+        for (_, result) in results {
+            if case .failure(let error) = result { throw error }
+        }
+    }
+
+    private static func throwFirstDeleteFailure(in results: [CKRecord.ID: Result<Void, Error>]) throws {
+        for (_, result) in results {
+            if case .failure(let error) = result {
+                // Deleting something already gone is success for our purposes.
+                if let ckError = error as? CKError, ckError.code == .unknownItem { continue }
+                throw error
+            }
+        }
     }
 }

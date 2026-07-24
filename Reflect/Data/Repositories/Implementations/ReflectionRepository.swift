@@ -70,23 +70,44 @@ final class ReflectionRepository: ReflectionRepositoryProtocol {
 
     func create(_ reflection: Reflection) async throws {
         modelContext.insert(reflection)
+        // Enqueue the sync op into the SAME context BEFORE saving, so the one save() commits
+        // the reflection and its outbox entry atomically. A reflection upsert carries its
+        // current attachments, so this hook also covers image/voice/video add & remove.
+        await enqueueUpsert(id: reflection.id)
         try modelContext.save()
     }
 
     func update(_ reflection: Reflection) async throws {
         reflection.updatedAt = Date()
+        await enqueueUpsert(id: reflection.id)
         try modelContext.save()
     }
 
     func delete(_ reflection: Reflection) async throws {
+        // Capture the id before deletion — the outbox op must outlive the row.
+        let id = reflection.id
         modelContext.delete(reflection)
+        await enqueueDelete(id: id)
         try modelContext.save()
     }
 
     func toggleFavorite(_ reflection: Reflection) async throws {
         reflection.isFavorite.toggle()
         reflection.updatedAt = Date()
+        await enqueueUpsert(id: reflection.id)
         try modelContext.save()
+    }
+
+    // MARK: - Auto-sync enqueue
+
+    /// Inserts an upsert/delete outbox op via the shared coordinator (which shares this
+    /// repository's ModelContext). No-op when auto-sync is disabled or paused.
+    private func enqueueUpsert(id: UUID) async {
+        await DIContainer.shared.makeSyncCoordinator().enqueueUpsert(.reflection, id: id)
+    }
+
+    private func enqueueDelete(id: UUID) async {
+        await DIContainer.shared.makeSyncCoordinator().enqueueDelete(.reflection, id: id)
     }
 
     // MARK: - Convenience Methods without pagination

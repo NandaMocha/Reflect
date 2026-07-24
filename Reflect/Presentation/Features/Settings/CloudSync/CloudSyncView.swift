@@ -9,11 +9,23 @@ struct CloudSyncView: View {
     @State private var viewModel: CloudSyncViewModel?
     @State private var showRestoreAlert = false
 
+    /// The shared auto-sync coordinator (same singleton the repositories enqueue into and the
+    /// app lifecycle drains). Held directly in `@State` — rather than proxied through the view
+    /// model — so SwiftUI's Observation tracking picks up `state`/`pendingCount`/`isReconciling`
+    /// changes and re-renders this view without extra plumbing.
+    @State private var syncCoordinator: SyncCoordinator?
+    @State private var autoSyncErrorMessage: String?
+
     var body: some View {
         ScrollView {
             VStack(spacing: Constants.Spacing.xl) {
                 // Cloud Status
                 cloudStatusSection
+
+                Divider()
+
+                // Auto-sync
+                autoSyncSection
 
                 Divider()
 
@@ -128,6 +140,85 @@ struct CloudSyncView: View {
         case .networkUnavailable: return "Check your internet connection"
         case .temporarilyUnavailable: return "iCloud is temporarily unavailable"
         default: return "Checking iCloud status..."
+        }
+    }
+
+    // MARK: - Auto-Sync Section
+
+    private var autoSyncSection: some View {
+        VStack(alignment: .leading, spacing: Constants.Spacing.sm) {
+            Toggle(isOn: autoSyncBinding) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Auto-sync")
+                        .font(.body)
+                    Text(autoSyncStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .tint(.primaryDefault)
+            .disabled(syncCoordinator?.isReconciling == true)
+
+            if let autoSyncErrorMessage {
+                Text(autoSyncErrorMessage)
+                    .font(.caption)
+                    .foregroundStyle(Color.error)
+            }
+        }
+        .padding(Constants.Spacing.md)
+        .glassCard()
+    }
+
+    /// Turning the toggle on kicks off the Task 6 first-enable reconcile (a one-time full
+    /// re-key backup) before `isEnabled` actually flips; turning it off just disables. `get`
+    /// shows "on" for the duration of the reconcile too, so the switch doesn't visibly snap
+    /// back off while the reconcile is in flight.
+    private var autoSyncBinding: Binding<Bool> {
+        Binding(
+            get: { (syncCoordinator?.isEnabled ?? false) || (syncCoordinator?.isReconciling ?? false) },
+            set: { newValue in
+                guard let syncCoordinator else { return }
+                if newValue {
+                    autoSyncErrorMessage = nil
+                    Task {
+                        do {
+                            try await syncCoordinator.enableAndReconcile()
+                        } catch {
+                            autoSyncErrorMessage = error.localizedDescription
+                        }
+                    }
+                } else {
+                    syncCoordinator.isEnabled = false
+                }
+            }
+        )
+    }
+
+    private var autoSyncStatusText: String {
+        guard let syncCoordinator else { return "Checking…" }
+
+        if syncCoordinator.isReconciling {
+            return "Reconciling existing iCloud data…"
+        }
+        guard syncCoordinator.isEnabled else {
+            return "Off — changes only sync when you tap Backup to iCloud"
+        }
+
+        switch syncCoordinator.state {
+        case .idle:
+            if syncCoordinator.pendingCount > 0 {
+                return "\(syncCoordinator.pendingCount) pending"
+            }
+            if let lastSyncedAt = syncCoordinator.lastSyncedAt {
+                return "All changes synced · \(lastSyncedAt.relativeFormatted)"
+            }
+            return "All changes synced"
+        case .syncing:
+            return "Syncing…"
+        case .offline:
+            return "Offline — will sync when connected"
+        case .failed(let message):
+            return "Sync failed: \(message)"
         }
     }
 
@@ -270,6 +361,9 @@ struct CloudSyncView: View {
     private func setupViewModel() {
         if viewModel == nil {
             viewModel = CloudSyncViewModel(modelContext: modelContext)
+        }
+        if syncCoordinator == nil {
+            syncCoordinator = DIContainer.shared.makeSyncCoordinator()
         }
     }
 }

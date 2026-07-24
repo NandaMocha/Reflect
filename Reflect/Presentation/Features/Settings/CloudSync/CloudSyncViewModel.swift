@@ -163,6 +163,14 @@ final class CloudSyncViewModel {
 
         errorMessage = nil
 
+        // A manual full backup is a delete-then-reupload; it must not race the incremental
+        // auto-sync coordinator pushing the same records. `beginPause` pauses drains (and
+        // awaits any already in flight) but — `suppressEnqueue: false` — keeps enqueueing user
+        // edits made mid-backup, so they aren't lost, just drained after the backup finishes.
+        let coordinator = DIContainer.shared.makeSyncCoordinator()
+        await coordinator.beginPause(suppressEnqueue: false)
+        defer { coordinator.endPause(suppressEnqueue: false) }
+
         do {
             // Fetch all data
             let learningsDescriptor = FetchDescriptor<Learning>()
