@@ -475,6 +475,7 @@ struct ReflectionListView: View {
                         // by the system and can't colour-match a row.
                         DateGroupSectionTitle(title: group.title)
                             .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
 
                         ForEach(reflections) { reflection in
                             NavigationLink(value: reflection) {
@@ -500,10 +501,14 @@ struct ReflectionListView: View {
                         }
                     }
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 }
             }
         }
+        // Match the insight list: plain style over a hidden (white) scroll background, instead
+        // of the default inset-grouped style that gave this screen a lavender background.
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     private var sortingMenu: some View {
