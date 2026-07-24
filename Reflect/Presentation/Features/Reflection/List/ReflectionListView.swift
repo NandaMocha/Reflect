@@ -20,9 +20,6 @@ struct ReflectionListView: View {
     @State private var showEditor = false
     @State private var reflectionToMove: Reflection?
 
-    // One-time hint surfacing the hidden swipe → Move / Delete gesture.
-    @State private var showSwipeHint = false
-
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
 
@@ -47,8 +44,6 @@ struct ReflectionListView: View {
                 // Show the learning's own description at the top of its detail so the text
                 // entered in the New/Edit Learning form is actually visible somewhere.
                 learningDescriptionBanner
-
-                swipeHintBanner
 
                 Group {
                     if let viewModel = viewModel {
@@ -132,7 +127,6 @@ struct ReflectionListView: View {
                     learning: learning
                 )
             }
-            showSwipeHint = !UserDefaults.standard.bool(forKey: Constants.UserDefaults.hasSeenReflectionListHint)
             Task {
                 await viewModel?.loadReflections()
             }
@@ -443,47 +437,6 @@ struct ReflectionListView: View {
             .padding(.top, Constants.Spacing.sm)
             .padding(.bottom, Constants.Spacing.xs)
         }
-    }
-
-    /// One-time inline hint pointing at the hidden swipe gesture. Only shown once there are
-    /// reflections to swipe on; dismissing it (X) persists the flag so it never returns.
-    @ViewBuilder
-    private var swipeHintBanner: some View {
-        if showSwipeHint, let viewModel, !viewModel.reflections.isEmpty {
-            HStack(spacing: Constants.Spacing.sm) {
-                Image(systemName: "hand.draw")
-                    .foregroundStyle(Color.primaryDefault)
-
-                Text("Swipe a reflection left to Move it to another Learning or Delete it.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer(minLength: 0)
-
-                Button {
-                    dismissSwipeHint()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Dismiss hint")
-            }
-            .padding(Constants.Spacing.sm)
-            .background(
-                RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                    .fill(Color.primaryDefault.opacity(0.08))
-            )
-            .padding(.horizontal, Constants.Spacing.lg)
-            .padding(.top, Constants.Spacing.sm)
-            .transition(.opacity)
-        }
-    }
-
-    private func dismissSwipeHint() {
-        UserDefaults.standard.set(true, forKey: Constants.UserDefaults.hasSeenReflectionListHint)
-        withAnimation { showSwipeHint = false }
     }
 
     private var emptyState: some View {
