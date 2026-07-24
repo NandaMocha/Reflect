@@ -493,10 +493,7 @@ struct ReflectionListView: View {
                             .listRowSeparator(.hidden)
                         }
                     } header: {
-                        Text(group.title)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .padding(.leading, 4)
+                        DateGroupSectionTitle(title: group.title)
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))

@@ -121,6 +121,24 @@ struct ListSectionHeader: View {
     }
 }
 
+// MARK: - Date Group Section Title
+
+/// The per-date-group section title shared by the Reflection list and the Insight list, so both
+/// render an identical title (same color, weight, and leading position). Kept style-only — the
+/// caller supplies the row/header container and its insets.
+struct DateGroupSectionTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.subheadline)
+            .fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .padding(.leading, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - Detail Section Header
 
 /// A header for detail views with title and date
