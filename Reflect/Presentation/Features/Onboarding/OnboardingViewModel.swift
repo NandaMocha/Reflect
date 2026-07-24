@@ -45,7 +45,11 @@ final class OnboardingViewModel {
                 }
             }
         } catch {
-            errorMessage = error.localizedDescription
+            // Best-effort check: if we can't determine whether a cloud backup exists (e.g. a
+            // CloudKit schema/availability hiccup like "recordName is not marked queryable"),
+            // just don't offer restore. Never surface this as onboarding copy — the user didn't
+            // initiate anything here. Explicit, user-triggered restore still reports its errors.
+            showRestoreOption = false
         }
 
         isCheckingCloud = false
