@@ -37,7 +37,9 @@ struct ReflectApp: App {
                 VideoAttachment.self,
                 // Badge models
                 Badge.self,
-                MonthlyAchievement.self
+                MonthlyAchievement.self,
+                // Auto-sync transactional outbox
+                PendingSyncOp.self
             ])
 
             let modelConfiguration = ModelConfiguration(
