@@ -82,6 +82,7 @@ final class CreateReflectionUseCase: CreateReflectionUseCaseProtocol {
                 transcription: voiceInput.transcription,
                 language: voiceInput.language,
                 duration: voiceInput.duration,
+                waveformSamples: voiceInput.waveformSamples,
                 sortOrder: index
             )
             reflection.voiceRecordings.append(recording)

@@ -56,7 +56,7 @@ struct SecondaryButton: View {
                 RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
                     .stroke(foregroundColor, lineWidth: 1.5)
             )
-            .foregroundColor(foregroundColor)
+            .foregroundStyle(foregroundColor)
         }
         .disabled(isDisabled || isLoading)
         .buttonStyle(PressableCardStyle())

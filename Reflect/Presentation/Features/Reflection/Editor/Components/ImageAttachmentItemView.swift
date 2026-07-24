@@ -20,7 +20,7 @@ struct ImageAttachmentItemView: View {
 
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                 }
             }
             .padding(8)

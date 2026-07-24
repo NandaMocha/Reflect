@@ -267,6 +267,9 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
 
                 while Date().timeIntervalSince(startTime) < timeout {
                     try? await Task.sleep(nanoseconds: 100_000_000)  // Check every 100ms
+                    // Exit promptly when the sibling wins and cancels us — otherwise the
+                    // swallowed sleep returns instantly and this loop busy-spins to timeout.
+                    if Task.isCancelled { break }
 
                     let currentText = self.transcribedTextSubject.value
                     if currentText != initialText, currentText.count > initialText.count {
@@ -279,6 +282,7 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
                         var stableCount = 0
                         while Date().timeIntervalSince(checkTime) < 0.5 && stableCount < 5 {
                             try? await Task.sleep(nanoseconds: 100_000_000)
+                            if Task.isCancelled { break }
                             if self.transcribedTextSubject.value == lastText {
                                 stableCount += 1
                             } else {

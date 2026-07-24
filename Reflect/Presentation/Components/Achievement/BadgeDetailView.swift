@@ -17,7 +17,7 @@ struct BadgeDetailView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 32) {
                     // Badge Icon
@@ -60,7 +60,7 @@ struct BadgeDetailView: View {
             .navigationTitle("Achievement Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }

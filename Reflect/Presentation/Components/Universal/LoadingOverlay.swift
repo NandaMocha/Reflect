@@ -156,13 +156,13 @@ struct NativeLoadingState: View {
             if let title = title {
                 Text(title)
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
             }
 
             if let message = message {
                 Text(message)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -199,7 +199,7 @@ struct LoadingStateView: View {
                 if let message = message {
                     Text(message)
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
             case .fullScreen:
@@ -211,13 +211,13 @@ struct LoadingStateView: View {
                 if let title = title {
                     Text(title)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                 }
 
                 if let message = message {
                     Text(message)
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
 

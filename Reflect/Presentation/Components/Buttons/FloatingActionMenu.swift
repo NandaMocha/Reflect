@@ -61,7 +61,7 @@ struct FloatingActionMenu: View {
 
             Image(systemName: isExpanded ? "xmark" : "plus")
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 .animation(.spring(response: 0.35, dampingFraction: 0.6), value: isExpanded)
         }
@@ -122,7 +122,7 @@ struct FloatingActionMenu: View {
         }) {
             Image(systemName: "camera.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: actionButtonSize, height: actionButtonSize)
                 .background(
                     Circle()
@@ -155,7 +155,7 @@ struct FloatingActionMenu: View {
         }) {
             Image(systemName: "waveform")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: actionButtonSize, height: actionButtonSize)
                 .background(
                     Circle()

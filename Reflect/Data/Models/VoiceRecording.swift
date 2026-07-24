@@ -8,6 +8,7 @@ final class VoiceRecording {
     var transcription: String?
     var language: String
     var duration: TimeInterval
+    var waveformSamples: [Float] = []
     var sortOrder: Int
     var createdAt: Date
 
@@ -19,6 +20,7 @@ final class VoiceRecording {
         transcription: String? = nil,
         language: String = "en-US",
         duration: TimeInterval = 0,
+        waveformSamples: [Float] = [],
         sortOrder: Int = 0,
         createdAt: Date = Date()
     ) {
@@ -27,6 +29,7 @@ final class VoiceRecording {
         self.transcription = transcription
         self.language = language
         self.duration = duration
+        self.waveformSamples = waveformSamples
         self.sortOrder = sortOrder
         self.createdAt = createdAt
     }
@@ -61,7 +64,8 @@ extension VoiceRecording {
             audioData: audioData ?? Data(),
             transcription: transcription,
             language: language,
-            duration: duration
+            duration: duration,
+            waveformSamples: waveformSamples
         )
     }
 }

@@ -15,19 +15,19 @@ struct LearningCard: View {
 
                     Image(systemName: learning.iconName)
                         .font(.title3)
-                        .foregroundColor(Color(hex: learning.colorHex))
+                        .foregroundStyle(Color(hex: learning.colorHex))
                 }
 
                 // Content
                 VStack(alignment: .leading, spacing: Constants.Spacing.xxs) {
                     Text(learning.title)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     Text("\(learning.reflectionCount) reflections")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -35,7 +35,7 @@ struct LearningCard: View {
                 // Chevron
                     Image(systemName: "chevron.right")
                         .font(.body)
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .foregroundStyle(.secondary.opacity(0.5))
             }
             .padding(Constants.Spacing.md)
             .glassCard()

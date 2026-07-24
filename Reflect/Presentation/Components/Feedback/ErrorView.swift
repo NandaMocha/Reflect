@@ -8,16 +8,16 @@ struct ErrorView: View {
         VStack(spacing: Constants.Spacing.lg) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
-                .foregroundColor(.error)
+                .foregroundStyle(Color.error)
 
             VStack(spacing: Constants.Spacing.xs) {
                 Text("Something went wrong")
                     .font(.title3.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Text(error.localizedDescription)
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -39,11 +39,11 @@ struct InlineErrorView: View {
     var body: some View {
         HStack(spacing: Constants.Spacing.sm) {
             Image(systemName: "exclamationmark.circle.fill")
-                .foregroundColor(.error)
+                .foregroundStyle(Color.error)
 
             Text(message)
                 .font(.subheadline)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
 
             Spacer()
 
@@ -51,7 +51,7 @@ struct InlineErrorView: View {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -101,11 +101,11 @@ struct ToastView: View {
     var body: some View {
         HStack(spacing: Constants.Spacing.sm) {
             Image(systemName: type.icon)
-                .foregroundColor(type.color)
+                .foregroundStyle(type.color)
 
             Text(message)
                 .font(.subheadline)
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
         }
         .padding(Constants.Spacing.md)
         .background(

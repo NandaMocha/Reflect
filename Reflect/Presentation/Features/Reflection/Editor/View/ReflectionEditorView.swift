@@ -91,9 +91,10 @@ struct ReflectionEditorView: View {
     }
 
     var isValid: Bool {
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
         let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
         let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
-        return (hasContent || hasMedia) && selectedLearning != nil
+        return (hasTitle || hasContent || hasMedia) && selectedLearning != nil
     }
 
     var isIOS17_2OrNewer: Bool {
@@ -130,9 +131,11 @@ struct ReflectionEditorView: View {
                     }
                 }
                 .photosPicker(isPresented: $showImagePicker, selection: $selectedPhotoItems, maxSelectionCount: Constants.Limits.maxImagesPerReflection - images.count)
-                .fullScreenCover(isPresented: $showMediaPicker) {
-                    mediaPickerSheet
-                }
+                .cameraReflectionFlow(
+                    isPresented: $showMediaPicker,
+                    onPhotoPicked: { image in processCapturedImage(image) },
+                    onVideoPicked: { url, _, _ in processCapturedVideo(url) }
+                )
                 .sheet(isPresented: $showDatePicker) { datePickerSheet }
                 .sheet(isPresented: $showVoiceRecorder) { voiceRecorderSheet }
                 .sheet(isPresented: $showTemplatePicker) { templatePickerSheet }

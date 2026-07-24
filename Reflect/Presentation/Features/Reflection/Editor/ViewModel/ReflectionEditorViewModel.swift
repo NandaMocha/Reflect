@@ -149,7 +149,8 @@ extension ReflectionEditorViewModel {
                     audioData: audioData,
                     transcription: recording.transcription,
                     language: recording.language,
-                    duration: recording.duration
+                    duration: recording.duration,
+                    waveformSamples: recording.waveformSamples
                 )
             }
     }

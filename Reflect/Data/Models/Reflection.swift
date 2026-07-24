@@ -5,6 +5,9 @@ import CoreLocation
 
 @preconcurrency @Model
 final class Reflection {
+    // Indexes for the hot queries: list sort by createdAt, favorites filter.
+    #Index<Reflection>([\.createdAt], [\.isFavorite])
+
     @Attribute(.unique) var id: UUID
     var title: String
     @Attribute(.externalStorage) var contentData: Data?

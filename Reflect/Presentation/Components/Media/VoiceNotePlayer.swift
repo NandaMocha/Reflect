@@ -9,6 +9,12 @@ struct VoiceNotePlayer: View {
     @State private var audioPlayer: AVAudioPlayer?
     @State private var progressTimer: Timer?
     @State private var showTranscriptionPopup = false
+    @State private var backfilledSamples: [Float] = []
+
+    /// Stored samples if present, otherwise the ones analyzed on the fly for legacy recordings.
+    private var displaySamples: [Float] {
+        voiceRecording.waveformSamples.isEmpty ? backfilledSamples : voiceRecording.waveformSamples
+    }
 
     var body: some View {
         HStack(spacing: Constants.Spacing.sm) {
@@ -16,7 +22,7 @@ struct VoiceNotePlayer: View {
             Button(action: togglePlayback) {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
                     .background(Color.primaryDefault)
                     .clipShape(Circle())
@@ -25,23 +31,20 @@ struct VoiceNotePlayer: View {
             // Waveform Preview & Progress
             VStack(spacing: 2) {
                 // Waveform visualization with progress
-                AudioWaveform.progress(
-                    audioLevels: generateWaveformLevels(),
-                    progress: progress
-                )
+                ReflectWaveform(content: .playback(samples: displaySamples, progress: Double(progress)), style: .compact)
                 .frame(height: 20)
                 .animation(.linear(duration: 0.1), value: progress)
 
                 HStack {
                     Text(formatDuration(currentTime))
                         .font(.caption2.monospacedDigit())
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
 
                     Spacer()
 
                     Text(formatDuration(voiceRecording.duration))
                         .font(.caption2.monospacedDigit())
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -50,14 +53,14 @@ struct VoiceNotePlayer: View {
                 Button(action: { showTranscriptionPopup = true }) {
                     Image(systemName: "text.quote")
                         .font(.caption)
-                        .foregroundColor(.primaryDefault)
+                        .foregroundStyle(Color.primaryDefault)
                 }
             }
         }
         .padding(.vertical, Constants.Spacing.xs)
         .padding(.horizontal, Constants.Spacing.sm)
         .background(Color(.secondarySystemBackground))
-        .cornerRadius(Constants.CornerRadius.medium)
+        .clipShape(.rect(cornerRadius: Constants.CornerRadius.medium))
         .sheet(isPresented: $showTranscriptionPopup) {
             TranscriptionPopupView(
                 voiceRecording: voiceRecording,
@@ -67,6 +70,13 @@ struct VoiceNotePlayer: View {
         .onDisappear {
             stopPlayback()
             resetPlayback()
+        }
+        .task {
+            // Legacy recordings have no stored samples — analyze the audio once so the waveform
+            // shows real amplitude instead of a flat baseline.
+            if voiceRecording.waveformSamples.isEmpty, let data = voiceRecording.audioData {
+                backfilledSamples = await WaveformSampleLoader.samples(from: data)
+            }
         }
     }
 
@@ -90,26 +100,6 @@ struct VoiceNotePlayer: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
-    private func generateWaveformLevels() -> [CGFloat] {
-        let count = 20
-        var levels: [CGFloat] = []
-
-        // Create a natural-looking waveform pattern
-        for i in 0..<count {
-            let normalizedPos = CGFloat(i) / CGFloat(count)
-            let baseWave = sin(normalizedPos * .pi * 4) * 0.3 + 0.5
-            let variation = sin(normalizedPos * .pi * 10) * 0.2
-            let level = max(0.2, min(1.0, baseWave + variation))
-            levels.append(level)
-        }
-
-        return levels
-    }
-
-    private func barHeightForIndex(_ index: Int) -> CGFloat {
-        // This is now unused, but kept for any reference
-        return 8
-    }
 
     private func togglePlayback() {
         if isPlaying {

@@ -14,13 +14,13 @@ extension ReflectionEditorView {
     }
 
     var voiceRecorderSheet: some View {
-        VoiceRecorderView(
-            isPresented: $showVoiceRecorder,
-            fromWidget: false  // Explicitly false for editor
-        ) { recording in
-            voiceRecordings.append(recording)
-            hasChanges = true
-        }
+        VoiceAudioView(
+            mode: .record(onComplete: { recording in
+                voiceRecordings.append(recording)
+                hasChanges = true
+            }, fromWidget: false),
+            isPresented: $showVoiceRecorder
+        )
     }
 
     var templatePickerSheet: some View {
@@ -33,21 +33,6 @@ extension ReflectionEditorView {
                 }
                 content += templateText
                 hasChanges = true
-            }
-        )
-    }
-
-    @ViewBuilder
-    var mediaPickerSheet: some View {
-        ImagePickerView(
-            sourceType: .camera,
-            onPhotoPicked: { image in
-                processCapturedImage(image)
-                showMediaPicker = false
-            },
-            onVideoPicked: { url, thumbnail, duration in
-                processCapturedVideo(url)
-                showMediaPicker = false
             }
         )
     }

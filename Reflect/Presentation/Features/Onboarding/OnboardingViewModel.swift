@@ -14,15 +14,18 @@ final class OnboardingViewModel {
     // MARK: - Dependencies
     private let modelContext: ModelContext
     private let cloudSyncService: CloudSyncServiceProtocol
+    private let restoreUseCase: RestoreFromCloudUseCaseProtocol?
 
     // MARK: - Initialization
 
     init(
         modelContext: ModelContext,
-        cloudSyncService: CloudSyncServiceProtocol? = nil
+        cloudSyncService: CloudSyncServiceProtocol? = nil,
+        restoreUseCase: RestoreFromCloudUseCaseProtocol? = nil
     ) {
         self.modelContext = modelContext
         self.cloudSyncService = cloudSyncService ?? CloudSyncService()
+        self.restoreUseCase = restoreUseCase
     }
 
     // MARK: - Cloud Check
@@ -54,7 +57,11 @@ final class OnboardingViewModel {
         errorMessage = nil
 
         do {
-            let result = try await cloudSyncService.restore()
+            let useCase = restoreUseCase ?? RestoreFromCloudUseCase(
+                modelContext: modelContext,
+                cloudSyncService: cloudSyncService
+            )
+            let result = try await useCase.execute()
 
             isRestoring = false
 

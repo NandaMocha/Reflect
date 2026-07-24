@@ -164,6 +164,7 @@ final class UpdateReflectionUseCase: UpdateReflectionUseCaseProtocol {
                     transcription: input.transcription,
                     language: input.language,
                     duration: input.duration,
+                    waveformSamples: input.waveformSamples,
                     sortOrder: index
                 )
                 reflection.voiceRecordings.append(recording)

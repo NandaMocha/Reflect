@@ -10,7 +10,7 @@ extension ReflectionDetailView {
             Text(learning.title)
                 .font(.caption.weight(.medium))
         }
-        .foregroundColor(Color(hex: learning.colorHex))
+        .foregroundStyle(Color(hex: learning.colorHex))
         .padding(.horizontal, Constants.Spacing.sm)
         .padding(.vertical, Constants.Spacing.xs)
         .background(
@@ -29,7 +29,7 @@ extension ReflectionDetailView {
     var contentSection: some View {
         Text(reflection.plainTextContent)
             .font(.body)
-            .foregroundColor(.primary)
+            .foregroundStyle(.primary)
             .textSelection(.enabled)
     }
 

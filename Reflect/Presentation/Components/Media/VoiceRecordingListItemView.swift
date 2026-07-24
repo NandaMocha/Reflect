@@ -19,11 +19,11 @@ struct VoiceRecordingListItemView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Voice Note")
                         .font(.caption.weight(.medium))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text(formatDuration(voiceRecording.duration))
                         .font(.caption2.monospacedDigit())
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -31,21 +31,21 @@ struct VoiceRecordingListItemView: View {
                 // Play icon indicator
                 Image(systemName: "play.fill")
                     .font(.caption2)
-                    .foregroundColor(.primaryDefault)
+                    .foregroundStyle(Color.primaryDefault)
             }
             .padding(.vertical, Constants.Spacing.sm)
             .padding(.horizontal, Constants.Spacing.md)
             .background(Color(.secondarySystemBackground))
-            .cornerRadius(Constants.CornerRadius.medium)
+            .clipShape(.rect(cornerRadius: Constants.CornerRadius.medium))
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showPlayerPopup) {
-            VoicePlayerPopup(voiceRecording: voiceRecording.toInput())
+            VoiceAudioView(mode: .play(voiceRecording.toInput()), isPresented: $showPlayerPopup)
         }
     }
 
     private var waveformPreview: some View {
-        AudioWaveform.compact()
+        ReflectWaveform(content: .preview(samples: voiceRecording.waveformSamples), style: .compact)
             .frame(height: 20)
     }
 

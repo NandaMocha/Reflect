@@ -38,22 +38,26 @@ struct CreateReflectionInput {
         self.modelContext = modelContext
     }
 
+    /// Valid when the reflection carries *something* — a title, a description, or any media
+    /// (image, video, or voice). Title and content are no longer individually required, so an
+    /// image-only (or voice-only) reflection saves fine. Only a completely empty entry fails.
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !content.trimmingCharacters(in: .whitespaces).isEmpty &&
-        learningId != nil
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        return (hasTitle || hasContent || hasMedia) && learningId != nil
     }
 
     var validationErrors: [String] {
         var errors: [String] = []
-        if title.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Title is required")
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        if !hasTitle && !hasContent && !hasMedia {
+            errors.append("Add a title, description, or media before saving")
         }
         if title.count > Constants.Limits.reflectionTitleMaxLength {
             errors.append("Title is too long")
-        }
-        if content.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("Content is required")
         }
         if learningId == nil {
             errors.append("Please select a learning")
@@ -103,6 +107,7 @@ struct VoiceRecordingInput: Identifiable {
     var transcription: String?
     let language: String
     let duration: TimeInterval
+    let waveformSamples: [Float]
     let fromWidget: Bool  // Track if recording originated from widget
 
     init(
@@ -112,6 +117,7 @@ struct VoiceRecordingInput: Identifiable {
         transcription: String? = nil,
         language: String,
         duration: TimeInterval,
+        waveformSamples: [Float] = [],
         fromWidget: Bool = false
     ) {
         self.id = id
@@ -120,6 +126,7 @@ struct VoiceRecordingInput: Identifiable {
         self.transcription = transcription
         self.language = language
         self.duration = duration
+        self.waveformSamples = waveformSamples
         self.fromWidget = fromWidget
     }
 }
@@ -142,10 +149,14 @@ struct UpdateReflectionInput {
     var voiceRecordings: [VoiceRecordingInput]
     var modelContext: ModelContext?
 
+    /// Same rule as `CreateReflectionInput`: valid as long as the reflection still has a
+    /// title, a description, or any media — so editing away all the text on a media-only
+    /// reflection is allowed.
     var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !content.trimmingCharacters(in: .whitespaces).isEmpty &&
-        learningId != nil
+        let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasContent = !content.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasMedia = !images.isEmpty || !videos.isEmpty || !voiceRecordings.isEmpty
+        return (hasTitle || hasContent || hasMedia) && learningId != nil
     }
 }
 

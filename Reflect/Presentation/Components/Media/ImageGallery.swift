@@ -5,7 +5,7 @@ struct ImageGallery: View {
     var onTap: ((ImageAttachment) -> Void)?
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack(spacing: Constants.Spacing.sm) {
                 ForEach(images.sorted(by: { $0.sortOrder < $1.sortOrder })) { image in
                     ImageGalleryItem(image: image) {
@@ -14,6 +14,7 @@ struct ImageGallery: View {
                 }
             }
         }
+        .scrollIndicators(.hidden)
     }
 }
 
@@ -35,7 +36,7 @@ struct ImageGalleryItem: View {
                         .fill(Color.secondary.opacity(0.2))
                         .overlay {
                             Image(systemName: "photo")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                 }
             }
@@ -94,7 +95,7 @@ struct ImageInputThumbnail: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title3)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .background(Circle().fill(Color.black.opacity(0.5)))
                 }
                 .offset(x: 8, y: -8)
@@ -112,11 +113,11 @@ struct VoiceRecordingThumbnail: View {
             VStack(spacing: Constants.Spacing.xs) {
                 Image(systemName: "mic.fill")
                     .font(.title2)
-                    .foregroundColor(.primaryDefault)
+                    .foregroundStyle(Color.primaryDefault)
 
                 Text(formatDuration(recording.duration))
                     .font(.caption.monospacedDigit())
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             .frame(width: 100, height: 100)
             .background(
@@ -130,7 +131,7 @@ struct VoiceRecordingThumbnail: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title3)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .background(Circle().fill(Color.black.opacity(0.5)))
                 }
                 .offset(x: 8, y: -8)
