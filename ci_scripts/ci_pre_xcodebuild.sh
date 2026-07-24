@@ -8,6 +8,14 @@
 # "Quick Actions" extension always ship with a matching, monotonically
 # increasing build number — no manual bumping required.
 #
+# BUILD_NUMBER_OFFSET: Xcode Cloud's $CI_BUILD_NUMBER starts at 1 and counts up
+# per workflow. Builds up to 4 were already uploaded to App Store Connect
+# manually, so a raw CI_BUILD_NUMBER would collide with them (ITMS-90189
+# "Redundant Binary Upload") until it naturally climbed past 4. The offset
+# lifts every stamped build well above those existing builds while preserving
+# the monotonic increment. Raise it again only if you ever upload a build
+# numbered >= (offset + current CI_BUILD_NUMBER) by some other route.
+#
 # Why CURRENT_PROJECT_VERSION and not the Info.plist: this project sets
 # GENERATE_INFOPLIST_FILE = YES with no hardcoded CFBundleVersion, so the
 # generated Info.plist derives CFBundleVersion from CURRENT_PROJECT_VERSION.
@@ -17,6 +25,8 @@
 # for local builds.
 
 set -e
+
+BUILD_NUMBER_OFFSET=100
 
 if [ -z "$CI_BUILD_NUMBER" ]; then
     echo "CI_BUILD_NUMBER is not set — not an Xcode Cloud build. Skipping version stamp."
@@ -30,10 +40,12 @@ if [ ! -f "$PROJECT_FILE" ]; then
     exit 1
 fi
 
-echo "Setting CURRENT_PROJECT_VERSION to Xcode Cloud build number: $CI_BUILD_NUMBER"
+BUILD_NUMBER=$((CI_BUILD_NUMBER + BUILD_NUMBER_OFFSET))
+
+echo "Xcode Cloud build number: $CI_BUILD_NUMBER (+ offset $BUILD_NUMBER_OFFSET) -> CURRENT_PROJECT_VERSION $BUILD_NUMBER"
 
 # Replace every CURRENT_PROJECT_VERSION assignment (all targets, all configs).
-sed -i '' -E "s/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = $CI_BUILD_NUMBER;/g" "$PROJECT_FILE"
+sed -i '' -E "s/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" "$PROJECT_FILE"
 
 echo "Updated build number in $PROJECT_FILE:"
 grep "CURRENT_PROJECT_VERSION" "$PROJECT_FILE"
