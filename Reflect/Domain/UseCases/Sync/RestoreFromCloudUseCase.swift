@@ -35,6 +35,15 @@ final class RestoreFromCloudUseCase: RestoreFromCloudUseCaseProtocol {
     func execute() async throws -> SyncResult {
         let context = modelContext
 
+        // Pause auto-sync for the duration: seeding the local store from a downloaded snapshot
+        // must not enqueue a `PendingSyncOp` per row and immediately re-upload what was just
+        // downloaded. Both the manual restore (CloudSyncViewModel) and the onboarding restore
+        // path go through this single use case, so bracketing it here covers both callers.
+        // `suppressEnqueue: true` — restored rows are cloud echoes, not new sync intent.
+        let coordinator = DIContainer.shared.makeSyncCoordinator()
+        await coordinator.beginPause(suppressEnqueue: true)
+        defer { coordinator.endPause(suppressEnqueue: true) }
+
         return try await cloudSyncService.restore { snapshot in
             try RestoreFromCloudUseCase.apply(snapshot, to: context)
         }

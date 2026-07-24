@@ -25,15 +25,18 @@ final class SyncCoordinator {
     private(set) var state: State = .idle
     private(set) var pendingCount: Int = 0
 
-    /// When true, mutations do not enqueue and drains are skipped. Brackets restore / bulk
-    /// import so seeding the local store doesn't queue a re-upload storm (Task 6).
-    var paused: Bool = false
+    /// True while `enableAndReconcile()`'s one-time full re-key backup is running (Task 6).
+    /// Settings (Task 7) shows this instead of the regular `state` copy while it's set.
+    private(set) var isReconciling: Bool = false
 
-    /// Master switch (Settings toggle, Task 7). Defaults off until the feature fully lands;
-    /// `UserDefaults.bool` returns false for an absent key, which is the intended default.
+    /// Wall-clock time of the last successful drain or reconcile, for Settings' "Last synced" row.
+    private(set) var lastSyncedAt: Date?
+
+    /// Master switch (Settings toggle, Task 7). Defaults off until the feature fully lands.
+    /// Stored (not computed over UserDefaults) so `@Observable` tracks it and the Settings
+    /// toggle re-renders on change; `didSet` mirrors it to UserDefaults for persistence.
     var isEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Self.enabledKey) }
-        set { UserDefaults.standard.set(newValue, forKey: Self.enabledKey) }
+        didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
     }
 
     static let enabledKey = "autoSyncEnabled"
@@ -59,11 +62,22 @@ final class SyncCoordinator {
     private var isDraining = false
     private var drainRequestedWhileBusy = false
 
+    /// Depth counters (not a single bool) so overlapping brackets — e.g. a lifecycle drain and
+    /// a manual backup — don't have one `endPause` un-pausing the other's bracket. Draining and
+    /// enqueueing are suppressed independently: restore/seed must suppress both (imported rows
+    /// are cloud echoes, not new intent), but a manual backup should keep enqueueing user edits
+    /// made mid-backup — just not drain them until the backup itself finishes.
+    private var drainPauseDepth = 0
+    private var enqueueSuppressDepth = 0
+
+    var isDrainPaused: Bool { drainPauseDepth > 0 }
+
     // MARK: - Initialization
 
     init(cloudSyncService: CloudSyncServiceProtocol, modelContext: ModelContext) {
         self.cloudSyncService = cloudSyncService
         self.modelContext = modelContext
+        self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
         refreshPendingCount()
     }
 
@@ -82,7 +96,7 @@ final class SyncCoordinator {
     }
 
     private func enqueue(_ entityType: PendingSyncOp.EntityType, id: UUID, op: PendingSyncOp.Operation) {
-        guard isEnabled, !paused else { return }
+        guard isEnabled, enqueueSuppressDepth == 0 else { return }
         modelContext.insert(PendingSyncOp(entityType: entityType, entityID: id, op: op))
         pendingCount += 1  // optimistic; reconciled on the next drain
         scheduleDrain()
@@ -105,7 +119,7 @@ final class SyncCoordinator {
 
     /// Pushes all pending ops now (bypassing the debounce). Safe to call from lifecycle events.
     func drain() async {
-        guard isEnabled, !paused else { return }
+        guard isEnabled, drainPauseDepth == 0 else { return }
 
         // Coalesce overlapping drains: if one is already in flight, ask it to run once more when
         // it finishes rather than racing it.
@@ -184,9 +198,92 @@ final class SyncCoordinator {
                 scheduleDrain()
             } else {
                 state = .idle
+                lastSyncedAt = Date()
             }
         } catch {
             handleDrainFailure(ops: ops, error: error)
+        }
+    }
+
+    /// Waits for a drain already in flight (started by a debounce or a lifecycle event) to
+    /// finish, so a caller that's about to pause drains starts from a clean state. Bounded by
+    /// `timeout` and cancellation-aware so a stuck or cancelled drain can't hang the caller
+    /// forever.
+    func awaitInFlightDrain(timeout: Duration = .seconds(30)) async {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while isDraining {
+            if ContinuousClock.now >= deadline { break }
+            do { try await Task.sleep(for: .milliseconds(150)) } catch { break } // cancelled -> stop
+        }
+    }
+
+    // MARK: - Pause API
+    //
+    // Depth-counted so overlapping brackets compose safely. Always balance a `beginPause` with
+    // an `endPause` using the SAME `suppressEnqueue` value.
+
+    /// Pauses drains (and optionally enqueueing) around an exclusive op, first awaiting any
+    /// drain already in flight so the caller starts clean.
+    func beginPause(suppressEnqueue: Bool) async {
+        drainPauseDepth += 1
+        if suppressEnqueue { enqueueSuppressDepth += 1 }
+        await awaitInFlightDrain()
+    }
+
+    func endPause(suppressEnqueue: Bool) {
+        drainPauseDepth = max(0, drainPauseDepth - 1)
+        if suppressEnqueue { enqueueSuppressDepth = max(0, enqueueSuppressDepth - 1) }
+    }
+
+    // MARK: - First-enable reconcile (Task 6)
+
+    /// Turns auto-sync on for a device that may already have cloud data pushed under the old
+    /// random-recordName scheme (pre deterministic IDs). Runs one full `backup()` — which now
+    /// writes deterministic `CKRecord.ID`s — to re-key that data, then switches on incremental
+    /// sync. Paused for the duration so the backup's own writes don't also enqueue incremental
+    /// ops; on success, any ops it superseded are cleared since the backup already covers them.
+    ///
+    /// Leaves `isEnabled` false if the reconcile fails, so a failed first-enable doesn't leave
+    /// the toggle silently on with stale un-rekeyed cloud data.
+    func enableAndReconcile() async throws {
+        guard !isReconciling else { return }     // reentrancy guard (synchronous, before any await)
+        isReconciling = true
+        state = .syncing
+        defer { isReconciling = false }
+
+        guard await cloudSyncService.checkCloudAvailability() == .available else {
+            state = .offline
+            throw SyncCoordinatorError.cloudUnavailable
+        }
+
+        await beginPause(suppressEnqueue: false)   // pauses drains + awaits in-flight drain
+        defer { endPause(suppressEnqueue: false) }
+
+        let learnings = fetchAllLearnings()
+        let reflections = fetchAllReflections()
+
+        do {
+            let result = try await cloudSyncService.backup(learnings: learnings, reflections: reflections)
+            guard result.success else {
+                let message = "Reconcile completed with \(result.errors.count) error(s)"
+                state = .failed(message)
+                throw SyncCoordinatorError.reconcileFailed(message)
+            }
+
+            // The full backup just re-uploaded everything it covers; drop any ops it superseded
+            // rather than re-pushing them incrementally right after.
+            for op in fetchPendingOps() { modelContext.delete(op) }
+            try? modelContext.save()
+            refreshPendingCount()
+
+            isEnabled = true
+            state = .idle
+            lastSyncedAt = Date()
+        } catch let error as SyncCoordinatorError {
+            throw error
+        } catch {
+            state = .failed(error.localizedDescription)
+            throw error
         }
     }
 
@@ -255,7 +352,31 @@ final class SyncCoordinator {
         return (try? modelContext.fetch(descriptor))?.first
     }
 
+    private func fetchAllLearnings() -> [Learning] {
+        (try? modelContext.fetch(FetchDescriptor<Learning>())) ?? []
+    }
+
+    private func fetchAllReflections() -> [Reflection] {
+        (try? modelContext.fetch(FetchDescriptor<Reflection>())) ?? []
+    }
+
     private func refreshPendingCount() {
         pendingCount = (try? modelContext.fetchCount(FetchDescriptor<PendingSyncOp>())) ?? 0
+    }
+}
+
+// MARK: - Errors
+
+enum SyncCoordinatorError: Error, LocalizedError {
+    case cloudUnavailable
+    case reconcileFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .cloudUnavailable:
+            return "iCloud is not available"
+        case .reconcileFailed(let message):
+            return message
+        }
     }
 }
