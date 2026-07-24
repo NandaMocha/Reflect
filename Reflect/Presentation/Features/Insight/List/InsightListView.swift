@@ -129,17 +129,13 @@ struct InsightListView: View {
         List {
             ForEach(groupedInsights, id: \.group) { entry in
                 Section {
-                    // Render the group title as a regular row (not a Section `header:`) so it
-                    // scrolls away with the content. A plain-List section header stays pinned to
-                    // the top while scrolling, which is the behavior we don't want here.
-                    Text(entry.group.title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)   // match the reflection-list section header color
-                        .padding(.leading, 4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // Group title as a scrolling row (not a Section `header:`, which would pin to
+                    // the top). Uses the shared DateGroupSectionTitle and the same row insets as
+                    // the reflection list's header, so both lists' section titles render identically.
+                    DateGroupSectionTitle(title: entry.group.title)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
 
                     ForEach(entry.insights) { insight in
                         InsightCard(insight: insight) {
