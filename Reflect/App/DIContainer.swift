@@ -6,6 +6,10 @@ final class DIContainer {
 
     private var modelContext: ModelContext?
 
+    /// The one auto-sync coordinator, shared between the repositories that enqueue ops and the
+    /// app lifecycle that flushes them. Created lazily on first `makeSyncCoordinator()`.
+    private var _syncCoordinator: SyncCoordinator?
+
     private init() {}
 
     // MARK: - Configuration
@@ -289,6 +293,24 @@ final class DIContainer {
 
     func makeCloudSyncService() -> CloudSyncServiceProtocol {
         CloudSyncService()
+    }
+
+    /// The shared auto-sync coordinator. Returns the same instance on every call so the
+    /// repositories that enqueue and the lifecycle that drains talk to one outbox owner.
+    @MainActor
+    func makeSyncCoordinator() -> SyncCoordinator {
+        if let existing = _syncCoordinator {
+            return existing
+        }
+        guard let context = modelContext else {
+            fatalError("ModelContext not configured. Call configure(with:) first.")
+        }
+        let coordinator = SyncCoordinator(
+            cloudSyncService: makeCloudSyncService(),
+            modelContext: context
+        )
+        _syncCoordinator = coordinator
+        return coordinator
     }
 
     // MARK: - Use Cases - Sync
