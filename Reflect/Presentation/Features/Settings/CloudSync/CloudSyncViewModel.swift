@@ -196,19 +196,13 @@ final class CloudSyncViewModel {
             let reflections = try modelContext.fetch(reflectionsDescriptor)
 
             // Insight lives in its own App-Group store — read it via a dedicated context and
-            // convert to Sendable DTOs before crossing into the service.
+            // convert to Sendable DTOs before crossing into the service. `backup()` deletes
+            // every CKInsight before re-uploading, so a swallowed fetch failure here (`try?`)
+            // would silently wipe the user's cloud insights and upload none back — this must
+            // throw and abort the backup instead (caught below, routed to `errorMessage`).
             let insightContext = ModelContext(InsightStore.container)
-            let localInsights = (try? insightContext.fetch(FetchDescriptor<Insight>())) ?? []
-            let insights = localInsights.map { insight in
-                CloudInsightRecord(
-                    id: insight.id,
-                    text: insight.text,
-                    typeRawValue: insight.typeRawValue,
-                    followUp: insight.followUp,
-                    createdAt: insight.createdAt,
-                    updatedAt: insight.updatedAt
-                )
-            }
+            let localInsights = try insightContext.fetch(FetchDescriptor<Insight>())
+            let insights = localInsights.map(CloudInsightRecord.init(from:))
 
             // Perform backup
             let result = try await cloudSyncService.backup(

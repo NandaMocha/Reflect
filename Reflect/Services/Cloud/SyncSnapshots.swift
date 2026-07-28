@@ -111,6 +111,22 @@ extension CloudVideoRecord {
     }
 }
 
+extension CloudInsightRecord {
+    /// Insight lives in a separate App-Group store (`InsightStore.container`), not the main
+    /// model context — callers read it via their own `ModelContext(InsightStore.container)`
+    /// and map each row with this initializer before crossing the actor boundary.
+    init(from insight: Insight) {
+        self.init(
+            id: insight.id,
+            text: insight.text,
+            typeRawValue: insight.typeRawValue,
+            followUp: insight.followUp,
+            createdAt: insight.createdAt,
+            updatedAt: insight.updatedAt
+        )
+    }
+}
+
 extension ReflectionUpsert {
     init(from reflection: Reflection) {
         let id = reflection.id

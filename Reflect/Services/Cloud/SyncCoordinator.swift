@@ -263,10 +263,15 @@ final class SyncCoordinator {
         let reflections = fetchAllReflections()
 
         do {
-            // This reconcile path only re-keys Learnings/Reflections onto deterministic
-            // CKRecord.IDs (Task 6); it predates Insight and isn't part of Insight's manual
-            // backup/restore flow, so it passes no insights here.
-            let result = try await cloudSyncService.backup(learnings: learnings, reflections: reflections, insights: [])
+            // `backup()` deletes every CKInsight before re-uploading (Insight is in
+            // RecordType.all), so this reconcile — despite predating Insight and existing to
+            // re-key Learnings/Reflections onto deterministic CKRecord.IDs (Task 6) — must
+            // still pass the real local insights through. Passing `[]` here would silently
+            // delete the user's cloud insights and upload none back. The fetch is a throwing
+            // `try` (not `try?`) so a read failure aborts the reconcile loudly instead of
+            // proceeding to wipe the cloud with an empty insight list.
+            let insights = try fetchAllInsights()
+            let result = try await cloudSyncService.backup(learnings: learnings, reflections: reflections, insights: insights)
             guard result.success else {
                 let message = "Reconcile completed with \(result.errors.count) error(s)"
                 state = .failed(message)
@@ -361,6 +366,16 @@ final class SyncCoordinator {
 
     private func fetchAllReflections() -> [Reflection] {
         (try? modelContext.fetch(FetchDescriptor<Reflection>())) ?? []
+    }
+
+    /// Insight lives in its own App-Group store (`InsightStore.container`), not `modelContext`.
+    /// Used only by `enableAndReconcile()`'s full re-key backup, which — unlike the rest of
+    /// this coordinator's incremental push path — must upload the real local insights or the
+    /// reconcile's delete-then-reupload would wipe them from iCloud. `try`, not `try?`: a
+    /// failed read here must abort the reconcile rather than silently backing up zero insights.
+    private func fetchAllInsights() throws -> [CloudInsightRecord] {
+        let context = ModelContext(InsightStore.container)
+        return try context.fetch(FetchDescriptor<Insight>()).map(CloudInsightRecord.init(from:))
     }
 
     private func refreshPendingCount() {
