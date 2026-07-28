@@ -9,7 +9,8 @@ protocol CloudSyncServiceProtocol {
     func checkExistingData() async throws -> CloudDataSummary?
     func backup(
         learnings: [Learning],
-        reflections: [Reflection]
+        reflections: [Reflection],
+        insights: [CloudInsightRecord]
     ) async throws -> SyncResult
     /// Downloads the backup and hands it to `apply` for persistence.
     ///

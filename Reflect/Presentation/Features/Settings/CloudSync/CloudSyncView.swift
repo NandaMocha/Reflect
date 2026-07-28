@@ -261,6 +261,18 @@ struct CloudSyncView: View {
                     color: .warning
                 )
             }
+
+            HStack {
+                // Insight lives in its own App-Group store, not this view's @Query'd
+                // modelContext — the count comes from the ViewModel's LocalDataSummary
+                // (ModelContext(InsightStore.container)), never a direct @Query here.
+                DataCountCard(
+                    icon: "lightbulb.fill",
+                    count: viewModel?.localDataSummary?.insightsCount ?? 0,
+                    label: "Insights",
+                    color: .peach
+                )
+            }
         }
     }
 
@@ -295,6 +307,15 @@ struct CloudSyncView: View {
                     count: data.reflectionsCount,
                     label: "Reflections",
                     color: .primaryDark.opacity(0.7)
+                )
+            }
+
+            HStack {
+                DataCountCard(
+                    icon: "lightbulb.fill",
+                    count: data.insightsCount,
+                    label: "Insights",
+                    color: .peach.opacity(0.7)
                 )
             }
         }

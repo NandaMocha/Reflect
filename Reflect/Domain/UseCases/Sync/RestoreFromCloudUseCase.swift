@@ -149,7 +149,35 @@ final class RestoreFromCloudUseCase: RestoreFromCloudUseCaseProtocol {
 
         try context.save()
 
-        return learningsByID.count + reflectionsByID.count + attachmentCount
+        // Insight lives in a separate App-Group store (`InsightStore.container`), not this
+        // `context` — it isn't in the main schema and inserting it here would throw. The main
+        // store save above must succeed first; this is a second, independent transaction.
+        //
+        // R2 (see insight-backup-plan.md): because the two stores can't share one transaction,
+        // a failure here after the main save succeeded leaves the user with restored
+        // reflections but stale/wiped insights, and this throw fails the whole restore. That's
+        // judged acceptable: the Insight save is small (no assets, so unlikely to fail) and
+        // retrying is safe — restore is idempotent (wipe + re-insert) — so the error alert
+        // (Objective 2) telling the user to retry is a sufficient mitigation for v1.
+        // Replace, not merge, matches the rest of this use case: a snapshot with zero insights
+        // (e.g. this device never used Insight, but the backup predates it) intentionally
+        // wipes the local Insight store rather than leaving stale rows behind.
+        let insightContext = ModelContext(InsightStore.container)
+        try insightContext.delete(model: Insight.self)
+        for record in snapshot.insights {
+            let insight = Insight(
+                id: record.id,
+                text: record.text,
+                type: InsightType(rawValue: record.typeRawValue) ?? .note,
+                followUp: record.followUp,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt
+            )
+            insightContext.insert(insight)
+        }
+        try insightContext.save()
+
+        return learningsByID.count + reflectionsByID.count + attachmentCount + snapshot.insights.count
     }
 
     /// Clears the models a backup covers.

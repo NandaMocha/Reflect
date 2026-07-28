@@ -36,8 +36,9 @@ final class CloudSyncService: CloudSyncServiceProtocol {
         static let image = "CKImageAttachment"
         static let voice = "CKVoiceRecording"
         static let video = "CKVideoAttachment"
+        static let insight = "CKInsight"
 
-        static let all = [learning, reflection, image, voice, video]
+        static let all = [learning, reflection, image, voice, video, insight]
     }
 
     func checkCloudAvailability() async -> CloudAvailability {
@@ -76,11 +77,12 @@ final class CloudSyncService: CloudSyncServiceProtocol {
             let reflectionsCount = try await fetchRecordCount(recordType: RecordType.reflection)
             let imagesCount = try await fetchRecordCount(recordType: RecordType.image)
             let voiceNotesCount = try await fetchRecordCount(recordType: RecordType.voice)
+            let insightsCount = try await fetchRecordCount(recordType: RecordType.insight)
 
             // Bail before asking for the backup date — on a device that has never backed up
             // there is no schema to sort by, and that query would fail an otherwise
             // perfectly correct "there is nothing here" answer.
-            if learningsCount == 0 && reflectionsCount == 0 {
+            if learningsCount == 0 && reflectionsCount == 0 && insightsCount == 0 {
                 syncStatusSubject.send(.idle)
                 return nil
             }
@@ -94,6 +96,7 @@ final class CloudSyncService: CloudSyncServiceProtocol {
                 reflectionsCount: reflectionsCount,
                 imagesCount: imagesCount,
                 voiceNotesCount: voiceNotesCount,
+                insightsCount: insightsCount,
                 lastBackupDate: lastBackupDate
             )
         } catch {
@@ -104,7 +107,8 @@ final class CloudSyncService: CloudSyncServiceProtocol {
 
     func backup(
         learnings: [Learning],
-        reflections: [Reflection]
+        reflections: [Reflection],
+        insights: [CloudInsightRecord]
     ) async throws -> SyncResult {
         syncStatusSubject.send(.syncing(progress: 0))
 
@@ -117,7 +121,7 @@ final class CloudSyncService: CloudSyncServiceProtocol {
 
         var errors: [SyncError] = []
         var itemsSynced = 0
-        let totalItems = learnings.count + reflections.count
+        let totalItems = learnings.count + reflections.count + insights.count
 
         do {
             // Delete existing data first
@@ -152,6 +156,21 @@ final class CloudSyncService: CloudSyncServiceProtocol {
                     syncStatusSubject.send(.syncing(progress: progress))
                 } catch {
                     errors.append(.uploadFailed("Reflection: \(reflection.title)"))
+                }
+            }
+
+            // Upload insights. Plain value types, no assets — the simplest record type in
+            // the schema, mirrored via `makeRecord(_: CloudInsightRecord)` below.
+            for insight in insights {
+                do {
+                    try await uploadWithRetry(maxRetries: 3) {
+                        _ = try await self.database.save(Self.makeRecord(insight))
+                    }
+                    itemsSynced += 1
+                    let progress = Double(itemsSynced) / Double(totalItems)
+                    syncStatusSubject.send(.syncing(progress: progress))
+                } catch {
+                    errors.append(.uploadFailed("Insight"))
                 }
             }
 
@@ -227,22 +246,26 @@ final class CloudSyncService: CloudSyncServiceProtocol {
 
         let learningRecords = try await fetchAllRecords(recordType: RecordType.learning)
         snapshot.learnings = learningRecords.compactMap(Self.decodeLearning)
-        syncStatusSubject.send(.syncing(progress: 0.2))
+        syncStatusSubject.send(.syncing(progress: 0.15))
 
         let reflectionRecords = try await fetchAllRecords(recordType: RecordType.reflection)
         snapshot.reflections = reflectionRecords.compactMap(Self.decodeReflection)
-        syncStatusSubject.send(.syncing(progress: 0.45))
+        syncStatusSubject.send(.syncing(progress: 0.35))
 
         let imageRecords = try await fetchAllRecords(recordType: RecordType.image)
         snapshot.images = imageRecords.compactMap(Self.decodeImage)
-        syncStatusSubject.send(.syncing(progress: 0.65))
+        syncStatusSubject.send(.syncing(progress: 0.55))
 
         let voiceRecords = try await fetchAllRecords(recordType: RecordType.voice)
         snapshot.voiceRecordings = voiceRecords.compactMap(Self.decodeVoice)
-        syncStatusSubject.send(.syncing(progress: 0.8))
+        syncStatusSubject.send(.syncing(progress: 0.7))
 
         let videoRecords = try await fetchAllRecords(recordType: RecordType.video)
         snapshot.videos = videoRecords.compactMap(Self.decodeVideo)
+        syncStatusSubject.send(.syncing(progress: 0.82))
+
+        let insightRecords = try await fetchAllRecords(recordType: RecordType.insight)
+        snapshot.insights = insightRecords.compactMap(Self.decodeInsight)
 
         return snapshot
     }
@@ -430,6 +453,19 @@ final class CloudSyncService: CloudSyncServiceProtocol {
             waveformSamples: (record["waveformSamples"] as? [NSNumber])?.map(\.floatValue) ?? [],
             sortOrder: record["sortOrder"] as? Int ?? 0,
             createdAt: record["createdAt"] as? Date ?? record.creationDate ?? Date()
+        )
+    }
+
+    private static func decodeInsight(_ record: CKRecord) -> CloudInsightRecord? {
+        guard let id = localID(record) else { return nil }
+
+        return CloudInsightRecord(
+            id: id,
+            text: record["text"] as? String ?? "",
+            typeRawValue: record["typeRawValue"] as? String ?? "note",
+            followUp: record["followUp"] as? String ?? "",
+            createdAt: record["createdAt"] as? Date ?? record.creationDate ?? Date(),
+            updatedAt: record["updatedAt"] as? Date ?? record.modificationDate ?? Date()
         )
     }
 
@@ -679,6 +715,17 @@ final class CloudSyncService: CloudSyncServiceProtocol {
         if let thumbnailData = dto.thumbnailData {
             record["thumbnailAsset"] = try makeAsset(thumbnailData, suffix: "_thumb.jpg")
         }
+        return record
+    }
+
+    private static func makeRecord(_ dto: CloudInsightRecord) -> CKRecord {
+        let record = CKRecord(recordType: RecordType.insight, recordID: recordID(dto.id))
+        record["localID"] = dto.id.uuidString
+        record["text"] = dto.text
+        record["typeRawValue"] = dto.typeRawValue
+        record["followUp"] = dto.followUp
+        record["createdAt"] = dto.createdAt
+        record["updatedAt"] = dto.updatedAt
         return record
     }
 

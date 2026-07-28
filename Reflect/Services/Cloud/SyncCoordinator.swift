@@ -263,7 +263,10 @@ final class SyncCoordinator {
         let reflections = fetchAllReflections()
 
         do {
-            let result = try await cloudSyncService.backup(learnings: learnings, reflections: reflections)
+            // This reconcile path only re-keys Learnings/Reflections onto deterministic
+            // CKRecord.IDs (Task 6); it predates Insight and isn't part of Insight's manual
+            // backup/restore flow, so it passes no insights here.
+            let result = try await cloudSyncService.backup(learnings: learnings, reflections: reflections, insights: [])
             guard result.success else {
                 let message = "Reconcile completed with \(result.errors.count) error(s)"
                 state = .failed(message)

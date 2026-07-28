@@ -137,11 +137,16 @@ final class CloudSyncViewModel {
         let imagesCount = (try? modelContext.fetchCount(imagesDescriptor)) ?? 0
         let voiceNotesCount = (try? modelContext.fetchCount(voiceDescriptor)) ?? 0
 
+        // Insight lives in its own App-Group store, never the main modelContext — a
+        // dedicated ModelContext(InsightStore.container) is required to read it.
+        let insightsCount = (try? ModelContext(InsightStore.container).fetchCount(FetchDescriptor<Insight>())) ?? 0
+
         localDataSummary = LocalDataSummary(
             learningsCount: learningsCount,
             reflectionsCount: reflectionsCount,
             imagesCount: imagesCount,
-            voiceNotesCount: voiceNotesCount
+            voiceNotesCount: voiceNotesCount,
+            insightsCount: insightsCount
         )
     }
 
@@ -179,10 +184,26 @@ final class CloudSyncViewModel {
             let learnings = try modelContext.fetch(learningsDescriptor)
             let reflections = try modelContext.fetch(reflectionsDescriptor)
 
+            // Insight lives in its own App-Group store — read it via a dedicated context and
+            // convert to Sendable DTOs before crossing into the service.
+            let insightContext = ModelContext(InsightStore.container)
+            let localInsights = (try? insightContext.fetch(FetchDescriptor<Insight>())) ?? []
+            let insights = localInsights.map { insight in
+                CloudInsightRecord(
+                    id: insight.id,
+                    text: insight.text,
+                    typeRawValue: insight.typeRawValue,
+                    followUp: insight.followUp,
+                    createdAt: insight.createdAt,
+                    updatedAt: insight.updatedAt
+                )
+            }
+
             // Perform backup
             let result = try await cloudSyncService.backup(
                 learnings: learnings,
-                reflections: reflections
+                reflections: reflections,
+                insights: insights
             )
 
             if result.success {
@@ -241,9 +262,10 @@ struct LocalDataSummary {
     let reflectionsCount: Int
     let imagesCount: Int
     let voiceNotesCount: Int
+    let insightsCount: Int
 
     var totalItems: Int {
-        learningsCount + reflectionsCount + imagesCount + voiceNotesCount
+        learningsCount + reflectionsCount + imagesCount + voiceNotesCount + insightsCount
     }
 
     var isEmpty: Bool {
