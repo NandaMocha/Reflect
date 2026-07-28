@@ -6,6 +6,11 @@ import Combine
 @Observable
 final class CloudSyncViewModel {
     // MARK: - State
+    enum SyncOperation {
+        case backup
+        case restore
+    }
+
     var cloudAvailability: CloudAvailability = .temporarilyUnavailable
     var syncStatus: SyncStatus = .idle
     var cloudDataSummary: CloudDataSummary?
@@ -13,6 +18,7 @@ final class CloudSyncViewModel {
     var errorMessage: String?
     var showRestoreWarning: Bool = false
     var lastSyncDate: Date?
+    var activeOperation: SyncOperation?
 
     // MARK: - Dependencies
     private let modelContext: ModelContext
@@ -50,18 +56,20 @@ final class CloudSyncViewModel {
     }
 
     var isSyncing: Bool {
-        if case .syncing = syncStatus { return true }
-        return false
+        syncStatus.isInProgress
     }
 
     var isBackingUp: Bool {
-        if case .syncing = syncStatus { return true }
-        return false
+        activeOperation == .backup && syncStatus.isInProgress
     }
 
     var isRestoring: Bool {
-        if case .syncing = syncStatus { return true }
-        return false
+        activeOperation == .restore && syncStatus.isInProgress
+    }
+
+    var isShowingError: Bool {
+        get { errorMessage != nil }
+        set { if !newValue { errorMessage = nil } }
     }
 
     var syncProgress: Double {
@@ -161,6 +169,9 @@ final class CloudSyncViewModel {
 
     @MainActor
     func backup() async {
+        activeOperation = .backup
+        defer { activeOperation = nil }
+
         guard isCloudAvailable else {
             errorMessage = "iCloud is not available"
             return
@@ -226,6 +237,9 @@ final class CloudSyncViewModel {
 
     @MainActor
     func restore() async {
+        activeOperation = .restore
+        defer { activeOperation = nil }
+
         guard isCloudAvailable else {
             errorMessage = "iCloud is not available"
             return

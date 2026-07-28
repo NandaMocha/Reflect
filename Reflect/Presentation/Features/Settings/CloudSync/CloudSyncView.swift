@@ -66,6 +66,14 @@ struct CloudSyncView: View {
         } message: {
             Text("This will replace all your local data with the data from iCloud. This action cannot be undone.")
         }
+        .alert("Sync Error", isPresented: Binding(
+            get: { viewModel?.isShowingError ?? false },
+            set: { if !$0 { viewModel?.errorMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(viewModel?.errorMessage ?? "")
+        }
     }
 
     // MARK: - Cloud Status Section
@@ -334,7 +342,10 @@ struct CloudSyncView: View {
                     await viewModel?.backup()
                 }
             }
-            .disabled(viewModel?.cloudAvailability != .available || viewModel?.isBackingUp == true)
+            .disabled(
+                viewModel?.cloudAvailability != .available ||
+                viewModel?.isSyncing == true
+            )
 
             // Restore Button
             SecondaryButton(
@@ -345,16 +356,42 @@ struct CloudSyncView: View {
             }
             .disabled(
                 viewModel?.cloudAvailability != .available ||
-                viewModel?.isRestoring == true ||
+                viewModel?.isSyncing == true ||
                 viewModel?.cloudDataSummary == nil
             )
 
             // Progress
-            if let progress = viewModel?.syncProgress, progress > 0 && progress < 1 {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
+            if viewModel?.isSyncing == true {
+                if let progress = viewModel?.syncProgress, progress > 0 {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .padding(.top, Constants.Spacing.sm)
+                } else {
+                    VStack(spacing: Constants.Spacing.sm) {
+                        ProgressView()
+                        Text(operationProgressLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     .padding(.top, Constants.Spacing.sm)
+                }
             }
+        }
+    }
+
+    private var operationProgressLabel: String {
+        guard let activeOperation = viewModel?.activeOperation else {
+            if viewModel?.syncStatus == .checking {
+                return "Checking iCloud…"
+            }
+            return "Syncing…"
+        }
+
+        switch activeOperation {
+        case .backup:
+            return "Backing up…"
+        case .restore:
+            return "Restoring…"
         }
     }
 
