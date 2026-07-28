@@ -6,14 +6,17 @@ struct ConfettiView: View {
     let duration: Double = 3.0
     let particleCount = 50
 
+    // Each particle's randomised properties are generated ONCE when the view's state is
+    // created, not on every `body` evaluation. Re-rolling in `body` (the old behaviour) let a
+    // particle's colour, rotation, and horizontal position jump/recolour mid-celebration.
+    @State private var specs: [ParticleSpec] = (0..<50).map { _ in ParticleSpec.random() }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Confetti particles
-                ForEach(0..<particleCount, id: \.self) { index in
+                ForEach(specs.indices, id: \.self) { index in
                     ConfettiParticle(
-                        index: index,
-                        total: particleCount,
+                        spec: specs[index],
                         size: geometry.size,
                         isAnimating: isAnimating
                     )
@@ -28,49 +31,48 @@ struct ConfettiView: View {
     }
 }
 
-private struct ConfettiParticle: View {
-    let index: Int
-    let total: Int
-    let size: CGSize
-    let isAnimating: Bool
+/// Stable, pre-computed properties for a single confetti particle. `xFraction` is stored as a
+/// 0...1 fraction so the horizontal position can be resolved against the runtime geometry width
+/// without re-randomising.
+private struct ParticleSpec {
+    let color: Color
+    let rotation: Double
+    let duration: Double
+    let delay: Double
+    let xFraction: CGFloat
 
-    // Random properties for variety
-    private var color: Color {
+    static func random() -> ParticleSpec {
         let colors: [Color] = [
             .red, .blue, .green, .yellow, .orange, .purple, .pink, .cyan
         ]
-        return colors.randomElement() ?? .confetti
+        return ParticleSpec(
+            color: colors.randomElement() ?? .confetti,
+            rotation: .random(in: 0...360),
+            duration: .random(in: 2...3),
+            delay: .random(in: 0...0.5),
+            xFraction: .random(in: 0...1)
+        )
     }
+}
 
-    private var rotation: Double {
-        Double.random(in: 0...360)
-    }
-
-    private var endY: CGFloat {
-        size.height + 50
-    }
-
-    private var duration: Double {
-        Double.random(in: 2...3)
-    }
-
-    private var delay: Double {
-        Double.random(in: 0...0.5)
-    }
+private struct ConfettiParticle: View {
+    let spec: ParticleSpec
+    let size: CGSize
+    let isAnimating: Bool
 
     var body: some View {
         RoundedRectangle(cornerRadius: 3)
-            .fill(color)
+            .fill(spec.color)
             .frame(width: 8, height: 8)
-            .rotationEffect(.degrees(rotation))
+            .rotationEffect(.degrees(spec.rotation))
             .offset(
-                x: CGFloat.random(in: 0...size.width),
-                y: isAnimating ? endY : -50
+                x: spec.xFraction * size.width,
+                y: isAnimating ? size.height + 50 : -50
             )
             .opacity(isAnimating ? 0 : 1)
             .animation(
-                .easeOut(duration: duration)
-                    .delay(delay),
+                .easeOut(duration: spec.duration)
+                    .delay(spec.delay),
                 value: isAnimating
             )
     }

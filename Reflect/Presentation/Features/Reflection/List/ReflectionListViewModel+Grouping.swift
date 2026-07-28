@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 
 // MARK: - Grouping Extension
 
@@ -9,14 +8,11 @@ extension ReflectionListViewModel {
     // bucketing is only a few ms, so there's nothing to offload.
     @MainActor
     func groupReflectionsByDate() async {
-        let startTime = CFAbsoluteTimeGetCurrent()
         groupedReflections = groupReflections(reflections)
-        os_log("📅 [PERF] groupReflectionsByDate took %.3fms", log: .default, type: .info, (CFAbsoluteTimeGetCurrent() - startTime) * 1000)
     }
 
     @MainActor
     private func groupReflections(_ reflections: [Reflection]) -> [ReflectionDateGroup: [Reflection]] {
-        let startTime = CFAbsoluteTimeGetCurrent()
         var groups: [ReflectionDateGroup: [Reflection]] = [:]
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -42,7 +38,6 @@ extension ReflectionListViewModel {
             groups[group, default: []].append(reflection)
         }
 
-        os_log("📊 [PERF] Grouped %d reflections in %.3fms", log: .default, type: .info, reflections.count, (CFAbsoluteTimeGetCurrent() - startTime) * 1000)
         return groups
     }
 

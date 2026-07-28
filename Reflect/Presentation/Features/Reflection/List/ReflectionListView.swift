@@ -267,10 +267,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
-        // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
-
-        // Reload reflections
+        // Reload the list directly. (No `.reflectionDidSave` post — this handler lives inside the
+        // list view, whose observer at `onReceive(.reflectionDidSave)` would just reload a second
+        // time. That notification exists for the editor→list refresh, not self-refresh.)
         await viewModel?.loadReflections()
 
         // Track last used learning
@@ -322,10 +321,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
-        // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
-
-        // Reload reflections
+        // Reload the list directly. (No `.reflectionDidSave` post — this handler lives inside the
+        // list view, whose observer at `onReceive(.reflectionDidSave)` would just reload a second
+        // time. That notification exists for the editor→list refresh, not self-refresh.)
         await viewModel?.loadReflections()
 
         // Track last used learning
@@ -370,10 +368,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
-        // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
-
-        // Reload reflections
+        // Reload the list directly. (No `.reflectionDidSave` post — this handler lives inside the
+        // list view, whose observer at `onReceive(.reflectionDidSave)` would just reload a second
+        // time. That notification exists for the editor→list refresh, not self-refresh.)
         await viewModel?.loadReflections()
 
         // Track last used learning
