@@ -443,14 +443,20 @@ struct DataCountCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count)")
                     .font(.headline.monospacedDigit())
+                    .lineLimit(1)
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    // Keep the label on a single line — shrink slightly if the card is narrow or
+                    // Dynamic Type is large, rather than wrapping mid-word ("Reflec-tions").
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(Constants.Spacing.md)
+        .padding(.vertical, Constants.Spacing.md)
+        .padding(.horizontal, Constants.Spacing.sm)
         .frame(maxWidth: .infinity)
         .glassCard()
     }
