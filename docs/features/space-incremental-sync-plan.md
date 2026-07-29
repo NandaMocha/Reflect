@@ -1,7 +1,22 @@
 # Space — Incremental Retrieval Plan (per-zone change tokens)
 
-Status: **PLANNED — not started.** Written 2026-07-29, right after photo attachments landed on
-feedback requests (`imageAsset` on `SpaceReflection`, commit `b05ed20`).
+Status: **IMPLEMENTED 2026-07-29** (same day as planned — pulled forward ahead of H2 at the
+user's request, so **H2/H3 must now verify the incremental path**, not the old full-fetch
+path). Written right after photo attachments landed on feedback requests (`imageAsset` on
+`SpaceReflection`, commit `b05ed20`).
+
+Implementation notes (deltas from the plan below):
+- T26–T28 landed as designed. One addition beyond the plan: author display names now come
+  through the delta's `authorNames` map and are **applied to cached rows** on every delta
+  (`refreshAuthorNames`), and upserts never overwrite a cached name/photo with nil — this
+  closes the "stale `authorDisplayName`" risk listed in the risk table.
+- The service no longer sets an "A member" fallback string; unresolved authors stay `nil`
+  and the UI's `SpaceAuthor.label` supplies the fallback (was already the display-side
+  behavior).
+- `deleteRecord`/`fetchRootSpaceRecord` still use full-zone fetches by design (rare ops).
+- T29 shipped as: Zone-sync section in `SpaceDebugView` (token list per zone, last-fetch
+  summary written by `fetchChanges` in DEBUG builds, clear-tokens button forcing a full
+  refetch).
 
 ## Why now
 

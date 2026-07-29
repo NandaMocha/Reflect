@@ -47,8 +47,16 @@ is over.
   `CreateSpaceReflectionUseCase`, stored as **`imageAsset` `CKAsset` on `SpaceReflection`**
   (no new record type), cached on `CachedSpaceReflection.imageData` (`.externalStorage`),
   rendered as row thumbnail + tappable thread-header image. Missing staged assets degrade to
-  text-only. **Follow-up planned:** full-zone refetch re-downloads assets each refresh — see
-  [space-incremental-sync-plan.md](space-incremental-sync-plan.md) (T26–T29, scheduled after H2).
+  text-only.
+- **Incremental zone sync (T26–T29, 2026-07-29):** per-zone `CKServerChangeToken`s — refreshes
+  now fetch only changed records (unchanged requests and their photo assets are NOT
+  re-downloaded). `fetchChanges(in:spaceID:)` returns a `SpaceZoneDelta`; the repository
+  applies it (`applyZoneDelta`) with explicit-delete semantics, and the set-difference prune
+  runs **only on full snapshots** (nil/expired token). Author renames propagate via the
+  delta's name map. Tokens cleared on expiry/zone-delete/leave. Debug: Settings → 🧪 Space
+  Debug → "Zone sync (T26)". Design + notes:
+  [space-incremental-sync-plan.md](space-incremental-sync-plan.md). **H2/H3 now verify this
+  path** — includes "second fetch of a quiet zone transfers ~nothing".
 
 ### Remaining before ship (ALL hardware/human — none are code)
 - **H2** two-device spike accept round-trip (needs **Device B** = 2nd iCloud account; Device A
