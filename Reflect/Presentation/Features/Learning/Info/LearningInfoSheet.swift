@@ -28,16 +28,24 @@ struct LearningInfoSheet: View {
                             .font(.title3.weight(.semibold))
                     }
 
-                    if let description = trimmedDescription {
-                        Text(description)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else {
-                        Text("No description yet.")
-                            .font(.subheadline)
-                            .foregroundStyle(.tertiary)
+                    Group {
+                        if let description = trimmedDescription {
+                            Text(description)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Text("No description yet.")
+                                .font(.subheadline)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(Constants.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                            .fill(Color(.secondarySystemBackground))
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Constants.Spacing.lg)
@@ -61,7 +69,7 @@ struct LearningInfoSheet: View {
                 LearningFormView(mode: .edit(learning))
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.fraction(0.3)])
     }
 
     private var trimmedDescription: String? {
