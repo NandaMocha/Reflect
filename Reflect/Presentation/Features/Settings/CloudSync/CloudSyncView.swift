@@ -336,16 +336,15 @@ struct CloudSyncView: View {
             // Backup Button
             PrimaryButton(
                 viewModel?.isBackingUp == true ? "Backing Up..." : "Backup to iCloud",
-                icon: "icloud.and.arrow.up"
+                icon: "icloud.and.arrow.up",
+                isLoading: viewModel?.isBackingUp == true,
+                isDisabled: viewModel?.cloudAvailability != .available ||
+                    viewModel?.isSyncing == true
             ) {
                 Task {
                     await viewModel?.backup()
                 }
             }
-            .disabled(
-                viewModel?.cloudAvailability != .available ||
-                viewModel?.isSyncing == true
-            )
 
             // Restore Button
             SecondaryButton(
