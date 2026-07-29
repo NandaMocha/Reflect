@@ -19,6 +19,7 @@ struct ReflectionListView: View {
     @State private var showNoLearningAlert = false
     @State private var showEditor = false
     @State private var reflectionToMove: Reflection?
+    @State private var showLearningInfo = false
 
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
@@ -40,28 +41,22 @@ struct ReflectionListView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 0) {
-                // Show the learning's own description at the top of its detail so the text
-                // entered in the New/Edit Learning form is actually visible somewhere.
-                learningDescriptionBanner
-
-                Group {
-                    if let viewModel = viewModel {
-                        if viewModel.isLoading && viewModel.reflections.isEmpty {
-                            loadingView
-                        } else if viewModel.isEmpty {
-                            emptyState
-                        } else if viewModel.reflections.isEmpty {
-                            noResultsState
-                        } else {
-                            reflectionList
-                        }
-                    } else {
+            Group {
+                if let viewModel = viewModel {
+                    if viewModel.isLoading && viewModel.reflections.isEmpty {
                         loadingView
+                    } else if viewModel.isEmpty {
+                        emptyState
+                    } else if viewModel.reflections.isEmpty {
+                        noResultsState
+                    } else {
+                        reflectionList
                     }
+                } else {
+                    loadingView
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // FAB with quick actions
             if let viewModel = viewModel, !viewModel.isEmpty {
@@ -70,6 +65,23 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
+        .toolbar {
+            if learning != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showLearningInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("Chapter Info")
+                }
+            }
+        }
+        .sheet(isPresented: $showLearningInfo) {
+            if let learning {
+                LearningInfoSheet(learning: learning)
+            }
+        }
         .searchable(
             text: Binding(
                 get: { viewModel?.searchQuery ?? "" },
@@ -404,37 +416,6 @@ struct ReflectionListView: View {
     }
 
     // MARK: - Views
-
-    /// A compact banner showing the learning's icon + description above its reflections.
-    /// Only rendered for a specific learning that actually has a description — the "All
-    /// Reflections" view (`learning == nil`) and description-less learnings show nothing.
-    @ViewBuilder
-    private var learningDescriptionBanner: some View {
-        if let learning,
-           let description = learning.descriptionText?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !description.isEmpty {
-            HStack(alignment: .top, spacing: Constants.Spacing.sm) {
-                Image(systemName: learning.iconName)
-                    .font(.title3)
-                    .foregroundStyle(Color(hex: learning.colorHex))
-                    .frame(width: 40, height: 40)
-                    .background(
-                        RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                            .fill(Color(hex: learning.colorHex).opacity(0.15))
-                    )
-
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Constants.Spacing.lg)
-            .padding(.top, Constants.Spacing.sm)
-            .padding(.bottom, Constants.Spacing.xs)
-        }
-    }
 
     private var emptyState: some View {
         VStack(spacing: Constants.Spacing.lg) {
