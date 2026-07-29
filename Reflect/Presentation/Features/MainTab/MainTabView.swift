@@ -37,7 +37,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Learnings", systemImage: "book.fill", value: .learnings) {
+            Tab("Chapters", systemImage: "book.fill", value: .learnings) {
                 LearningListView(widgetAction: $widgetAction)
             }
 
