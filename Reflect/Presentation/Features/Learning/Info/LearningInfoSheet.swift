@@ -12,44 +12,37 @@ struct LearningInfoSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Constants.Spacing.md) {
-                    HStack(spacing: Constants.Spacing.sm) {
-                        Image(systemName: learning.iconName)
-                            .font(.title3)
-                            .foregroundStyle(Color(hex: learning.colorHex))
-                            .frame(width: 40, height: 40)
-                            .background(
-                                RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                                    .fill(Color(hex: learning.colorHex).opacity(0.15))
-                            )
+            VStack(alignment: .leading, spacing: Constants.Spacing.md) {
+                HStack(spacing: Constants.Spacing.sm) {
+                    Image(systemName: learning.iconName)
+                        .font(.title3)
+                        .foregroundStyle(Color(hex: learning.colorHex))
+                        .frame(width: 40, height: 40)
+                        .background(
+                            RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                                .fill(Color(hex: learning.colorHex).opacity(0.15))
+                        )
 
-                        Text(learning.title)
-                            .font(.title3.weight(.semibold))
-                    }
+                    Text(learning.title)
+                        .font(.title3.weight(.semibold))
+                }
 
-                    Group {
-                        if let description = trimmedDescription {
-                            Text(description)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        } else {
-                            Text("No description yet.")
-                                .font(.subheadline)
-                                .foregroundStyle(.tertiary)
-                        }
+                Group {
+                    if let description = trimmedDescription {
+                        Text(description)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("No description yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Constants.Spacing.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                            .fill(Color(.secondarySystemBackground))
-                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Constants.Spacing.lg)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Constants.Spacing.lg)
             .navigationTitle("Chapter Info")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

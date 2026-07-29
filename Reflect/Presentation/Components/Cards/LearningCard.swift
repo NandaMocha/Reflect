@@ -46,7 +46,6 @@ struct LearningCard: View {
 
             Spacer()
         }
-        .padding(Constants.Spacing.md)
         .glassCard()
     }
 }
