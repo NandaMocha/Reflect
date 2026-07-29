@@ -84,9 +84,12 @@ struct ReflectionDetailView: View {
             ReflectionShareSheet(items: shareItems)
         }
         .fullScreenCover(item: $showFullscreenImage) { image in
-            ReflectionImageFullscreenView(
-                images: reflection.images.sorted(by: { $0.sortOrder < $1.sortOrder }),
-                startingImage: image
+            ImageFullscreenViewer(
+                images: reflection.images
+                    .sorted(by: { $0.sortOrder < $1.sortOrder })
+                    .map { FullscreenImage(id: $0.id, image: $0.image) },
+                startingID: image.id,
+                showsShare: true
             )
         }
         .fullScreenCover(item: $showFullscreenVideo) { video in

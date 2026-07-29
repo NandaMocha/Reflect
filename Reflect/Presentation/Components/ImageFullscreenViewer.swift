@@ -1,21 +1,42 @@
 import SwiftUI
 
-struct ReflectionImageFullscreenView: View {
-    let images: [ImageAttachment]
+/// Display-only snapshot of an image shown by `ImageFullscreenViewer`.
+/// Call sites map their own model (`ImageAttachment`, `ImageInput`) into this.
+struct FullscreenImage: Identifiable {
+    let id: UUID
+    let image: UIImage?
+}
+
+/// Fullscreen image viewer shared by the reflection detail screen and the
+/// editor. Supports pinch-to-zoom, swipe between images, and an optional
+/// share action.
+struct ImageFullscreenViewer: View {
+    let images: [FullscreenImage]
+    let showsShare: Bool
     @State private var currentIndex: Int
     @Environment(\.dismiss) private var dismiss
     @State private var scale: CGFloat = 1.0
     @State private var showShareSheet = false
 
-    init(images: [ImageAttachment], startingImage: ImageAttachment) {
+    /// Identity-based start, for `.fullScreenCover(item:)` presentation.
+    /// Falls back to the first image if `startingID` isn't found.
+    init(images: [FullscreenImage], startingID: UUID, showsShare: Bool = false) {
         self.images = images
-        let index = images.firstIndex(where: { $0.id == startingImage.id }) ?? 0
+        self.showsShare = showsShare
+        let index = images.firstIndex(where: { $0.id == startingID }) ?? 0
         _currentIndex = State(initialValue: index)
+    }
+
+    /// Index-based start, for `.fullScreenCover(isPresented:)` presentation.
+    init(images: [FullscreenImage], startingIndex: Int = 0, showsShare: Bool = false) {
+        self.images = images
+        self.showsShare = showsShare
+        _currentIndex = State(initialValue: startingIndex)
     }
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geometry in
+            GeometryReader { _ in
                 let currentImage = images[currentIndex]
                 if let uiImage = currentImage.image {
                     ZStack {
@@ -81,15 +102,17 @@ struct ReflectionImageFullscreenView: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.primaryDark)
                 }
 
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showShareSheet = true
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .foregroundStyle(.white)
+                if showsShare {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showShareSheet = true
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundStyle(Color.primaryDark)
+                        }
                     }
                 }
             }
