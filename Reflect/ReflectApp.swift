@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import AppIntents
+import UIKit
 
 // MARK: - Widget Action Enum
 
@@ -29,6 +30,7 @@ struct ReflectApp: App {
     @State private var widgetAction: WidgetAction?
 
     init() {
+        Self.configureNavigationBarBlur()
         do {
             let schema = Schema([
                 Learning.self,
@@ -66,6 +68,23 @@ struct ReflectApp: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
+    }
+
+    /// Give every navigation bar a translucent blur background that stays visible even at the
+    /// scroll edge. SwiftUI's default leaves the bar transparent until content scrolls under it;
+    /// wiring the same material into `scrollEdgeAppearance` makes the blur consistent across the
+    /// whole app. Applied once via UIKit appearance so every NavigationStack inherits it without
+    /// each view opting in. Views that deliberately hide the bar (e.g. fullscreen image viewers
+    /// using `.toolbarBackground(.hidden)`) still override this per-view.
+    private static func configureNavigationBarBlur() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground() // system chrome material — blur, light/dark adaptive
+
+        let navBar = UINavigationBar.appearance()
+        navBar.standardAppearance = appearance
+        navBar.compactAppearance = appearance
+        navBar.scrollEdgeAppearance = appearance
+        navBar.compactScrollEdgeAppearance = appearance
     }
 
     var body: some Scene {
