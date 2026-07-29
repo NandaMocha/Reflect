@@ -475,10 +475,15 @@ struct ReflectionListView: View {
                             .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
 
                         ForEach(reflections) { reflection in
-                            NavigationLink(value: reflection) {
+                            // Card is the only visible content; the transparent NavigationLink
+                            // behind it keeps tap-to-open working while hiding the system
+                            // disclosure chevron. Card-style rows read as tappable without it.
+                            ZStack {
+                                NavigationLink(value: reflection) { EmptyView() }
+                                    .opacity(0)
+
                                 ReflectionCard(reflection: reflection)
                             }
-                            .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     Task {

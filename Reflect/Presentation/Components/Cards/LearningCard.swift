@@ -45,11 +45,6 @@ struct LearningCard: View {
             }
 
             Spacer()
-
-            // Chevron
-            Image(systemName: "chevron.right")
-                .font(.body)
-                .foregroundStyle(.secondary.opacity(0.5))
         }
         .padding(Constants.Spacing.md)
         .glassCard()
