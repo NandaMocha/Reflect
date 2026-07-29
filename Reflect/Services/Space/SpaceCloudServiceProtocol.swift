@@ -53,7 +53,8 @@ protocol SpaceCloudServiceProtocol {
 
     /// Creates a reflection as a child of the root `Space` record (parent reference set so
     /// the share reaches it). Writes to the zone's database per `zone.lane`.
-    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String) async throws -> SpaceReflection
+    /// `imageData` (already-compressed JPEG bytes) is uploaded as a `CKAsset` when present.
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection
 
     /// All responses belonging to `reflection`, resolved like `fetchReflections`.
     func fetchResponses(for reflection: SpaceReflection, in zone: SpaceZoneRef) async throws -> [SpaceResponse]

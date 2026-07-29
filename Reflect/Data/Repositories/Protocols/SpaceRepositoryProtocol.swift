@@ -51,8 +51,9 @@ protocol SpaceRepositoryProtocol {
     /// space). Returns the reconciled cache.
     func fetchReflections(for space: Space) async throws -> [SpaceReflection]
 
-    /// Creates a reflection in the space's zone, then caches it.
-    func createReflection(in space: Space, title: String, promptText: String) async throws -> SpaceReflection
+    /// Creates a reflection in the space's zone, then caches it. `imageData` is
+    /// already-compressed JPEG bytes (compression happens in the use case).
+    func createReflection(in space: Space, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection
 
     /// Synchronous cache read of a reflection's responses, for instant first paint.
     func cachedResponses(reflectionID: String) -> [SpaceResponse]

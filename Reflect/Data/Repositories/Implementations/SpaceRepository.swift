@@ -176,12 +176,13 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return cachedReflections(spaceID: space.id)
     }
 
-    func createReflection(in space: Space, title: String, promptText: String) async throws -> SpaceReflection {
+    func createReflection(in space: Space, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection {
         let reflection = try await cloudService.createReflection(
             in: space.zoneID,
             spaceID: space.id,
             title: title,
-            promptText: promptText
+            promptText: promptText,
+            imageData: imageData
         )
         try upsertReflection(reflection)
         try modelContext.save()
@@ -271,6 +272,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             existing.spaceID = reflection.spaceID
             existing.title = reflection.title
             existing.promptText = reflection.promptText
+            existing.imageData = reflection.imageData
             existing.authorRecordName = reflection.authorRecordName
             existing.authorDisplayName = reflection.authorDisplayName
             existing.createdAt = reflection.createdAt

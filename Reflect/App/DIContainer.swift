@@ -139,7 +139,10 @@ final class DIContainer {
 
     @MainActor
     func makeCreateSpaceReflectionUseCase() -> CreateSpaceReflectionUseCaseProtocol {
-        CreateSpaceReflectionUseCase(repository: makeSpaceRepository())
+        CreateSpaceReflectionUseCase(
+            repository: makeSpaceRepository(),
+            imageService: makeImageProcessingService()
+        )
     }
 
     @MainActor

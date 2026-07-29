@@ -487,13 +487,18 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
     }
 
-    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String) async throws -> SpaceReflection {
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection {
         let database = database(for: zone.lane)
+        var imageAsset: CKAsset?
+        if let imageData {
+            imageAsset = try Self.makeImageAsset(imageData)
+        }
         let record = SpaceRecordMapper.makeReflectionRecord(
             zoneID: ckZoneID(for: zone),
             spaceID: spaceID,
             title: title,
-            promptText: promptText
+            promptText: promptText,
+            imageAsset: imageAsset
         )
         let saved = try await withRetry { try await database.save(record) }
         // We just authored it, so it is unambiguously mine — no need to infer from creator.
@@ -760,6 +765,15 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     }
 
     // MARK: - Helpers
+
+    /// Stages already-compressed JPEG bytes into a temp file so they can ride the record
+    /// as a `CKAsset` (CloudKit assets are file-backed; the file must outlive the save).
+    private static func makeImageAsset(_ data: Data) throws -> CKAsset {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".jpg")
+        try data.write(to: tempURL)
+        return CKAsset(fileURL: tempURL)
+    }
 
     private func ckZoneID(for zone: SpaceZoneRef) -> CKRecordZone.ID {
         CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
