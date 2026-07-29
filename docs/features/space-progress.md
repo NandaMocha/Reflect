@@ -42,13 +42,24 @@ is over.
   opaque** (filled with its light-sage edge color). Dark/tinted keep alpha per HIG. Re-archive/upload
   should now pass.
 
+- **Photo attachments on feedback requests** (2026-07-29, `b05ed20`): optional image on the
+  "Ask for Feedback" composer, compressed `.low` (≤800px, JPEG 0.3) in
+  `CreateSpaceReflectionUseCase`, stored as **`imageAsset` `CKAsset` on `SpaceReflection`**
+  (no new record type), cached on `CachedSpaceReflection.imageData` (`.externalStorage`),
+  rendered as row thumbnail + tappable thread-header image. Missing staged assets degrade to
+  text-only. **Follow-up planned:** full-zone refetch re-downloads assets each refresh — see
+  [space-incremental-sync-plan.md](space-incremental-sync-plan.md) (T26–T29, scheduled after H2).
+
 ### Remaining before ship (ALL hardware/human — none are code)
 - **H2** two-device spike accept round-trip (needs **Device B** = 2nd iCloud account; Device A
   passed avail/create/share/probe-write). Use Settings → 🧪 Space Debug on the installed build.
+  **Add:** verify a photo-carrying request reaches Device B (row thumbnail + thread header;
+  survives airplane-mode reopen via the SwiftData cache).
 - **H3** two-device P1 UI verification (incl. the R4-F1 `isMine` authorship check on the shared lane,
   + cold-launch invite).
 - **H4** CloudKit Console: **deploy schema Dev→Production** (record types `Space`/`SpaceReflection`/
-  `Response` + subscriptions) — release footgun; TestFlight talks to Production.
+  `Response` + subscriptions, **incl. the new `SpaceReflection.imageAsset` field** — post one
+  photo from a dev build first so it exists in Dev) — release footgun; TestFlight talks to Production.
 - **H5** TestFlight two-device E2E incl. silent push.
 - **R5** review (triage H5 findings) + **T25** final regression/decoupling audit.
 - Optional: **push `develop`** to origin when ready (agents never push).
