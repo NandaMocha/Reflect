@@ -44,7 +44,7 @@ struct LearningFormView: View {
     }
 
     private var navigationTitle: String {
-        isEditing ? "Edit Learning" : "New Learning"
+        isEditing ? "Edit Chapter" : "New Chapter"
     }
 
     private var isValid: Bool {
