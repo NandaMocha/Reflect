@@ -101,6 +101,11 @@ struct EntryCard: View {
                 }
 
                 HStack(spacing: Constants.Spacing.xs) {
+
+                    Text(dateText)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    
                     if showsMediaIcons {
                         HStack(spacing: Constants.Spacing.xxs) {
                             if hasImages {
@@ -120,10 +125,6 @@ struct EntryCard: View {
                             }
                         }
                     }
-
-                    Text(dateText)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
 
                     if showFollowedUp {
                         followedUpBadge
