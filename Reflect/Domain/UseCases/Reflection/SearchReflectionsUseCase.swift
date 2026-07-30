@@ -61,7 +61,9 @@ final class SearchReflectionsUseCase: SearchReflectionsUseCaseProtocol {
     private func sort(_ reflections: [Reflection], by option: Constants.SortOption) -> [Reflection] {
         switch option {
         case .newestFirst:
-            return reflections.sorted { $0.createdAt > $1.createdAt }
+            // Every repository fetch already sorts `createdAt` descending, and the favorites /
+            // date-range filters above preserve order — so the default option needs no re-sort.
+            return reflections
         case .oldestFirst:
             return reflections.sorted { $0.createdAt < $1.createdAt }
         case .alphabeticalAZ:

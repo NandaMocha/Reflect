@@ -157,7 +157,10 @@ struct ReflectionEditorView: View {
                     set: { if !$0 { selectedImageIndex = nil } }
                 )) {
                     if let index = selectedImageIndex {
-                        EditorImageFullscreenView(images: images, startingIndex: index)
+                        ImageFullscreenViewer(
+                            images: images.map { FullscreenImage(id: $0.id, image: $0.image) },
+                            startingIndex: index
+                        )
                     }
                 }
                 .onChange(of: selectedPhotoItems) { _, newItems in

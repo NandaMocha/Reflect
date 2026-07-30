@@ -16,11 +16,12 @@ struct CloudBackupSnapshot: Sendable {
     var images: [CloudImageRecord] = []
     var voiceRecordings: [CloudVoiceRecord] = []
     var videos: [CloudVideoRecord] = []
+    var insights: [CloudInsightRecord] = []
 
     /// Rows that will actually be written locally. Attachments whose parent reflection is
     /// missing get dropped at apply time, so this is an upper bound, not a promise.
     var totalItems: Int {
-        learnings.count + reflections.count + images.count + voiceRecordings.count + videos.count
+        learnings.count + reflections.count + images.count + voiceRecordings.count + videos.count + insights.count
     }
 
     var isEmpty: Bool { totalItems == 0 }
@@ -80,4 +81,16 @@ struct CloudVideoRecord: Sendable {
     let duration: TimeInterval
     let sortOrder: Int
     let createdAt: Date
+}
+
+/// Insight lives in its own App-Group SwiftData store (`InsightStore.container`), not the
+/// main app's `modelContext`, so it can't ride the `Learning`/`Reflection` model path across
+/// the actor boundary — a plain Sendable DTO instead.
+struct CloudInsightRecord: Sendable {
+    let id: UUID
+    let text: String
+    let typeRawValue: String
+    let followUp: String
+    let createdAt: Date
+    let updatedAt: Date
 }

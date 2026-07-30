@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// A space's detail: its reflections, with compose, delete-own, and report. Each row taps
 /// through to the response thread (T21). Replaces T14's placeholder navigation destination.
@@ -7,6 +8,7 @@ struct SpaceDetailView: View {
     @State private var showCompose = false
     @State private var showMembers = false
     @State private var reflectionToDelete: SpaceReflection?
+    @State private var selectedPhotoItem: PhotosPickerItem?
     @Environment(\.scenePhase) private var scenePhase
 
     init(space: Space) {
@@ -144,6 +146,42 @@ struct SpaceDetailView: View {
                     TextField("Add context or specific questions…", text: $viewModel.newPrompt, axis: .vertical)
                         .lineLimit(3...8)
                 }
+
+                Section {
+                    if let image = viewModel.newImage {
+                        HStack(spacing: Constants.Spacing.md) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 80, height: 80)
+                                .clipShape(.rect(cornerRadius: Constants.CornerRadius.small))
+
+                            Spacer()
+
+                            Button(role: .destructive) {
+                                viewModel.newImage = nil
+                                selectedPhotoItem = nil
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                        }
+                    } else {
+                        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                            Label("Add Photo", systemImage: "photo")
+                        }
+                    }
+                } footer: {
+                    Text("The photo is compressed before sharing to keep the space light.")
+                }
+            }
+            .onChange(of: selectedPhotoItem) { _, item in
+                guard let item else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        viewModel.newImage = image
+                    }
+                }
             }
             .navigationTitle("Ask for Feedback")
             .navigationBarTitleDisplayMode(.inline)
@@ -158,7 +196,10 @@ struct SpaceDetailView: View {
                     } else {
                         Button("Ask") {
                             Task {
-                                if await viewModel.save() { showCompose = false }
+                                if await viewModel.save() {
+                                    selectedPhotoItem = nil
+                                    showCompose = false
+                                }
                             }
                         }
                         .fontWeight(.semibold)
@@ -175,28 +216,39 @@ struct SpaceReflectionRow: View {
     let reflection: SpaceReflection
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(reflection.title)
-                .font(.body.weight(.semibold))
-                .lineLimit(2)
-
-            if !reflection.promptText.isEmpty {
-                Text(reflection.promptText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: Constants.Spacing.sm) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(reflection.title)
+                    .font(.body.weight(.semibold))
                     .lineLimit(2)
+
+                if !reflection.promptText.isEmpty {
+                    Text(reflection.promptText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 4) {
+                    Text(SpaceAuthor.label(isMine: reflection.isMine, name: reflection.authorDisplayName))
+                        .fontWeight(.medium)
+                    if let createdAt = reflection.createdAt {
+                        Text("·")
+                        Text(createdAt, format: .relative(presentation: .named))
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 4) {
-                Text(SpaceAuthor.label(isMine: reflection.isMine, name: reflection.authorDisplayName))
-                    .fontWeight(.medium)
-                if let createdAt = reflection.createdAt {
-                    Text("·")
-                    Text(createdAt, format: .relative(presentation: .named))
-                }
+            if let imageData = reflection.imageData, let thumbnail = UIImage(data: imageData) {
+                Spacer(minLength: 0)
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 48, height: 48)
+                    .clipShape(.rect(cornerRadius: Constants.CornerRadius.small))
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
     }

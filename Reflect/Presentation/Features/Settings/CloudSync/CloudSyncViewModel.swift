@@ -6,6 +6,11 @@ import Combine
 @Observable
 final class CloudSyncViewModel {
     // MARK: - State
+    enum SyncOperation {
+        case backup
+        case restore
+    }
+
     var cloudAvailability: CloudAvailability = .temporarilyUnavailable
     var syncStatus: SyncStatus = .idle
     var cloudDataSummary: CloudDataSummary?
@@ -13,6 +18,7 @@ final class CloudSyncViewModel {
     var errorMessage: String?
     var showRestoreWarning: Bool = false
     var lastSyncDate: Date?
+    var activeOperation: SyncOperation?
 
     // MARK: - Dependencies
     private let modelContext: ModelContext
@@ -50,18 +56,20 @@ final class CloudSyncViewModel {
     }
 
     var isSyncing: Bool {
-        if case .syncing = syncStatus { return true }
-        return false
+        syncStatus.isInProgress
     }
 
     var isBackingUp: Bool {
-        if case .syncing = syncStatus { return true }
-        return false
+        activeOperation == .backup && syncStatus.isInProgress
     }
 
     var isRestoring: Bool {
-        if case .syncing = syncStatus { return true }
-        return false
+        activeOperation == .restore && syncStatus.isInProgress
+    }
+
+    var isShowingError: Bool {
+        get { errorMessage != nil }
+        set { if !newValue { errorMessage = nil } }
     }
 
     var syncProgress: Double {
@@ -137,11 +145,16 @@ final class CloudSyncViewModel {
         let imagesCount = (try? modelContext.fetchCount(imagesDescriptor)) ?? 0
         let voiceNotesCount = (try? modelContext.fetchCount(voiceDescriptor)) ?? 0
 
+        // Insight lives in its own App-Group store, never the main modelContext — a
+        // dedicated ModelContext(InsightStore.container) is required to read it.
+        let insightsCount = (try? ModelContext(InsightStore.container).fetchCount(FetchDescriptor<Insight>())) ?? 0
+
         localDataSummary = LocalDataSummary(
             learningsCount: learningsCount,
             reflectionsCount: reflectionsCount,
             imagesCount: imagesCount,
-            voiceNotesCount: voiceNotesCount
+            voiceNotesCount: voiceNotesCount,
+            insightsCount: insightsCount
         )
     }
 
@@ -156,6 +169,9 @@ final class CloudSyncViewModel {
 
     @MainActor
     func backup() async {
+        activeOperation = .backup
+        defer { activeOperation = nil }
+
         guard isCloudAvailable else {
             errorMessage = "iCloud is not available"
             return
@@ -179,10 +195,20 @@ final class CloudSyncViewModel {
             let learnings = try modelContext.fetch(learningsDescriptor)
             let reflections = try modelContext.fetch(reflectionsDescriptor)
 
+            // Insight lives in its own App-Group store — read it via a dedicated context and
+            // convert to Sendable DTOs before crossing into the service. `backup()` deletes
+            // every CKInsight before re-uploading, so a swallowed fetch failure here (`try?`)
+            // would silently wipe the user's cloud insights and upload none back — this must
+            // throw and abort the backup instead (caught below, routed to `errorMessage`).
+            let insightContext = ModelContext(InsightStore.container)
+            let localInsights = try insightContext.fetch(FetchDescriptor<Insight>())
+            let insights = localInsights.map(CloudInsightRecord.init(from:))
+
             // Perform backup
             let result = try await cloudSyncService.backup(
                 learnings: learnings,
-                reflections: reflections
+                reflections: reflections,
+                insights: insights
             )
 
             if result.success {
@@ -205,6 +231,9 @@ final class CloudSyncViewModel {
 
     @MainActor
     func restore() async {
+        activeOperation = .restore
+        defer { activeOperation = nil }
+
         guard isCloudAvailable else {
             errorMessage = "iCloud is not available"
             return
@@ -241,9 +270,10 @@ struct LocalDataSummary {
     let reflectionsCount: Int
     let imagesCount: Int
     let voiceNotesCount: Int
+    let insightsCount: Int
 
     var totalItems: Int {
-        learningsCount + reflectionsCount + imagesCount + voiceNotesCount
+        learningsCount + reflectionsCount + imagesCount + voiceNotesCount + insightsCount
     }
 
     var isEmpty: Bool {

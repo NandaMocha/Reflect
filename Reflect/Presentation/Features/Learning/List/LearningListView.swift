@@ -56,7 +56,7 @@ struct LearningListView: View {
                     learningList
                 }
             }
-            .navigationTitle("Learnings")
+            .navigationTitle("Learning Chapters")
             .navigationDestination(for: Learning.self) { learning in
                 ReflectionListView(learning: learning, widgetAction: $widgetAction)
                     .onAppear {
@@ -109,7 +109,6 @@ struct LearningListView: View {
         // last-used learning), so it must stay reachable. Only hide it in the deeper
         // reflection detail (depth 2+).
         .toolbar(navigationPath.count >= 2 ? .hidden : .automatic, for: .tabBar)
-        .animation(.easeInOut(duration: 0.3), value: navigationPath.count)
         .onAppear {
             loadBadges()
             restoreState()
@@ -191,7 +190,13 @@ struct LearningListView: View {
         }
 
         if let learning = learnings.first(where: { $0.id == learningId }) {
-            navigationPath.append(learning)
+            // Restore the last-opened learning WITHOUT animating — this is a cold-launch state
+            // restore, not a user push, so it should appear already-navigated rather than sliding in.
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                navigationPath.append(learning)
+            }
         }
 
         isRestoringState = false
@@ -214,13 +219,16 @@ struct LearningListView: View {
             achievementEntrySection
 
             ForEach(filteredLearnings) { learning in
+                // The card is the only visible content; the NavigationLink sits behind it at
+                // opacity 0 so the row still navigates on tap but the system disclosure chevron
+                // (which the link would otherwise draw) is hidden. Card-style rows don't need it.
                 ZStack {
                     NavigationLink(value: learning) { EmptyView() }
                         .opacity(0)
 
-                    LearningCard(learning: learning) {}
+                    LearningCard(learning: learning)
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .standardSwipeActions {

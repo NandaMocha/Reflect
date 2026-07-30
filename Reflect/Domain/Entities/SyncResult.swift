@@ -109,10 +109,11 @@ struct CloudDataSummary {
     let reflectionsCount: Int
     let imagesCount: Int
     let voiceNotesCount: Int
+    let insightsCount: Int
     let lastBackupDate: Date?
 
     var totalItems: Int {
-        learningsCount + reflectionsCount + imagesCount + voiceNotesCount
+        learningsCount + reflectionsCount + imagesCount + voiceNotesCount + insightsCount
     }
 
     var isEmpty: Bool {

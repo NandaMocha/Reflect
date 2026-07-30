@@ -66,6 +66,14 @@ struct CloudSyncView: View {
         } message: {
             Text("This will replace all your local data with the data from iCloud. This action cannot be undone.")
         }
+        .alert("Sync Error", isPresented: Binding(
+            get: { viewModel?.isShowingError ?? false },
+            set: { if !$0 { viewModel?.errorMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(viewModel?.errorMessage ?? "")
+        }
     }
 
     // MARK: - Cloud Status Section
@@ -261,6 +269,18 @@ struct CloudSyncView: View {
                     color: .warning
                 )
             }
+
+            HStack {
+                // Insight lives in its own App-Group store, not this view's @Query'd
+                // modelContext — the count comes from the ViewModel's LocalDataSummary
+                // (ModelContext(InsightStore.container)), never a direct @Query here.
+                DataCountCard(
+                    icon: "lightbulb.fill",
+                    count: viewModel?.localDataSummary?.insightsCount ?? 0,
+                    label: "Insights",
+                    color: .peach
+                )
+            }
         }
     }
 
@@ -297,6 +317,15 @@ struct CloudSyncView: View {
                     color: .primaryDark.opacity(0.7)
                 )
             }
+
+            HStack {
+                DataCountCard(
+                    icon: "lightbulb.fill",
+                    count: data.insightsCount,
+                    label: "Insights",
+                    color: .peach.opacity(0.7)
+                )
+            }
         }
     }
 
@@ -307,13 +336,15 @@ struct CloudSyncView: View {
             // Backup Button
             PrimaryButton(
                 viewModel?.isBackingUp == true ? "Backing Up..." : "Backup to iCloud",
-                icon: "icloud.and.arrow.up"
+                icon: "icloud.and.arrow.up",
+                isLoading: viewModel?.isBackingUp == true,
+                isDisabled: viewModel?.cloudAvailability != .available ||
+                    viewModel?.isSyncing == true
             ) {
                 Task {
                     await viewModel?.backup()
                 }
             }
-            .disabled(viewModel?.cloudAvailability != .available || viewModel?.isBackingUp == true)
 
             // Restore Button
             SecondaryButton(
@@ -324,16 +355,42 @@ struct CloudSyncView: View {
             }
             .disabled(
                 viewModel?.cloudAvailability != .available ||
-                viewModel?.isRestoring == true ||
+                viewModel?.isSyncing == true ||
                 viewModel?.cloudDataSummary == nil
             )
 
             // Progress
-            if let progress = viewModel?.syncProgress, progress > 0 && progress < 1 {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
+            if viewModel?.isSyncing == true {
+                if let progress = viewModel?.syncProgress, progress > 0 {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .padding(.top, Constants.Spacing.sm)
+                } else {
+                    VStack(spacing: Constants.Spacing.sm) {
+                        ProgressView()
+                        Text(operationProgressLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     .padding(.top, Constants.Spacing.sm)
+                }
             }
+        }
+    }
+
+    private var operationProgressLabel: String {
+        guard let activeOperation = viewModel?.activeOperation else {
+            if viewModel?.syncStatus == .checking {
+                return "Checking iCloud…"
+            }
+            return "Syncing…"
+        }
+
+        switch activeOperation {
+        case .backup:
+            return "Backing up…"
+        case .restore:
+            return "Restoring…"
         }
     }
 
@@ -385,14 +442,20 @@ struct DataCountCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count)")
                     .font(.headline.monospacedDigit())
+                    .lineLimit(1)
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    // Keep the label on a single line — shrink slightly if the card is narrow or
+                    // Dynamic Type is large, rather than wrapping mid-word ("Reflec-tions").
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(Constants.Spacing.md)
+        .padding(.vertical, Constants.Spacing.md)
+        .padding(.horizontal, Constants.Spacing.sm)
         .frame(maxWidth: .infinity)
         .glassCard()
     }

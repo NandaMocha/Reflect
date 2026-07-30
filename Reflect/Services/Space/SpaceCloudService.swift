@@ -175,9 +175,28 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     /// operation (nil change token → full zone contents). Index-free; see
     /// `fetchRootSpaceRecord` for why we avoid `CKQuery`.
     private func fetchAllRecords(in zoneID: CKRecordZone.ID, database: CKDatabase) async throws -> [CKRecord] {
+        try await fetchZoneDelta(in: zoneID, database: database, since: nil).changed
+    }
+
+    /// Raw result of one `CKFetchRecordZoneChangesOperation` pass over a zone.
+    private struct ZoneFetchResult {
+        var changed: [CKRecord] = []
+        var deletedRecordIDs: [CKRecord.ID] = []
+        var finalToken: CKServerChangeToken?
+    }
+
+    /// One zone-changes pass since `previousToken` (nil → complete zone contents). Zone-level
+    /// errors (notably `changeTokenExpired`) are surfaced to the caller rather than dropped —
+    /// the T26 caller clears the token and refetches full on expiry.
+    private func fetchZoneDelta(
+        in zoneID: CKRecordZone.ID,
+        database: CKDatabase,
+        since previousToken: CKServerChangeToken?
+    ) async throws -> ZoneFetchResult {
         try await withRetry {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecord], Error>) in
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneFetchResult, Error>) in
                 let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
+                config.previousServerChangeToken = previousToken
                 let operation = CKFetchRecordZoneChangesOperation(
                     recordZoneIDs: [zoneID],
                     configurationsByRecordZoneID: [zoneID: config]
@@ -185,16 +204,32 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 operation.fetchAllChanges = true
                 operation.qualityOfService = .userInitiated
 
-                var records: [CKRecord] = []
-                operation.recordWasChangedBlock = { _, result in
-                    if case .success(let record) = result {
-                        records.append(record)
+                var result = ZoneFetchResult()
+                var zoneError: Error?
+                operation.recordWasChangedBlock = { _, recordResult in
+                    if case .success(let record) = recordResult {
+                        result.changed.append(record)
                     }
                 }
-                operation.fetchRecordZoneChangesResultBlock = { result in
-                    switch result {
+                operation.recordWithIDWasDeletedBlock = { recordID, _ in
+                    result.deletedRecordIDs.append(recordID)
+                }
+                operation.recordZoneFetchResultBlock = { _, zoneResult in
+                    switch zoneResult {
+                    case .success(let (token, _, _)):
+                        result.finalToken = token
+                    case .failure(let error):
+                        zoneError = error
+                    }
+                }
+                operation.fetchRecordZoneChangesResultBlock = { operationResult in
+                    if let zoneError {
+                        continuation.resume(throwing: zoneError)
+                        return
+                    }
+                    switch operationResult {
                     case .success:
-                        continuation.resume(returning: records)
+                        continuation.resume(returning: result)
                     case .failure(let error):
                         continuation.resume(throwing: error)
                     }
@@ -446,6 +481,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
         let zoneID = CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
         _ = try await withRetry { try await self.privateDB.deleteRecordZone(withID: zoneID) }
+        saveChangeToken(nil, key: Self.zoneTokenKey(zoneName: zone.zoneName, ownerName: zone.ownerName))
     }
 
     func leaveSpace(_ zone: SpaceZoneRef) async throws {
@@ -458,42 +494,104 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         // not touch the owner's private-DB zone or other participants' access.
         let zoneID = CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
         _ = try await withRetry { try await self.sharedDB.deleteRecordZone(withID: zoneID) }
+        saveChangeToken(nil, key: Self.zoneTokenKey(zoneName: zone.zoneName, ownerName: zone.ownerName))
     }
 
     // MARK: - Child records (SpaceReflection / Response)
 
-    func fetchReflections(in zone: SpaceZoneRef) async throws -> [SpaceReflection] {
+    func fetchChanges(in zone: SpaceZoneRef, spaceID: String) async throws -> SpaceZoneDelta {
         let database = database(for: zone.lane)
         let zoneID = ckZoneID(for: zone)
-        let records = try await fetchAllRecords(in: zoneID, database: database)
+        let tokenKey = Self.zoneTokenKey(zoneName: zone.zoneName, ownerName: zone.ownerName)
+
+        var previousToken = loadChangeToken(key: tokenKey)
+        let result: ZoneFetchResult
+        do {
+            result = try await fetchZoneDelta(in: zoneID, database: database, since: previousToken)
+        } catch let error as CKError where error.code == .changeTokenExpired {
+            // Token too old for the server — clear it and refetch the complete zone.
+            saveChangeToken(nil, key: tokenKey)
+            previousToken = nil
+            result = try await fetchZoneDelta(in: zoneID, database: database, since: nil)
+        }
+        let isFullSnapshot = previousToken == nil
 
         let myName = await currentUserRecordName()
-        // Resolve authors from the records we already fetched (the root record is in this
-        // set) so we don't scan the zone a second time.
-        let authors = await authorNames(from: records, database: database)
 
-        return records
-            .filter { $0.recordType == SpaceRecordType.spaceReflection }
-            .compactMap { record -> SpaceReflection? in
+        // Author resolution needs the root record (for the share participants) and the
+        // MemberProfile records; an incremental delta may contain neither, so fall back
+        // to fetching the root by its known ID. Best-effort — unresolved authors stay
+        // nil and cached names are preserved downstream.
+        var authorSourceRecords = result.changed
+        if !authorSourceRecords.contains(where: { $0.recordType == SpaceRecordType.space }) {
+            let rootID = CKRecord.ID(recordName: spaceID, zoneID: zoneID)
+            if let root = try? await database.record(for: rootID) {
+                authorSourceRecords.append(root)
+            }
+        }
+        let authors = await authorNames(from: authorSourceRecords, database: database)
+
+        var reflections: [SpaceReflection] = []
+        var responses: [SpaceResponse] = []
+        for record in result.changed {
+            switch record.recordType {
+            case SpaceRecordType.spaceReflection:
                 guard var reflection = SpaceRecordMapper.spaceReflection(
                     from: record,
                     isMine: isMine(record, lane: zone.lane, myUserRecordName: myName)
-                ) else { return nil }
+                ) else { continue }
                 if !reflection.isMine {
-                    reflection.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""] ?? "A member"
+                    reflection.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
                 }
-                return reflection
+                reflections.append(reflection)
+            case SpaceRecordType.response:
+                guard var response = SpaceRecordMapper.spaceResponse(
+                    from: record,
+                    isMine: isMine(record, lane: zone.lane, myUserRecordName: myName)
+                ) else { continue }
+                if !response.isMine {
+                    response.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
+                }
+                responses.append(response)
+            default:
+                break
             }
-            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        }
+        reflections.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        responses.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+
+        // Advance the token only after a fully successful pass, so a thrown fetch never
+        // skips changes.
+        saveChangeToken(result.finalToken, key: tokenKey)
+
+        #if DEBUG
+        UserDefaults.standard.set(
+            "\(isFullSnapshot ? "full" : "delta"): \(reflections.count) refl, \(responses.count) resp, \(result.deletedRecordIDs.count) deleted (\(zone.zoneName))",
+            forKey: "spaceDebugLastZoneFetch"
+        )
+        #endif
+
+        return SpaceZoneDelta(
+            reflections: reflections,
+            responses: responses,
+            deletedRecordIDs: result.deletedRecordIDs.map { $0.recordName },
+            authorNames: authors,
+            isFullSnapshot: isFullSnapshot
+        )
     }
 
-    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String) async throws -> SpaceReflection {
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection {
         let database = database(for: zone.lane)
+        var imageAsset: CKAsset?
+        if let imageData {
+            imageAsset = try Self.makeImageAsset(imageData)
+        }
         let record = SpaceRecordMapper.makeReflectionRecord(
             zoneID: ckZoneID(for: zone),
             spaceID: spaceID,
             title: title,
-            promptText: promptText
+            promptText: promptText,
+            imageAsset: imageAsset
         )
         let saved = try await withRetry { try await database.save(record) }
         // We just authored it, so it is unambiguously mine — no need to infer from creator.
@@ -501,34 +599,6 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             throw SpaceError.syncFailed("Could not map the saved reflection")
         }
         return reflection
-    }
-
-    func fetchResponses(for reflection: SpaceReflection, in zone: SpaceZoneRef) async throws -> [SpaceResponse] {
-        let database = database(for: zone.lane)
-        let zoneID = ckZoneID(for: zone)
-        let records = try await fetchAllRecords(in: zoneID, database: database)
-
-        let myName = await currentUserRecordName()
-        let authors = await authorNames(from: records, database: database)
-
-        return records
-            .filter { record in
-                guard record.recordType == SpaceRecordType.response else { return false }
-                let parentID = record.parent?.recordID.recordName
-                    ?? (record[SpaceRecordField.reflectionID] as? String)
-                return parentID == reflection.id
-            }
-            .compactMap { record -> SpaceResponse? in
-                guard var response = SpaceRecordMapper.spaceResponse(
-                    from: record,
-                    isMine: isMine(record, lane: zone.lane, myUserRecordName: myName)
-                ) else { return nil }
-                if !response.isMine {
-                    response.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""] ?? "A member"
-                }
-                return response
-            }
-            .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
     }
 
     func createResponse(to reflection: SpaceReflection, body: String, in zone: SpaceZoneRef) async throws -> SpaceResponse {
@@ -643,8 +713,15 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             operation.recordZoneWithIDChangedBlock = { _ in changedZoneCount += 1 }
             // A space deleted/left on another device removes its zone — count that as a
             // change too, so the silent-push path reports .newData and the list refreshes.
-            operation.recordZoneWithIDWasDeletedBlock = { _ in changedZoneCount += 1 }
-            operation.recordZoneWithIDWasPurgedBlock = { _ in changedZoneCount += 1 }
+            // Its per-zone change token is now meaningless; drop it (T26).
+            operation.recordZoneWithIDWasDeletedBlock = { zoneID in
+                changedZoneCount += 1
+                self.saveChangeToken(nil, key: Self.zoneTokenKey(zoneName: zoneID.zoneName, ownerName: zoneID.ownerName))
+            }
+            operation.recordZoneWithIDWasPurgedBlock = { zoneID in
+                changedZoneCount += 1
+                self.saveChangeToken(nil, key: Self.zoneTokenKey(zoneName: zoneID.zoneName, ownerName: zoneID.ownerName))
+            }
             operation.changeTokenUpdatedBlock = { token in self.saveChangeToken(token, key: tokenKey) }
             operation.fetchDatabaseChangesResultBlock = { result in
                 switch result {
@@ -760,6 +837,21 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     }
 
     // MARK: - Helpers
+
+    /// UserDefaults key for a zone's incremental change token (T26). Same archival helpers
+    /// as the database tokens. Cleared on expiry, zone delete/purge, and leave/delete.
+    static func zoneTokenKey(zoneName: String, ownerName: String) -> String {
+        "spaceZoneToken-\(zoneName)-\(ownerName)"
+    }
+
+    /// Stages already-compressed JPEG bytes into a temp file so they can ride the record
+    /// as a `CKAsset` (CloudKit assets are file-backed; the file must outlive the save).
+    private static func makeImageAsset(_ data: Data) throws -> CKAsset {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".jpg")
+        try data.write(to: tempURL)
+        return CKAsset(fileURL: tempURL)
+    }
 
     private func ckZoneID(for zone: SpaceZoneRef) -> CKRecordZone.ID {
         CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)

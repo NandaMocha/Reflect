@@ -8,6 +8,7 @@ struct SpaceThreadView: View {
     @FocusState private var composerFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
     @State private var responseToEdit: SpaceResponse?
+    @State private var showImageFullscreen = false
 
     init(space: Space, reflection: SpaceReflection) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceThreadViewModel(reflection: reflection, space: space))
@@ -70,6 +71,28 @@ struct SpaceThreadView: View {
                 Text(viewModel.reflection.promptText)
                     .font(.body)
                     .foregroundStyle(.secondary)
+            }
+
+            if let imageData = viewModel.reflection.imageData,
+               let uiImage = UIImage(data: imageData) {
+                Button {
+                    showImageFullscreen = true
+                } label: {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 180)
+                        .clipShape(.rect(cornerRadius: Constants.CornerRadius.medium))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Attached photo")
+                .fullScreenCover(isPresented: $showImageFullscreen) {
+                    ImageFullscreenViewer(
+                        images: [FullscreenImage(id: UUID(), image: uiImage)],
+                        startingIndex: 0
+                    )
+                }
             }
 
             HStack(spacing: 4) {

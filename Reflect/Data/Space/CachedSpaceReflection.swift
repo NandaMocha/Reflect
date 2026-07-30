@@ -13,6 +13,7 @@ final class CachedSpaceReflection {
     var spaceID: String
     var title: String
     var promptText: String
+    @Attribute(.externalStorage) var imageData: Data?
     var authorRecordName: String?
     var authorDisplayName: String?
     var createdAt: Date?
@@ -25,6 +26,7 @@ final class CachedSpaceReflection {
         spaceID: String,
         title: String,
         promptText: String,
+        imageData: Data? = nil,
         authorRecordName: String? = nil,
         authorDisplayName: String? = nil,
         createdAt: Date? = nil,
@@ -36,6 +38,7 @@ final class CachedSpaceReflection {
         self.spaceID = spaceID
         self.title = title
         self.promptText = promptText
+        self.imageData = imageData
         self.authorRecordName = authorRecordName
         self.authorDisplayName = authorDisplayName
         self.createdAt = createdAt
@@ -50,6 +53,7 @@ final class CachedSpaceReflection {
         self.spaceID = domain.spaceID
         self.title = domain.title
         self.promptText = domain.promptText
+        self.imageData = domain.imageData
         self.authorRecordName = domain.authorRecordName
         self.authorDisplayName = domain.authorDisplayName
         self.createdAt = domain.createdAt
@@ -65,6 +69,7 @@ final class CachedSpaceReflection {
             spaceID: spaceID,
             title: title,
             promptText: promptText,
+            imageData: imageData,
             authorRecordName: authorRecordName,
             authorDisplayName: authorDisplayName,
             createdAt: createdAt,

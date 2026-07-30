@@ -1,5 +1,23 @@
 import CloudKit
 
+/// One incremental fetch of a space zone's changes (T26). Produced by
+/// `fetchChanges(in:spaceID:)` from the per-zone change token.
+struct SpaceZoneDelta: Sendable {
+    /// Reflections created/modified since the token (author + `isMine` resolved).
+    var reflections: [SpaceReflection]
+    /// Responses created/modified since the token (author + `isMine` resolved).
+    var responses: [SpaceResponse]
+    /// Record names CloudKit explicitly reported deleted since the token.
+    var deletedRecordIDs: [String]
+    /// Author resolution map (creator recordName → display name) for this fetch, so
+    /// callers can refresh names on cached rows whose records didn't change.
+    var authorNames: [String: String]
+    /// True when the fetch ran without a prior token (first fetch, or token expired) and
+    /// therefore contains the complete zone. Only then may "absent from this delta" be
+    /// treated as "deleted upstream" — on incremental deltas absence means *unchanged*.
+    var isFullSnapshot: Bool
+}
+
 /// CloudKit sharing core for the Space feature: zone lifecycle, atomic root+share
 /// creation, dual-database (private/shared) fetch, and share accept/leave/delete.
 ///
@@ -45,18 +63,19 @@ protocol SpaceCloudServiceProtocol {
     /// only; removes only their own access, leaves the space intact for others.
     func leaveSpace(_ zone: SpaceZoneRef) async throws
 
-    // MARK: - Child records (SpaceReflection / Response) — T17
+    // MARK: - Child records (SpaceReflection / Response) — T17 / T26
 
-    /// All reflections in a space's zone, with `isMine` resolved against the current user
-    /// and `authorDisplayName` resolved from the zone's `CKShare` participants.
-    func fetchReflections(in zone: SpaceZoneRef) async throws -> [SpaceReflection]
+    /// Everything changed in the space's zone since the saved per-zone change token —
+    /// reflections, responses, and explicit deletions — advancing the token on success.
+    /// With no saved token (first fetch, or expired) this degrades to a full-zone fetch
+    /// and the delta reports `isFullSnapshot`. Unchanged records (and their assets) are
+    /// not re-downloaded on incremental fetches.
+    func fetchChanges(in zone: SpaceZoneRef, spaceID: String) async throws -> SpaceZoneDelta
 
     /// Creates a reflection as a child of the root `Space` record (parent reference set so
     /// the share reaches it). Writes to the zone's database per `zone.lane`.
-    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String) async throws -> SpaceReflection
-
-    /// All responses belonging to `reflection`, resolved like `fetchReflections`.
-    func fetchResponses(for reflection: SpaceReflection, in zone: SpaceZoneRef) async throws -> [SpaceResponse]
+    /// `imageData` (already-compressed JPEG bytes) is uploaded as a `CKAsset` when present.
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection
 
     /// Creates a response as a child of its `SpaceReflection` record.
     func createResponse(to reflection: SpaceReflection, body: String, in zone: SpaceZoneRef) async throws -> SpaceResponse

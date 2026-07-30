@@ -19,6 +19,7 @@ struct ReflectionListView: View {
     @State private var showNoLearningAlert = false
     @State private var showEditor = false
     @State private var reflectionToMove: Reflection?
+    @State private var showLearningInfo = false
 
     // Widget action handling
     @Binding var widgetAction: WidgetAction?
@@ -40,28 +41,22 @@ struct ReflectionListView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 0) {
-                // Show the learning's own description at the top of its detail so the text
-                // entered in the New/Edit Learning form is actually visible somewhere.
-                learningDescriptionBanner
-
-                Group {
-                    if let viewModel = viewModel {
-                        if viewModel.isLoading && viewModel.reflections.isEmpty {
-                            loadingView
-                        } else if viewModel.isEmpty {
-                            emptyState
-                        } else if viewModel.reflections.isEmpty {
-                            noResultsState
-                        } else {
-                            reflectionList
-                        }
-                    } else {
+            Group {
+                if let viewModel = viewModel {
+                    if viewModel.isLoading && viewModel.reflections.isEmpty {
                         loadingView
+                    } else if viewModel.isEmpty {
+                        emptyState
+                    } else if viewModel.reflections.isEmpty {
+                        noResultsState
+                    } else {
+                        reflectionList
                     }
+                } else {
+                    loadingView
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // FAB with quick actions
             if let viewModel = viewModel, !viewModel.isEmpty {
@@ -70,6 +65,23 @@ struct ReflectionListView: View {
             }
         }
         .navigationTitle("\(learning?.title ?? "") Reflections")
+        .toolbar {
+            if learning != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showLearningInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("Chapter Info")
+                }
+            }
+        }
+        .sheet(isPresented: $showLearningInfo) {
+            if let learning {
+                LearningInfoSheet(learning: learning)
+            }
+        }
         .searchable(
             text: Binding(
                 get: { viewModel?.searchQuery ?? "" },
@@ -267,10 +279,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
-        // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
-
-        // Reload reflections
+        // Reload the list directly. (No `.reflectionDidSave` post — this handler lives inside the
+        // list view, whose observer at `onReceive(.reflectionDidSave)` would just reload a second
+        // time. That notification exists for the editor→list refresh, not self-refresh.)
         await viewModel?.loadReflections()
 
         // Track last used learning
@@ -322,10 +333,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
-        // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
-
-        // Reload reflections
+        // Reload the list directly. (No `.reflectionDidSave` post — this handler lives inside the
+        // list view, whose observer at `onReceive(.reflectionDidSave)` would just reload a second
+        // time. That notification exists for the editor→list refresh, not self-refresh.)
         await viewModel?.loadReflections()
 
         // Track last used learning
@@ -370,10 +380,9 @@ struct ReflectionListView: View {
         modelContext.insert(reflection)
         try? modelContext.save()
 
-        // Post notification to refresh reflection list
-        NotificationCenter.default.post(name: .reflectionDidSave, object: nil)
-
-        // Reload reflections
+        // Reload the list directly. (No `.reflectionDidSave` post — this handler lives inside the
+        // list view, whose observer at `onReceive(.reflectionDidSave)` would just reload a second
+        // time. That notification exists for the editor→list refresh, not self-refresh.)
         await viewModel?.loadReflections()
 
         // Track last used learning
@@ -407,37 +416,6 @@ struct ReflectionListView: View {
     }
 
     // MARK: - Views
-
-    /// A compact banner showing the learning's icon + description above its reflections.
-    /// Only rendered for a specific learning that actually has a description — the "All
-    /// Reflections" view (`learning == nil`) and description-less learnings show nothing.
-    @ViewBuilder
-    private var learningDescriptionBanner: some View {
-        if let learning,
-           let description = learning.descriptionText?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !description.isEmpty {
-            HStack(alignment: .top, spacing: Constants.Spacing.sm) {
-                Image(systemName: learning.iconName)
-                    .font(.title3)
-                    .foregroundStyle(Color(hex: learning.colorHex))
-                    .frame(width: 40, height: 40)
-                    .background(
-                        RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                            .fill(Color(hex: learning.colorHex).opacity(0.15))
-                    )
-
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Constants.Spacing.lg)
-            .padding(.top, Constants.Spacing.sm)
-            .padding(.bottom, Constants.Spacing.xs)
-        }
-    }
 
     private var emptyState: some View {
         VStack(spacing: Constants.Spacing.lg) {
@@ -478,10 +456,15 @@ struct ReflectionListView: View {
                             .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
 
                         ForEach(reflections) { reflection in
-                            NavigationLink(value: reflection) {
+                            // Card is the only visible content; the transparent NavigationLink
+                            // behind it keeps tap-to-open working while hiding the system
+                            // disclosure chevron. Card-style rows read as tappable without it.
+                            ZStack {
+                                NavigationLink(value: reflection) { EmptyView() }
+                                    .opacity(0)
+
                                 ReflectionCard(reflection: reflection)
                             }
-                            .buttonStyle(.plain)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     Task {

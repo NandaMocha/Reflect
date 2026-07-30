@@ -26,6 +26,7 @@ enum SpaceRecordField {
     static let spaceID = "spaceID"
     static let title = "title"
     static let promptText = "promptText"
+    static let imageAsset = "imageAsset"
 
     // Response (child of SpaceReflection)
     static let reflectionID = "reflectionID"
@@ -150,13 +151,17 @@ enum SpaceRecordMapper {
         zoneID: CKRecordZone.ID,
         spaceID: String,
         title: String,
-        promptText: String
+        promptText: String,
+        imageAsset: CKAsset? = nil
     ) -> CKRecord {
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: SpaceRecordType.spaceReflection, recordID: recordID)
         record[SpaceRecordField.title] = title as CKRecordValue
         record[SpaceRecordField.promptText] = promptText as CKRecordValue
         record[SpaceRecordField.spaceID] = spaceID as CKRecordValue
+        if let imageAsset {
+            record[SpaceRecordField.imageAsset] = imageAsset
+        }
         let parentID = CKRecord.ID(recordName: spaceID, zoneID: zoneID)
         record.parent = CKRecord.Reference(recordID: parentID, action: .none)
         return record
@@ -191,11 +196,21 @@ enum SpaceRecordMapper {
             ?? record[SpaceRecordField.spaceID] as? String
             ?? ""
 
+        // Asset staging files can be gone by read time; a missing image degrades to
+        // text-only rather than dropping the whole record (same tolerance the
+        // personal-journal backup reader uses).
+        var imageData: Data?
+        if let asset = record[SpaceRecordField.imageAsset] as? CKAsset,
+           let fileURL = asset.fileURL {
+            imageData = try? Data(contentsOf: fileURL)
+        }
+
         return SpaceReflection(
             id: record.recordID.recordName,
             spaceID: spaceID,
             title: title,
             promptText: promptText,
+            imageData: imageData,
             authorRecordName: record.creatorUserRecordID?.recordName,
             authorDisplayName: nil, // resolved from CKShare.participants by the caller
             createdAt: record.creationDate,

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 /// Backs a space's detail screen: its reflections, plus composing a new one and deleting
 /// your own. Cache-first paint, then a sync-on-appear fetch (plan §9: fetch makes it
@@ -18,6 +19,7 @@ final class SpaceDetailViewModel {
     // Compose
     var newTitle: String = ""
     var newPrompt: String = ""
+    var newImage: UIImage?
     var isSaving: Bool = false
 
     // MARK: - Dependencies
@@ -111,11 +113,12 @@ final class SpaceDetailViewModel {
         // so other members see who posted it.
         await registerMyDisplayNameIfKnown()
         do {
-            let reflection = try await createUseCase.execute(in: space, title: newTitle, promptText: newPrompt)
+            let reflection = try await createUseCase.execute(in: space, title: newTitle, promptText: newPrompt, image: newImage)
             reflections.append(reflection)
             reflections.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
             newTitle = ""
             newPrompt = ""
+            newImage = nil
             HapticManager.shared.success()
             return true
         } catch {

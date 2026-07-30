@@ -37,7 +37,7 @@ extension OnboardingPage {
         ),
         OnboardingPage(
             icon: "book.fill",
-            title: "Learnings",
+            title: "Learning Chapters",
             subtitle: "One topic you're working on, holding every reflection you've written about it.",
             color: .primaryDefault,
             highlights: [

@@ -40,44 +40,51 @@ extension Color {
 
 // MARK: - App Color Palette (Earth-Tone Theme)
 extension Color {
+    // The palette is backed by the adaptive color sets in Assets.xcassets/Colors, so each
+    // token resolves to its light or dark value automatically. Call sites are unchanged —
+    // `Color.primaryDefault` (or the generated `Color(.primaryDefault)`) now adapts on its own.
+
     // Primary Colors (Muted Green - Main Accent)
-    static let primaryLight = Color(hex: "628141")
-    static let primaryDefault = Color(hex: "628141")
-    static let primaryDark = Color(hex: "40513B")
+    static let primaryLight = Color(.primaryLight)
+    static let primaryDefault = Color(.primaryDefault)
+    static let primaryDark = Color(.primaryDark)
 
     // Secondary Colors (Warm Beige & Dark Sage)
-    static let secondaryLight = Color(hex: "E5D9B6")
-    static let secondaryDefault = Color(hex: "17252A")
-    static let secondaryDark = Color(hex: "40513B")
+    static let secondaryLight = Color(.secondaryLight)
+    static let secondaryDefault = Color(.secondaryDefault)
+    static let secondaryDark = Color(.secondaryDark)
 
     // Semantic Colors
-    static let success = Color(hex: "7BC950")
-    static let warning = Color(hex: "FFB74D")
-    static let error = Color(hex: "EF6461")
-    static let info = Color(hex: "64B5F6")
+    static let success = Color(.success)
+    static let warning = Color(.warning)
+    static let error = Color(.error)
+    static let info = Color(.info)
 
-    // New Palette - Earth Tone Theme
-    static let sageDark = Color(hex: "40513B")          // Dark Sage Green
-    static let sageMedium = Color(hex: "628141")        // Muted Green (Primary)
-    static let beigeLight = Color(hex: "E5D9B6")        // Warm Beige/Cream
-    static let orangeWarm = Color(hex: "E67E22")        // Warm Orange (Action/Warning)
+    // Earth Tone Theme
+    static let sageDark = Color(.sageDark)              // Dark Sage Green
+    static let sageMedium = Color(.sageMedium)          // Muted Green (Primary)
+    static let beigeLight = Color(.beigeLight)          // Warm Beige/Cream
+    static let orangeWarm = Color(.orangeWarm)          // Warm Orange (Action/Warning)
 
     // Learning Category Colors
-    static let coral = Color(hex: "FF8A80")
-    static let ocean = Color(hex: "80DEEA")
-    static let lavender = Color(hex: "B39DDB")
-    static let mint = Color(hex: "A5D6A7")
-    static let peach = Color(hex: "FFCC80")
-    static let sky = Color(hex: "81D4FA")
-    static let rose = Color(hex: "F48FB1")
-    static let sage = Color(hex: "C5E1A5")
+    static let coral = Color(.coral)
+    static let ocean = Color(.ocean)
+    static let lavender = Color(.lavender)
+    static let mint = Color(.mint)
+    static let peach = Color(.peach)
+    static let sky = Color(.sky)
+    static let rose = Color(.rose)
+    static let sage = Color(.sage)
 
-    // Background Colors - Light Mode
+    // Adaptive background surfaces (single token; light/dark resolved from the catalog)
+    static let backgroundPrimary = Color(.backgroundPrimary)
+    static let backgroundSecondary = Color(.backgroundSecondary)
+    static let backgroundTertiary = Color(.backgroundTertiary)
+
+    // Explicit light/dark background values — kept for any manual color-scheme switching.
     static let backgroundPrimaryLight = Color(hex: "FEFEFE")
     static let backgroundSecondaryLight = Color(hex: "F7F9FA")
     static let backgroundTertiaryLight = Color(hex: "EDF2F4")
-
-    // Background Colors - Dark Mode (Dark Sage)
     static let backgroundPrimaryDark = Color(hex: "40513B")
     static let backgroundSecondaryDark = Color(hex: "3D4C37")
     static let backgroundTertiaryDark = Color(hex: "34422F")

@@ -73,6 +73,40 @@ struct SpaceDebugView: View {
                 .disabled(selectedSpace == nil)
             }
 
+            // T26/T29 — incremental-sync state. Zone tokens live in UserDefaults under
+            // "spaceZoneToken-<zone>-<owner>"; the last fetch summary is written by
+            // SpaceCloudService.fetchChanges (DEBUG builds only).
+            Section("Zone sync (T26)") {
+                let tokenKeys = UserDefaults.standard.dictionaryRepresentation().keys
+                    .filter { $0.hasPrefix("spaceZoneToken-") }
+                    .sorted()
+                if tokenKeys.isEmpty {
+                    Text("No zone tokens saved — next fetch per zone is a full snapshot.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(tokenKeys, id: \.self) { key in
+                        Text(key.replacingOccurrences(of: "spaceZoneToken-", with: ""))
+                            .font(.caption.monospaced())
+                    }
+                }
+
+                if let summary = UserDefaults.standard.string(forKey: "spaceDebugLastZoneFetch") {
+                    Text("Last fetch: \(summary)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Clear all zone tokens (force full refetch)", role: .destructive) {
+                    let keys = UserDefaults.standard.dictionaryRepresentation().keys
+                        .filter { $0.hasPrefix("spaceZoneToken-") }
+                    for key in keys {
+                        UserDefaults.standard.removeObject(forKey: key)
+                    }
+                    appendLog("Cleared \(keys.count) zone token(s).\n")
+                }
+            }
+
             if let space = selectedSpace {
                 Section("Selected space") {
                     Text(space.name)
