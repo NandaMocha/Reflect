@@ -458,7 +458,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         switch ckError.code {
         case .unknownItem, .zoneNotFound, .invalidArguments:
             return .acceptFailed(
-                "this invite is no longer valid, or it came from a different version of Reflect. Ask the owner to send a new one."
+                "this invite doesn't work here. The most common cause is a build mismatch — the invite was sent from a Debug build and you're on TestFlight/App Store (or vice versa); those can't share invites with each other. Make sure you and the space owner are both on the same kind of build, then ask them to send a new invite."
             )
         case .participantMayNeedVerification:
             return .acceptFailed(

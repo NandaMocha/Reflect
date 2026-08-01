@@ -91,6 +91,7 @@ struct ReflectApp: App {
         WindowGroup {
             MainTabView(widgetAction: $widgetAction)
                 .preferredColorScheme(colorScheme)
+                .debugBuildBadge()
                 .onOpenURL { url in
                     handleWidgetURL(url)
                 }
