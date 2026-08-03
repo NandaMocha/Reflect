@@ -55,7 +55,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
     // MARK: - Create
 
-    func createSpace(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare) {
+    func createSpace(name: String, detail: String?, iconName: String?, colorHex: String?) async throws -> (Space, CKShare) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { throw SpaceError.nameRequired }
         guard trimmedName.count <= 50 else { throw SpaceError.nameTooLong }
@@ -73,7 +73,8 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             zoneID: zone.zoneID,
             name: trimmedName,
             detail: detail,
-            emoji: emoji
+            iconName: iconName,
+            colorHex: colorHex
         )
         let share = CKShare(rootRecord: spaceRecord)
         share.publicPermission = .none

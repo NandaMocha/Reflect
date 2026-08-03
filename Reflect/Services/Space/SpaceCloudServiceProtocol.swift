@@ -30,7 +30,7 @@ protocol SpaceCloudServiceProtocol {
 
     /// Creates a new custom zone in the private database, saves the root `Space`
     /// record and its `CKShare` atomically, and returns both.
-    func createSpace(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare)
+    func createSpace(name: String, detail: String?, iconName: String?, colorHex: String?) async throws -> (Space, CKShare)
 
     /// Spaces owned by the current user (private database custom zones).
     func fetchOwnedSpaces() async throws -> [Space]

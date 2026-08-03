@@ -165,7 +165,8 @@ struct SpaceDebugView: View {
             let (space, share) = try await service.createSpace(
                 name: "Spike \(shortDateString)",
                 detail: nil,
-                emoji: "🧪"
+                iconName: "flask.fill",
+                colorHex: Constants.LearningColors.coral
             )
             selectedSpace = space
             selectedShare = share

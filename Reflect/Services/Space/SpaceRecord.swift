@@ -20,7 +20,8 @@ enum SpaceRecordField {
     // Space (root record)
     static let name = "name"
     static let detail = "detail"
-    static let emoji = "emoji"
+    static let iconName = "iconName"
+    static let colorHex = "colorHex"
 
     // SpaceReflection (child of Space)
     static let spaceID = "spaceID"
@@ -57,7 +58,8 @@ enum SpaceRecordMapper {
         zoneID: CKRecordZone.ID,
         name: String,
         detail: String?,
-        emoji: String?
+        iconName: String?,
+        colorHex: String?
     ) -> CKRecord {
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: SpaceRecordType.space, recordID: recordID)
@@ -65,8 +67,11 @@ enum SpaceRecordMapper {
         if let detail {
             record[SpaceRecordField.detail] = detail as CKRecordValue
         }
-        if let emoji {
-            record[SpaceRecordField.emoji] = emoji as CKRecordValue
+        if let iconName {
+            record[SpaceRecordField.iconName] = iconName as CKRecordValue
+        }
+        if let colorHex {
+            record[SpaceRecordField.colorHex] = colorHex as CKRecordValue
         }
         return record
     }
@@ -96,7 +101,8 @@ enum SpaceRecordMapper {
             id: record.recordID.recordName,
             name: name,
             detail: record[SpaceRecordField.detail] as? String,
-            emoji: record[SpaceRecordField.emoji] as? String,
+            iconName: record[SpaceRecordField.iconName] as? String,
+            colorHex: record[SpaceRecordField.colorHex] as? String,
             isOwner: isOwner,
             zoneID: zoneRef,
             createdAt: record.creationDate,

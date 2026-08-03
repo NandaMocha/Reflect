@@ -49,8 +49,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
 
     // MARK: - Write (cloud leads, cache follows)
 
-    func createSpace(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare) {
-        let (space, share) = try await cloudService.createSpace(name: name, detail: detail, emoji: emoji)
+    func createSpace(name: String, detail: String?, iconName: String?, colorHex: String?) async throws -> (Space, CKShare) {
+        let (space, share) = try await cloudService.createSpace(name: name, detail: detail, iconName: iconName, colorHex: colorHex)
         try upsert(space)
         try modelContext.save()
         // Hand back the share the cloud service already created; re-fetching it here (or in the
@@ -122,7 +122,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         if let existing = try modelContext.fetch(descriptor).first {
             existing.name = space.name
             existing.detail = space.detail
-            existing.emoji = space.emoji
+            existing.iconName = space.iconName
+            existing.colorHex = space.colorHex
             existing.isOwner = space.isOwner
             existing.zoneName = space.zoneID.zoneName
             existing.ownerName = space.zoneID.ownerName

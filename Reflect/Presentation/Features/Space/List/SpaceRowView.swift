@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A single space in the list: emoji/glyph avatar, name, optional detail, an owner/joined
+/// A single space in the list: icon avatar, name, optional detail, an owner/joined
 /// badge, and the participant count.
 struct SpaceRowView: View {
     let space: Space
@@ -38,12 +38,18 @@ struct SpaceRowView: View {
 
     private var avatar: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                .fill(Color.secondary.opacity(0.12))
+            if let iconName = space.iconName, !iconName.isEmpty,
+               let colorHex = space.colorHex, !colorHex.isEmpty {
+                RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                    .fill(Color(hex: colorHex).opacity(0.15))
 
-            if let emoji = space.emoji, !emoji.isEmpty {
-                Text(emoji).font(.title2)
+                Image(systemName: iconName)
+                    .font(.title3)
+                    .foregroundStyle(Color(hex: colorHex))
             } else {
+                RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                    .fill(Color.secondary.opacity(0.12))
+
                 Image(systemName: "person.3.fill")
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -81,12 +87,12 @@ struct SpaceRowView: View {
     List {
         SpaceRowView(space: Space(
             id: "1", name: "C3 Menthol", detail: "Reflections on the menthol batch",
-            emoji: nil, isOwner: true,
+            iconName: nil, colorHex: nil, isOwner: true,
             zoneID: SpaceZoneRef(zoneName: "z", ownerName: "o", lane: .privateDB),
             createdAt: Date(), participantCount: 1
         ))
         SpaceRowView(space: Space(
-            id: "2", name: "Study Group", detail: nil, emoji: "📚", isOwner: false,
+            id: "2", name: "Study Group", detail: nil, iconName: "book.fill", colorHex: "3AAFA9", isOwner: false,
             zoneID: SpaceZoneRef(zoneName: "z2", ownerName: "o2", lane: .sharedDB),
             createdAt: Date(), participantCount: 4
         ))
