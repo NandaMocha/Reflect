@@ -18,12 +18,14 @@ struct SpaceFormView: View {
     /// Must match the entitlement / `SpaceCloudService`'s container identifier.
     private let spaceContainer = CKContainer(identifier: "iCloud.xyz.nandamochammad.Reflect")
 
-    /// Curated emoji, mirroring the 20-icon grid in `LearningFormView`.
+    /// Curated emoji, one per concept in the same order as `LearningFormView`'s 20-icon
+    /// grid (book.fill, lightbulb.fill, laptopcomputer, ...) so the two pickers read as
+    /// the same set of choices.
     private let availableEmojis = [
-        "📚", "💡", "🎯", "🔬", "🎨",
+        "📚", "💡", "💻", "🎨", "🎵",
         "🎮", "🌍", "❤️", "⭐️", "⚡️",
-        "🌱", "🎓", "🧠", "🛠️", "📈",
-        "🏆", "🔥", "✏️", "🗂️", "✈️"
+        "🌱", "🎓", "🧠", "🔨", "🔧",
+        "📈", "🧑", "🚩", "🎯", "✈️"
     ]
 
     private var isOverLimit: Bool {
@@ -117,8 +119,8 @@ struct SpaceFormView: View {
     private var iconSection: some View {
         Section {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
-                ForEach(Array(availableEmojis.enumerated()), id: \.offset) { index, emoji in
-                    emojiButton(for: emoji, index: index)
+                ForEach(availableEmojis, id: \.self) { emoji in
+                    emojiButton(for: emoji)
                 }
             }
             .padding(.vertical, 8)
@@ -127,11 +129,8 @@ struct SpaceFormView: View {
         }
     }
 
-    /// Solid color per slot when selected, matching the vivid selected-icon tiles in
-    /// `LearningFormView` (cycled since there are more emoji than palette colors).
-    private func emojiButton(for emoji: String, index: Int) -> some View {
+    private func emojiButton(for emoji: String) -> some View {
         let isSelected = viewModel.emoji == emoji
-        let color = Color(hex: Constants.LearningColors.all[index % Constants.LearningColors.all.count])
         return Button {
             HapticManager.shared.selection()
             viewModel.emoji = emoji
@@ -141,7 +140,11 @@ struct SpaceFormView: View {
                 .frame(width: 48, height: 48)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? color : Color.secondary.opacity(0.1))
+                        .fill(isSelected ? Color.primaryDefault.opacity(0.2) : Color.secondary.opacity(0.1))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.primaryDefault, lineWidth: isSelected ? 2 : 0)
                 )
         }
         .buttonStyle(.plain)
