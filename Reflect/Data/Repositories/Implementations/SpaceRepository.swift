@@ -328,7 +328,12 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             }
             existing.createdAt = reflection.createdAt
             existing.modifiedAt = reflection.modifiedAt
-            existing.isMine = reflection.isMine
+            // Sticky true: `isMine` is fail-closed to false in SpaceCloudService.isMine(_:lane:myUserRecordName:)
+            // whenever the current user's record name hasn't resolved yet (e.g. a
+            // transient CKContainer.userRecordID() lookup on this pass), so a genuinely
+            // self-authored row can be recomputed as false on a later resync. Never let a
+            // resync downgrade a row already known to be mine — only let it flip false → true.
+            existing.isMine = existing.isMine || reflection.isMine
             existing.lastFetchedAt = Date()
         } else {
             modelContext.insert(CachedSpaceReflection(from: reflection))
@@ -346,7 +351,9 @@ final class SpaceRepository: SpaceRepositoryProtocol {
                 existing.authorDisplayName = name
             }
             existing.createdAt = response.createdAt
-            existing.isMine = response.isMine
+            // Sticky true: see the matching comment in upsertReflection — never let a
+            // resync downgrade a row already known to be mine, only let it flip false → true.
+            existing.isMine = existing.isMine || response.isMine
             existing.lastFetchedAt = Date()
         } else {
             modelContext.insert(CachedSpaceResponse(from: response))
