@@ -113,6 +113,13 @@ final class SpaceThreadViewModel {
         }
     }
 
+    /// Clears whatever the composer is currently showing (edit prefill or a fresh draft),
+    /// leaving `activeQuestionId` untouched so the composer stays pointed at the same question.
+    func clearDraftPrefill() {
+        draft = ""
+        draftImage = nil
+    }
+
     /// Makes a question active, prefilling the composer from my existing answer when present.
     func select(questionId: String) {
         activeQuestionId = questionId
