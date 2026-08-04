@@ -5,11 +5,21 @@ approved branch is already checked out in your working tree.
 1. Run: python3 loop/loop.py context <TASK_ID>
    Confirms the branch/PR you're merging and the approval notes.
 
-2. Sanity-check there's actually an approved review on this PR:
-   `gh pr view <branch> --json reviewDecision,mergeable` should show
-   `APPROVED` (and not a merge conflict). If it doesn't, do NOT merge —
-   call `python3 loop/loop.py block <TASK_ID> --reason "no APPROVED review
-   found / not mergeable — investigate before retrying"` and stop.
+2. This task only reached you because loop.py's own state machine already
+   marked it `approved` — a real, independent review session read the diff,
+   ran TEST_CMD itself, and only then called `loop.py approve`. That IS the
+   approval gate; do not re-derive it from GitHub. GitHub's `reviewDecision`
+   on this PR will typically read null/`REVIEW_REQUIRED` because this repo's
+   PRs are authored and reviewed under the same account, and GitHub blocks
+   self-approval platform-wide (`develop` has no branch protection rule
+   requiring reviews, so this has no effect on whether the merge is allowed —
+   it's just a field that can never populate here). Do not treat a missing
+   `reviewDecision` as a reason to block.
+   Sanity-check mergeability only:
+   `gh pr view <branch> --json mergeable` should NOT show `CONFLICTING`.
+   If it does, do NOT merge — call `python3 loop/loop.py block <TASK_ID>
+   --reason "merge conflict with <WORK_BRANCH> — investigate before
+   retrying"` and stop.
 
 3. Merge into WORK_BRANCH:
    `gh pr merge <branch> --squash --delete-branch`
@@ -27,6 +37,12 @@ approved branch is already checked out in your working tree.
    docs/features/multi-question-feedback-plan.md and check it off
    ("- [x] TASK-<N>: ..."), committing that single-line change directly to
    WORK_BRANCH with message "Check off TASK-<N> in multi-question feedback plan".
+   Then `git push origin <WORK_BRANCH>` immediately. This is not optional: the
+   next task's `gh pr merge` operates against the REMOTE branch and a
+   subsequent `git pull` re-syncs your local branch to match it — any commit
+   left unpushed here (this one, or any other local-only WORK_BRANCH commit)
+   gets silently orphaned the moment the next merge cycle's pull runs. Push
+   before moving on, every time, no exceptions.
 
 6. Get the merge commit SHA: `git log -1 --format=%H` on WORK_BRANCH.
    Call: `python3 loop/loop.py done <TASK_ID> --handover "<max 5 short

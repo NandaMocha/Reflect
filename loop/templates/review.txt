@@ -43,13 +43,22 @@ so you can read real files, not just a diff.
 
 6. Decide:
    - CLEAN (build green, skills raised nothing blocking, scope matches the
-     brief, conventions followed): run
-     `gh pr review <branch> --approve --body "<1-3 lines: what you checked>"`
-     then `python3 loop/loop.py approve <TASK_ID> --notes "<1-3 lines>"`.
+     brief, conventions followed): try
+     `gh pr review <branch> --approve --body "<1-3 lines: what you checked>"`.
+     GitHub blocks self-approval platform-wide — if this PR's author is the
+     same account as this session (it will be, in this repo), the command
+     fails with something like "Can not approve your own pull request". That
+     is expected, not an error to chase: fall back to
+     `gh pr comment <branch> --body "REVIEW: CLEAN — <1-3 lines: what you
+     checked>"` so the verdict is still visible on the PR. Either way, finish
+     with `python3 loop/loop.py approve <TASK_ID> --notes "<1-3 lines>"` —
+     THIS is the authoritative approval record; the merge tier trusts it, not
+     GitHub's reviewDecision field.
    - NOT CLEAN (build red, a skill flagged a real defect, scope drift,
-     convention violation): run
-     `gh pr review <branch> --request-changes --body "<specific, actionable
-     feedback — exact file/line and what to change>"` then
+     convention violation): try `gh pr review <branch> --request-changes
+     --body "<specific, actionable feedback — exact file/line and what to
+     change>"`, falling back to `gh pr comment` the same way if self-review
+     is rejected, then
      `python3 loop/loop.py revise <TASK_ID> --reason "<concise summary of
      exactly what the next attempt must fix>"`.
 
