@@ -23,9 +23,48 @@ final class ExportFeedbackRequestUseCase: ExportFeedbackRequestUseCaseProtocol {
         case .json:
             return try exportJSON(input)
         case .csv:
-            // CSV path lands in TASK-035.
-            throw SpaceError.exportFormatUnsupported
+            return try exportCSV(input)
         }
+    }
+
+    // MARK: - CSV
+
+    private func exportCSV(_ input: Input) throws -> URL {
+        let questions = input.reflection.questions.sorted { $0.order < $1.order }
+        var lines: [String] = []
+
+        for question in questions {
+            lines.append(csvField("Question \(question.order + 1): \(question.text)"))
+            lines.append(["member", "answer", "photo", "timestamp"].map(csvField).joined(separator: ","))
+
+            let answers = input.answers
+                .filter { $0.questionId == question.id }
+                .map(FeedbackAnswerExport.init)
+            for answer in answers {
+                let row = [
+                    answer.displayName,
+                    answer.text,
+                    answer.hasPhoto ? (answer.photoFileName ?? "") : "",
+                    answer.timestamp.map { ISO8601DateFormatter().string(from: $0) } ?? ""
+                ]
+                lines.append(row.map(csvField).joined(separator: ","))
+            }
+
+            lines.append("")
+        }
+
+        let csvString = lines.joined(separator: "\n")
+        let fileName = "\(Constants.App.name)_Feedback_\(Date().feedbackExportFileName).csv"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try csvString.write(to: tempURL, atomically: true, encoding: .utf8)
+        return tempURL
+    }
+
+    private func csvField(_ value: String) -> String {
+        guard value.contains(",") || value.contains("\"") || value.contains("\n") else {
+            return value
+        }
+        return "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 
     // MARK: - JSON
