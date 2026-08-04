@@ -273,6 +273,7 @@ struct SpaceThreadView: View {
 /// selecting the question); every answer can be reported.
 struct SpaceAllResponsesView: View {
     let viewModel: SpaceThreadViewModel
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
@@ -285,11 +286,15 @@ struct SpaceAllResponsesView: View {
                         .padding(.vertical, Constants.Spacing.xl)
                 } else {
                     ForEach(viewModel.answers) { answer in
-                        // Delete only renders for own answers (guarded by `answer.isMine`),
-                        // so passing it for every row is safe.
-                        AnswerRow(
+                        // Edit/Delete only render for own answers (guarded by `answer.isMine`
+                        // inside `AnswerBubble`), so passing them for every row is safe.
+                        AnswerBubble(
                             answer: answer,
                             spaceName: viewModel.space.name,
+                            onEdit: {
+                                viewModel.select(questionId: answer.questionId)
+                                dismiss()
+                            },
                             onDelete: { Task { await viewModel.deleteOwnAnswer(for: answer.questionId) } }
                         )
                     }
@@ -304,12 +309,17 @@ struct SpaceAllResponsesView: View {
     }
 }
 
-/// A single answer, styled for own vs others'. Context menu offers Delete on your own and
-/// Report on any. Superseded by `AnswerBubble` in TASK-025.
-struct AnswerRow: View {
+/// A single answer, styled for own vs others'. Context menu offers Edit/Delete (own, with a
+/// delete confirmation) and Report (any). Shows a photo thumbnail with a fullscreen viewer
+/// when the answer has an attached image.
+struct AnswerBubble: View {
     let answer: SpaceAnswer
     let spaceName: String
+    var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
+
+    @State private var showImageFullscreen = false
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -328,6 +338,26 @@ struct AnswerRow: View {
             Text(answer.text)
                 .font(.body)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let imageData = answer.imageData, let uiImage = UIImage(data: imageData) {
+                Button {
+                    showImageFullscreen = true
+                } label: {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 88, height: 88)
+                        .clipShape(.rect(cornerRadius: Constants.CornerRadius.small))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Attached photo")
+                .fullScreenCover(isPresented: $showImageFullscreen) {
+                    ImageFullscreenViewer(
+                        images: [FullscreenImage(id: UUID(), image: uiImage)],
+                        startingIndex: 0
+                    )
+                }
+            }
         }
         .padding(Constants.Spacing.sm)
         .background(
@@ -335,10 +365,23 @@ struct AnswerRow: View {
                 .fill(answer.isMine ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
         )
         .contextMenu {
-            if answer.isMine, let onDelete {
-                Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
+            if answer.isMine {
+                if let onEdit {
+                    Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+                }
+                if onDelete != nil {
+                    Button(role: .destructive) { showDeleteConfirmation = true } label: { Label("Delete", systemImage: "trash") }
+                }
             }
             ReportContentButton(contentKind: "feedback", contentID: answer.id, spaceName: spaceName)
+        }
+        .confirmationDialog(
+            "Delete your answer? This can't be undone.",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) { onDelete?() }
+            Button("Cancel", role: .cancel) {}
         }
     }
 }
