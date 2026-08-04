@@ -22,6 +22,7 @@ enum SpaceError: Error, LocalizedError {
     case shareFailed(String)
     case acceptFailed(String)
     case syncFailed(String)
+    case exportFormatUnsupported
 
     var errorDescription: String? {
         switch self {
@@ -46,6 +47,7 @@ enum SpaceError: Error, LocalizedError {
         case .shareFailed(let m): return "Couldn't create the invite: \(m)"
         case .acceptFailed(let m): return "Couldn't join the space: \(m)"
         case .syncFailed(let m): return "Sync failed: \(m)"
+        case .exportFormatUnsupported: return "That export format isn't supported yet."
         }
     }
 }
