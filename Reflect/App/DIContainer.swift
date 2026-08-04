@@ -194,6 +194,16 @@ final class DIContainer {
     }
 
     @MainActor
+    func makeSpaceReflectionEditViewModel(reflection: SpaceReflection, space: Space) -> SpaceReflectionEditViewModel {
+        SpaceReflectionEditViewModel(
+            space: space,
+            reflection: reflection,
+            updateUseCase: makeUpdateReflectionQuestionsUseCase(),
+            fetchAnswersUseCase: makeFetchAnswersUseCase()
+        )
+    }
+
+    @MainActor
     func makeSpaceDetailViewModel(space: Space) -> SpaceDetailViewModel {
         SpaceDetailViewModel(
             space: space,
