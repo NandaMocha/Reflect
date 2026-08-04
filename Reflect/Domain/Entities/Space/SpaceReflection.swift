@@ -4,7 +4,8 @@ struct SpaceReflection: Identifiable, Hashable, Sendable {
     let id: String            // CKRecord name
     let spaceID: String
     var title: String
-    var promptText: String
+    var note: String?
+    var questions: [SpaceQuestion]
     /// Heavily compressed JPEG attached to the request, small enough to inline.
     var imageData: Data?
     var authorRecordName: String?
@@ -12,4 +13,7 @@ struct SpaceReflection: Identifiable, Hashable, Sendable {
     var createdAt: Date?
     var modifiedAt: Date?
     var isMine: Bool
+
+    // TRANSITIONAL — removed in TASK-037
+    var promptText: String { questions.first?.text ?? "" }
 }
