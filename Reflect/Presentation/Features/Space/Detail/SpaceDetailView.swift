@@ -142,10 +142,21 @@ struct SpaceDetailView: View {
                     }
                 }
 
-                Section("Details") {
-                    TextField("Add context or specific questions…", text: $viewModel.newQuestions[0].text, axis: .vertical)
+                Section {
+                    TextField("Add context (optional)…", text: $viewModel.newNote, axis: .vertical)
                         .lineLimit(3...8)
+                } header: {
+                    Text("Note")
+                } footer: {
+                    HStack {
+                        Spacer()
+                        Text("\(viewModel.newNote.count)/\(viewModel.noteLimit)")
+                            .foregroundStyle(viewModel.newNote.count > viewModel.noteLimit ? Color.error : .secondary)
+                            .monospacedDigit()
+                    }
                 }
+
+                SpaceQuestionListEditor(questions: $viewModel.newQuestions)
 
                 Section {
                     if let image = viewModel.newImage {
