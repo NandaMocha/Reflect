@@ -14,8 +14,9 @@ enum SpaceStore {
     /// access. A failure to initialize must not crash the app or prevent the Space
     /// UI from rendering; Reflections and Learnings have nothing to do with Space
     /// and must keep working. So instead of `fatalError`, we degrade:
-    /// local on-disk store → in-memory store. Only the on-disk tier persists
-    /// across launches; the in-memory tier trades durability for stability.
+    /// on-disk store → wipe + rebuild the on-disk store → in-memory store.
+    /// Only the first two tiers persist across launches; the in-memory tier trades
+    /// durability for stability.
     static let container: ModelContainer = {
         let schema = Schema([CachedSpace.self, CachedSpaceReflection.self, CachedAnswer.self])
 
@@ -26,19 +27,67 @@ enum SpaceStore {
             groupContainer: .none,
             cloudKitDatabase: .none
         )
-        if let container = try? ModelContainer(for: schema, configurations: [localConfiguration]) {
-            return container
+
+        do {
+            return try ModelContainer(for: schema, configurations: [localConfiguration])
+        } catch {
+            // Log the real error. Swallowing it with `try?` hid a schema-break for a
+            // whole release cycle and made the eventual crash surface two tiers away
+            // from its cause.
+            print("⚠️ SpaceStore: on-disk ModelContainer failed to open: \(error)")
         }
-        print("⚠️ SpaceStore: failed to create local on-disk ModelContainer. Falling back to an in-memory store — Space cache will not persist across launches.")
+
+        // The cache is disposable by definition — CloudKit is the source of truth and
+        // every reader reconciles against it on refresh. So a store we can't open is
+        // not a dilemma: delete it and rebuild empty. This is what makes a breaking
+        // schema change (e.g. the promptText/Response → questionsJSON/Answer cutover)
+        // a one-launch rebuild instead of a boot loop. NEVER apply this pattern to the
+        // main `default.store`, which holds the only copy of the user's Reflections.
+        destroyLocalStore(at: localConfiguration.url)
+        do {
+            return try ModelContainer(for: schema, configurations: [localConfiguration])
+        } catch {
+            print("⚠️ SpaceStore: on-disk ModelContainer still failed after wiping the store: \(error)")
+        }
+
+        print("⚠️ SpaceStore: falling back to an in-memory store — Space cache will not persist across launches.")
 
         let memoryConfiguration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            // Required. Without an explicit `.none`, this defaults to `.automatic`,
+            // which switches on CloudKit schema validation — and that rejects the
+            // cached models outright ("all attributes must be optional or have a
+            // default value"), turning the safety net into the crash. The on-disk
+            // tiers above set this for the same reason; the memory tier must too.
+            cloudKitDatabase: .none
         )
-        // In-memory containers only fail if the schema itself is invalid, which would
-        // be a programmer error caught immediately in development, not a runtime
-        // condition — so `try!` here does not reintroduce the crash risk we're
-        // guarding against above.
+        // With CloudKit validation off, an in-memory container has no disk, no
+        // migration and no external validator left to fail on — the remaining failure
+        // modes are all compile-time schema errors.
         return try! ModelContainer(for: schema, configurations: [memoryConfiguration])
     }()
+
+    /// Removes the SQLite store and its sidecar journal files. Leaving `-wal`/`-shm`
+    /// behind would let a stale write-ahead log resurrect the old schema on reopen.
+    private static func destroyLocalStore(at url: URL) {
+        let fileManager = FileManager.default
+        for path in [url, url.appendingSuffixToLastPathComponent("-wal"), url.appendingSuffixToLastPathComponent("-shm")] {
+            do {
+                if fileManager.fileExists(atPath: path.path) {
+                    try fileManager.removeItem(at: path)
+                }
+            } catch {
+                print("⚠️ SpaceStore: could not delete \(path.lastPathComponent): \(error)")
+            }
+        }
+    }
+}
+
+private extension URL {
+    /// `Space.store` + `-wal` → `Space.store-wal` (not `Space-wal.store`, which is what
+    /// `appendingPathExtension`-style helpers would produce).
+    func appendingSuffixToLastPathComponent(_ suffix: String) -> URL {
+        deletingLastPathComponent().appending(path: lastPathComponent + suffix)
+    }
 }
