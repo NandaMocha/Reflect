@@ -192,6 +192,32 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return reflection
     }
 
+    /// Updates a reflection's title/note/questions. Questions removed relative to
+    /// `reflection.questions` cascade-delete every participant's answer to them (clarified
+    /// decision 6: hard-delete, not orphan, not blocked) before the reflection is saved.
+    /// Ordering: cascade deletes (cloud + cache) -> reflection save (cloud) -> cache upsert.
+    func updateReflectionQuestions(_ reflection: SpaceReflection, in space: Space, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection {
+        let oldQuestionIDs = Set(reflection.questions.map { $0.id })
+        let newQuestionIDs = Set(questions.map { $0.id })
+        let removedQuestionIDs = oldQuestionIDs.subtracting(newQuestionIDs)
+
+        if !removedQuestionIDs.isEmpty {
+            // Fetch once up front so every removed question's answers (from any
+            // participant) are known by id — deletes below go straight by id rather than
+            // re-discovering each answer's record.
+            let answers = try await fetchAnswers(for: reflection, in: space)
+            for answer in answers where removedQuestionIDs.contains(answer.questionId) {
+                try await cloudService.deleteRecord(id: answer.id, in: space.zoneID)
+                try removeCachedContent(id: answer.id)
+            }
+        }
+
+        let updated = try await cloudService.updateReflection(id: reflection.id, in: space.zoneID, title: title, note: note, questions: questions)
+        try upsertReflection(updated)
+        try modelContext.save()
+        return updated
+    }
+
     // MARK: - Responses
 
     func cachedResponses(reflectionID: String) -> [SpaceResponse] {

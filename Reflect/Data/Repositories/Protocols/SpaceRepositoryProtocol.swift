@@ -55,6 +55,12 @@ protocol SpaceRepositoryProtocol {
     /// already-compressed JPEG bytes (compression happens in the use case).
     func createReflection(in space: Space, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection
 
+    /// Updates a reflection's title, note, and questions (edit-your-own). Any question
+    /// present on `reflection` but absent from `questions` is treated as removed: every
+    /// answer to that question (from any participant) is hard-deleted from CloudKit and
+    /// the cache before the reflection itself is updated. Caller guards `isMine`.
+    func updateReflectionQuestions(_ reflection: SpaceReflection, in space: Space, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection
+
     /// Synchronous cache read of a reflection's responses, for instant first paint.
     func cachedResponses(reflectionID: String) -> [SpaceResponse]
 
