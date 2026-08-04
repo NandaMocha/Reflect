@@ -102,7 +102,7 @@ No other new patterns; everything else follows the existing Space stack conventi
 **Goal:** segmented filtering by question inside the existing embedded struct in `SpaceThreadView.swift`. **Effort:** ~3–4 h.
 
 - [x] TASK-027: Add `selectedQuestionId: String?` state to the `SpaceAllResponsesView` struct; when `reflection.questions.count > 1` render a segmented `Picker` ("Q1"…"Qn") + the selected question's full text below it; when exactly 1 question, no control, question text as header. (~1.5 h; deps: TASK-021)
-- [ ] TASK-028: Filter the list by `viewModel.answers(for: selectedQuestionId)` using `AnswerBubble`; per-question empty state ("No answers to this question yet."); own-answer edit routes back through the same upsert flow (reuse `select` + composer navigation, or an inline edit sheet mirroring `SpaceResponseEditSheet` adapted to answers — keep whichever is smaller, the sheet). (~1.5 h; deps: TASK-025, 027)
+- [x] TASK-028: Filter the list by `viewModel.answers(for: selectedQuestionId)` using `AnswerBubble`; per-question empty state ("No answers to this question yet."); own-answer edit routes back through the same upsert flow (reuse `select` + composer navigation, or an inline edit sheet mirroring `SpaceResponseEditSheet` adapted to answers — keep whichever is smaller, the sheet). (~1.5 h; deps: TASK-025, 027)
 - [ ] TASK-029: Update the toolbar count badge in `SpaceThreadView` to answer-based counts (e.g. distinct answering members or total answers — pick total answers, matching today's semantics). (~0.5 h; deps: TASK-021)
 
 **Acceptance:** with a 3-question request, segment switching filters correctly; 1-question requests show no segmented control; edits/deletes/report work from the all-answers list.
