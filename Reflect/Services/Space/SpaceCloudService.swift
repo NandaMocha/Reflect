@@ -642,6 +642,32 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         }
     }
 
+    func updateReflection(id: String, in zone: SpaceZoneRef, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection {
+        let database = database(for: zone.lane)
+        let recordID = CKRecord.ID(recordName: id, zoneID: ckZoneID(for: zone))
+
+        // Fetch-modify-save, same conflict handling as `updateResponse`: on
+        // `serverRecordChanged`, re-fetch and re-apply (last-writer-wins, plan §9).
+        var conflictRetries = 0
+        while true {
+            do {
+                let saved = try await withRetry { () -> CKRecord in
+                    let record = try await database.record(for: recordID)
+                    record[SpaceRecordField.title] = title as CKRecordValue
+                    record[SpaceRecordField.note] = note as CKRecordValue?
+                    record[SpaceRecordField.questionsJSON] = SpaceQuestion.encodeJSON(questions) as CKRecordValue
+                    return try await database.save(record)
+                }
+                guard let reflection = SpaceRecordMapper.spaceReflection(from: saved, isMine: true) else {
+                    throw SpaceError.syncFailed("Could not map the updated reflection")
+                }
+                return reflection
+            } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
+                conflictRetries += 1
+            }
+        }
+    }
+
     func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer {
         let database = database(for: zone.lane)
         let zoneID = ckZoneID(for: zone)

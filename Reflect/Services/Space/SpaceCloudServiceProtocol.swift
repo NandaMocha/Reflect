@@ -83,6 +83,12 @@ protocol SpaceCloudServiceProtocol {
     /// Updates a response's body (edit-your-own). Caller guards `isMine`.
     func updateResponse(id: String, in zone: SpaceZoneRef, body: String) async throws -> SpaceResponse
 
+    /// Updates a reflection's title, note, and questions (edit-your-own; used by
+    /// requester question-editing). Answer deletion when a question is removed reuses
+    /// `deleteRecord(id:in:)` — there is no separate delete primitive for answers.
+    /// Caller guards `isMine`.
+    func updateReflection(id: String, in zone: SpaceZoneRef, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection
+
     /// Creates or overwrites the current user's answer to one question of a reflection.
     /// The record name is deterministic (`SpaceAnswer.recordName`), so re-submitting an
     /// answer to the same question overwrites the same record rather than creating a
