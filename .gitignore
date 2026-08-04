@@ -1,0 +1,7 @@
+# Agent loop run state — project-run artifacts, not portable kit content.
+loop/tasks.db
+loop/LOOP_STATUS.md
+loop/.runner.lock
+loop/REPLAN-*.sh
+loop/REPLAN-*.sh.applied
+loop/REPLAN-*.sh.failed
