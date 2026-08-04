@@ -68,12 +68,6 @@ protocol SpaceRepositoryProtocol {
     /// this reflection). Returns the reconciled cache.
     func fetchResponses(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceResponse]
 
-    /// Posts a response to a reflection, then caches it.
-    func createResponse(to reflection: SpaceReflection, in space: Space, body: String) async throws -> SpaceResponse
-
-    /// Updates the body of the user's own response (cloud first, then cache). Caller guards `isMine`.
-    func updateResponse(_ response: SpaceResponse, in space: Space, body: String) async throws -> SpaceResponse
-
     /// Deletes the user's own reflection or response (cloud first, then cache; deleting a
     /// reflection also removes its cached responses and answers). Caller guards `isMine`.
     func deleteContent(id: String, in space: Space) async throws
