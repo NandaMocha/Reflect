@@ -9,7 +9,8 @@ final class CachedSpace {
     @Attribute(.unique) var id: String
     var name: String
     var detail: String?
-    var emoji: String?
+    var iconName: String?
+    var colorHex: String?
     var isOwner: Bool
     var zoneName: String
     var ownerName: String
@@ -22,7 +23,8 @@ final class CachedSpace {
         id: String,
         name: String,
         detail: String? = nil,
-        emoji: String? = nil,
+        iconName: String? = nil,
+        colorHex: String? = nil,
         isOwner: Bool,
         zoneName: String,
         ownerName: String,
@@ -34,7 +36,8 @@ final class CachedSpace {
         self.id = id
         self.name = name
         self.detail = detail
-        self.emoji = emoji
+        self.iconName = iconName
+        self.colorHex = colorHex
         self.isOwner = isOwner
         self.zoneName = zoneName
         self.ownerName = ownerName
@@ -49,7 +52,8 @@ final class CachedSpace {
         self.id = domain.id
         self.name = domain.name
         self.detail = domain.detail
-        self.emoji = domain.emoji
+        self.iconName = domain.iconName
+        self.colorHex = domain.colorHex
         self.isOwner = domain.isOwner
         self.zoneName = domain.zoneID.zoneName
         self.ownerName = domain.zoneID.ownerName
@@ -66,7 +70,8 @@ final class CachedSpace {
             id: id,
             name: name,
             detail: detail,
-            emoji: emoji,
+            iconName: iconName,
+            colorHex: colorHex,
             isOwner: isOwner,
             zoneID: SpaceZoneRef(
                 zoneName: zoneName,

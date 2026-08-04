@@ -266,7 +266,7 @@ enum SpaceAuthor {
 #Preview {
     NavigationStack {
         SpaceDetailView(space: Space(
-            id: "1", name: "Study Group", detail: nil, emoji: "📚", isOwner: true,
+            id: "1", name: "Study Group", detail: nil, iconName: "book.fill", colorHex: "3AAFA9", isOwner: true,
             zoneID: SpaceZoneRef(zoneName: "z", ownerName: "o", lane: .privateDB),
             createdAt: Date(), participantCount: 2
         ))

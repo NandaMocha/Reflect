@@ -4,11 +4,10 @@ import CloudKit
 /// Sheet for creating a new space. On successful create it presents the CloudKit sharing
 /// controller (`CloudSharingView`) so the owner can invite members without an extra step.
 ///
-/// The layout deliberately mirrors `LearningFormView` — name, an optional description, a
-/// grid-based icon picker, and a live preview — so creating a space feels the same as
-/// creating a learning. Spaces store an emoji (not an SF Symbol + color), so the icon
-/// picker is an emoji grid. One emoji is always selected (defaulted on appear), so a space
-/// can never end up with no icon.
+/// The layout deliberately mirrors `LearningFormView` — name, an optional description, an
+/// SF Symbol icon grid, a color grid, and a live preview — so creating a space feels the
+/// same as creating a learning. An icon and color are always selected (defaulted on
+/// appear), so a space can never end up with no icon.
 struct SpaceFormView: View {
     @State private var viewModel = DIContainer.shared.makeSpaceFormViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -18,12 +17,14 @@ struct SpaceFormView: View {
     /// Must match the entitlement / `SpaceCloudService`'s container identifier.
     private let spaceContainer = CKContainer(identifier: "iCloud.xyz.nandamochammad.Reflect")
 
-    /// Curated emoji, mirroring the 20-icon grid in `LearningFormView`.
-    private let availableEmojis = [
-        "📚", "💡", "🎯", "🔬", "🎨",
-        "🎮", "🌍", "❤️", "⭐️", "⚡️",
-        "🌱", "🎓", "🧠", "🛠️", "📈",
-        "🏆", "🔥", "✏️", "🗂️", "✈️"
+    /// Same 20-icon grid as `LearningFormView`, so the two pickers read as the same set
+    /// of choices.
+    private let availableIcons = [
+        "book.fill", "lightbulb.fill", "laptopcomputer", "paintbrush.fill",
+        "music.note", "gamecontroller.fill", "globe", "heart.fill",
+        "star.fill", "bolt.fill", "leaf.fill", "graduationcap.fill",
+        "brain.head.profile", "hammer.fill", "wrench.fill", "chart.line.uptrend.xyaxis",
+        "person.fill", "flag.fill", "target", "airplane"
     ]
 
     private var isOverLimit: Bool {
@@ -36,6 +37,7 @@ struct SpaceFormView: View {
                 nameSection
                 descriptionSection
                 iconSection
+                colorSection
                 previewSection
 
                 if let errorMessage = viewModel.errorMessage {
@@ -71,10 +73,13 @@ struct SpaceFormView: View {
             }
             .onAppear {
                 nameFocused = true
-                // Default to a selected icon so a space always has one — the grid is never
-                // in a "nothing selected" state.
-                if viewModel.emoji.isEmpty {
-                    viewModel.emoji = availableEmojis.first ?? "📚"
+                // Default to a selected icon/color so a space always has one — the grids
+                // are never in a "nothing selected" state.
+                if viewModel.iconName.isEmpty {
+                    viewModel.iconName = availableIcons.first ?? "book.fill"
+                }
+                if viewModel.colorHex.isEmpty {
+                    viewModel.colorHex = Constants.LearningColors.all.first ?? Constants.LearningColors.coral
                 }
             }
             // The share sheet's own dismissal is delegate-driven; when it goes away
@@ -117,8 +122,8 @@ struct SpaceFormView: View {
     private var iconSection: some View {
         Section {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
-                ForEach(availableEmojis, id: \.self) { emoji in
-                    emojiButton(for: emoji)
+                ForEach(availableIcons, id: \.self) { icon in
+                    iconButton(for: icon)
                 }
             }
             .padding(.vertical, 8)
@@ -127,23 +132,65 @@ struct SpaceFormView: View {
         }
     }
 
-    private func emojiButton(for emoji: String) -> some View {
-        let isSelected = viewModel.emoji == emoji
+    private func iconButton(for icon: String) -> some View {
+        let isSelected = viewModel.iconName == icon
+        let selectedColor = viewModel.colorHex.isEmpty ? Constants.LearningColors.all[0] : viewModel.colorHex
         return Button {
             HapticManager.shared.selection()
-            viewModel.emoji = emoji
+            viewModel.iconName = icon
         } label: {
-            Text(emoji)
+            Image(systemName: icon)
                 .font(.title2)
+                .foregroundStyle(isSelected ? .white : .primary)
                 .frame(width: 48, height: 48)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? Color.primaryDefault.opacity(0.2) : Color.secondary.opacity(0.1))
+                        .fill(isSelected ? Color(hex: selectedColor) : Color.secondary.opacity(0.1))
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.primaryDefault, lineWidth: isSelected ? 2 : 0)
-                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var colorSection: some View {
+        Section {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 40), spacing: Constants.Spacing.sm)],
+                spacing: Constants.Spacing.sm
+            ) {
+                ForEach(Constants.LearningColors.all, id: \.self) { colorHex in
+                    colorButton(for: colorHex)
+                }
+            }
+            .padding(.vertical, 8)
+        } header: {
+            Text("Color")
+        }
+    }
+
+    private func colorButton(for colorHex: String) -> some View {
+        let isSelected = viewModel.colorHex == colorHex
+        return Button {
+            HapticManager.shared.selection()
+            viewModel.colorHex = colorHex
+        } label: {
+            Circle()
+                .fill(Color(hex: colorHex))
+                .frame(width: 36, height: 36)
+                .overlay {
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.35), radius: 1)
+                    }
+                }
+                .overlay {
+                    Circle()
+                        .stroke(Color.primary, lineWidth: 2)
+                        .padding(-3)
+                        .opacity(isSelected ? 1 : 0)
+                }
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
     }
@@ -176,7 +223,8 @@ struct SpaceFormView: View {
             id: "preview",
             name: trimmedName.isEmpty ? "Space name" : trimmedName,
             detail: trimmedDetail.isEmpty ? nil : trimmedDetail,
-            emoji: viewModel.emoji.isEmpty ? nil : viewModel.emoji,
+            iconName: viewModel.iconName.isEmpty ? nil : viewModel.iconName,
+            colorHex: viewModel.colorHex.isEmpty ? nil : viewModel.colorHex,
             isOwner: true,
             zoneID: SpaceZoneRef(zoneName: "preview", ownerName: "preview", lane: .privateDB),
             createdAt: nil,

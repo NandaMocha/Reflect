@@ -13,7 +13,8 @@ final class SpaceFormViewModel {
 
     var name: String = ""
     var detail: String = ""
-    var emoji: String = ""
+    var iconName: String = ""
+    var colorHex: String = ""
     var isSaving: Bool = false
     var errorMessage: String?
 
@@ -59,7 +60,8 @@ final class SpaceFormViewModel {
             let (space, share) = try await createUseCase.execute(
                 name: name,
                 detail: detail,
-                emoji: emoji.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : emoji
+                iconName: iconName.isEmpty ? nil : iconName,
+                colorHex: colorHex.isEmpty ? nil : colorHex
             )
 
             createdSpace = space

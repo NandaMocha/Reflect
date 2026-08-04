@@ -49,8 +49,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
 
     // MARK: - Write (cloud leads, cache follows)
 
-    func createSpace(name: String, detail: String?, emoji: String?) async throws -> (Space, CKShare) {
-        let (space, share) = try await cloudService.createSpace(name: name, detail: detail, emoji: emoji)
+    func createSpace(name: String, detail: String?, iconName: String?, colorHex: String?) async throws -> (Space, CKShare) {
+        let (space, share) = try await cloudService.createSpace(name: name, detail: detail, iconName: iconName, colorHex: colorHex)
         try upsert(space)
         try modelContext.save()
         // Hand back the share the cloud service already created; re-fetching it here (or in the
@@ -122,7 +122,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         if let existing = try modelContext.fetch(descriptor).first {
             existing.name = space.name
             existing.detail = space.detail
-            existing.emoji = space.emoji
+            existing.iconName = space.iconName
+            existing.colorHex = space.colorHex
             existing.isOwner = space.isOwner
             existing.zoneName = space.zoneID.zoneName
             existing.ownerName = space.zoneID.ownerName
@@ -328,7 +329,12 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             }
             existing.createdAt = reflection.createdAt
             existing.modifiedAt = reflection.modifiedAt
-            existing.isMine = reflection.isMine
+            // Sticky true: `isMine` is fail-closed to false in SpaceCloudService.isMine(_:lane:myUserRecordName:)
+            // whenever the current user's record name hasn't resolved yet (e.g. a
+            // transient CKContainer.userRecordID() lookup on this pass), so a genuinely
+            // self-authored row can be recomputed as false on a later resync. Never let a
+            // resync downgrade a row already known to be mine — only let it flip false → true.
+            existing.isMine = existing.isMine || reflection.isMine
             existing.lastFetchedAt = Date()
         } else {
             modelContext.insert(CachedSpaceReflection(from: reflection))
@@ -346,7 +352,9 @@ final class SpaceRepository: SpaceRepositoryProtocol {
                 existing.authorDisplayName = name
             }
             existing.createdAt = response.createdAt
-            existing.isMine = response.isMine
+            // Sticky true: see the matching comment in upsertReflection — never let a
+            // resync downgrade a row already known to be mine, only let it flip false → true.
+            existing.isMine = existing.isMine || response.isMine
             existing.lastFetchedAt = Date()
         } else {
             modelContext.insert(CachedSpaceResponse(from: response))
