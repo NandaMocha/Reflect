@@ -5,7 +5,7 @@
 > decisions), [space-tasks.md](space-tasks.md) (the 25-ticket breakdown — the source of truth
 > for what each ticket does, its files, acceptance, executor, and the wave/lock tables).
 
-_Last updated: 2026-07-20 (feature merged to `develop`; post-P2 UX + launch screen + icon fix)._
+_Last updated: 2026-08-04 (TASK-006 doc note: multi-question cutover is schema-breaking, Dev-only, no migration; manual CloudKit reset still pending)._
 
 ## TL;DR status (2026-07-20)
 
@@ -19,6 +19,39 @@ R4 review) all landed. `develop` builds green on the iPhone 17 (iOS 26.2) simula
 (P0 @`16bfd31`), `feature/space-p1` (@`8a86611`), `feature/space-p2` (@`8d63ece`). New work is now
 done directly on **`develop`** (in the `.../Reflect/Reflect` worktree) — the stacked-worktree phase
 is over.
+
+### Multi-question feedback cutover (2026-08-04) — schema change, Dev-only, no migration
+
+The `promptText`/`Response` record shape is being replaced by `questionsJSON`/`Answer` as part of
+[multi-question-feedback-plan.md](multi-question-feedback-plan.md). This is a **breaking CloudKit
+schema change with no migration path** — old `SpaceReflection`/`Response` records written under
+the current shape will not be read by the new code once the cutover lands (starting at TASK-007).
+
+This is safe only because the schema is still confined to the CloudKit **Development**
+environment — Production deploy for the Space container is gated on **H4** in the plan and has
+not happened yet. Before (or as part of) the Phase 1 cutover, the Development environment's test
+zones/records for the Space container must be reset (deleted) so no reader ever hits pre-cutover
+`promptText`/`Response` data under the new code. See the "Manual CloudKit reset — TASK-006" note
+immediately below for what this requires and its current status.
+
+### Manual CloudKit reset — TASK-006 (blocked, needs a human)
+
+Part of TASK-006 is deleting the existing test zones for the Space container
+(`iCloud.xyz.nandamochammad.Reflect`) in the CloudKit **Development** environment, so no stale
+`promptText`/`Response` records survive into the Phase 1 cutover above. This requires either the
+CloudKit Dashboard (browser + Apple ID sign-in) or driving the running app's zone-delete path —
+neither is reachable from an unattended coding-agent session (no browser/dashboard access, and
+deleting zones from the app isn't an exposed feature). A human needs to do one of:
+
+1. **CloudKit Dashboard** (https://icloud.developer.apple.com/dashboard/) → select the
+   `iCloud.xyz.nandamochammad.Reflect` container → **Development** environment → **Data** →
+   Record Zones → delete the Space test zone(s) (and/or use "Reset Development Environment" under
+   Deployment if a full wipe is acceptable — this also clears schema, so re-check the
+   `Space`/`SpaceReflection`/`Response`/`Answer` record type definitions after).
+2. Or, from Xcode: **Product ▸ Developer Tool ▸ CloudKit Console**, sign in, same steps as above.
+
+Do this once before/while landing Phase 1 (TASK-007 onward), not before — deleting zones earlier
+than necessary just means re-creating test data twice. Status: **not yet done** as of 2026-08-04.
 
 ### Done since P2 (all on `develop`)
 - **Response editing** + split the thread into a **"Your feedback"** compose page and a separate
