@@ -290,10 +290,45 @@ struct SpaceThreadView: View {
 struct SpaceAllResponsesView: View {
     let viewModel: SpaceThreadViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedQuestionId: String?
+
+    init(viewModel: SpaceThreadViewModel) {
+        self.viewModel = viewModel
+        _selectedQuestionId = State(initialValue: viewModel.reflection.questions.first?.id)
+    }
+
+    private var selectedQuestion: SpaceQuestion? {
+        viewModel.reflection.questions.first { $0.id == selectedQuestionId }
+    }
+
+    @ViewBuilder
+    private var questionFilterHeader: some View {
+        let questions = viewModel.reflection.questions
+        if questions.count > 1 {
+            Picker("Question", selection: $selectedQuestionId) {
+                ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+                    Text("Q\(index + 1)").tag(question.id as String?)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if let selectedQuestion {
+                Text(selectedQuestion.text)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else if let question = questions.first {
+            Text(question.text)
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Constants.Spacing.md) {
+                questionFilterHeader
+
                 if viewModel.answers.isEmpty {
                     Text("No feedback yet.")
                         .font(.subheadline)
