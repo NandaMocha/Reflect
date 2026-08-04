@@ -64,6 +64,12 @@ final class SpaceReflectionEditViewModel {
         return result
     }
 
+    /// Total number of answers posted against reworded questions — the "N people already
+    /// answered" count shown by the one-time save warning.
+    var editedAnswersCount: Int {
+        editedQuestionIdsWithAnswers.reduce(0) { $0 + answerCount(for: $1) }
+    }
+
     /// IDs of original questions removed from the draft that already have at least one
     /// answer — deleting them will hard-delete those answers.
     var removedQuestionIdsWithAnswers: Set<String> {
