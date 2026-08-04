@@ -17,7 +17,7 @@ enum SpaceStore {
     /// local on-disk store → in-memory store. Only the on-disk tier persists
     /// across launches; the in-memory tier trades durability for stability.
     static let container: ModelContainer = {
-        let schema = Schema([CachedSpace.self, CachedSpaceReflection.self, CachedSpaceResponse.self])
+        let schema = Schema([CachedSpace.self, CachedSpaceReflection.self, CachedSpaceResponse.self, CachedAnswer.self])
 
         // A distinct store name ("Space") so this never shares the app's `default.store`.
         let localConfiguration = ModelConfiguration(
