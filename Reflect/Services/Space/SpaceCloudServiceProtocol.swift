@@ -83,6 +83,12 @@ protocol SpaceCloudServiceProtocol {
     /// Updates a response's body (edit-your-own). Caller guards `isMine`.
     func updateResponse(id: String, in zone: SpaceZoneRef, body: String) async throws -> SpaceResponse
 
+    /// Creates or overwrites the current user's answer to one question of a reflection.
+    /// The record name is deterministic (`SpaceAnswer.recordName`), so re-submitting an
+    /// answer to the same question overwrites the same record rather than creating a
+    /// duplicate. `imageData` nil clears any existing image asset.
+    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer
+
     /// Deletes a single child record (reflection or response) by record name. UI-level
     /// trust: the caller guards `isMine` (no server enforcement, plan §11.2).
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws
