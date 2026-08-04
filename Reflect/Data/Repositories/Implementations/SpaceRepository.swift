@@ -155,6 +155,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         )
         for reflection in reflections {
             try removeCachedResponses(reflectionID: reflection.id)
+            try removeCachedAnswers(reflectionID: reflection.id)
             modelContext.delete(reflection)
         }
     }
@@ -230,6 +231,36 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         try removeCachedContent(id: id)
     }
 
+    // MARK: - Answers
+
+    func cachedAnswers(reflectionID: String) -> [SpaceAnswer] {
+        let target = reflectionID
+        let descriptor = FetchDescriptor<CachedAnswer>(
+            predicate: #Predicate { $0.reflectionID == target },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        return rows.map { $0.toDomain() }
+    }
+
+    func fetchAnswers(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceAnswer] {
+        let delta = try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        try applyZoneDelta(delta, spaceID: space.id)
+        return cachedAnswers(reflectionID: reflection.id)
+    }
+
+    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer {
+        let answer = try await cloudService.upsertAnswer(to: reflection, questionId: questionId, text: text, imageData: imageData, in: space.zoneID)
+        try upsertAnswer(answer)
+        try modelContext.save()
+        return answer
+    }
+
+    func deleteOwnAnswer(_ answer: SpaceAnswer, in space: Space) async throws {
+        try await cloudService.deleteRecord(id: answer.id, in: space.zoneID)
+        try removeCachedContent(id: answer.id)
+    }
+
     // MARK: - Child cache reconciliation (T27)
 
     /// Applies one zone delta to the cache. On incremental deltas, absence means
@@ -242,6 +273,9 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         }
         for response in delta.responses {
             try upsertResponse(response)
+        }
+        for answer in delta.answers {
+            try upsertAnswer(answer)
         }
         for deletedID in delta.deletedRecordIDs {
             try removeCachedContentRow(id: deletedID)
@@ -270,6 +304,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         for row in reflectionRows {
             if !fetchedReflectionIDs.contains(row.id) && row.lastFetchedAt < staleCutoff {
                 try removeCachedResponses(reflectionID: row.id)
+                try removeCachedAnswers(reflectionID: row.id)
                 modelContext.delete(row)
             } else {
                 keptReflectionIDs.insert(row.id)
@@ -283,6 +318,16 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         for row in responseRows
         where keptReflectionIDs.contains(row.reflectionID)
             && !fetchedResponseIDs.contains(row.id)
+            && row.lastFetchedAt < staleCutoff {
+            modelContext.delete(row)
+        }
+
+        // Same set-difference prune for answers, scoped the same way as responses.
+        let fetchedAnswerIDs = Set(delta.answers.map { $0.id })
+        let answerRows = try modelContext.fetch(FetchDescriptor<CachedAnswer>())
+        for row in answerRows
+        where keptReflectionIDs.contains(row.reflectionID)
+            && !fetchedAnswerIDs.contains(row.id)
             && row.lastFetchedAt < staleCutoff {
             modelContext.delete(row)
         }
@@ -305,6 +350,12 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         }
         let responseRows = try modelContext.fetch(FetchDescriptor<CachedSpaceResponse>())
         for row in responseRows where !row.isMine && reflectionIDs.contains(row.reflectionID) {
+            if let author = row.authorRecordName, let name = names[author], row.authorDisplayName != name {
+                row.authorDisplayName = name
+            }
+        }
+        let answerRows = try modelContext.fetch(FetchDescriptor<CachedAnswer>())
+        for row in answerRows where !row.isMine && reflectionIDs.contains(row.reflectionID) {
             if let author = row.authorRecordName, let name = names[author], row.authorDisplayName != name {
                 row.authorDisplayName = name
             }
@@ -363,9 +414,35 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         }
     }
 
-    /// Removes a reflection (and its responses) or a response by id from the cache. The
-    /// cloud service cascades the delete to child response records on the server (parent
-    /// references with action `.none` do NOT auto-cascade), so the cache mirrors that here.
+    private func upsertAnswer(_ answer: SpaceAnswer) throws {
+        let id = answer.id
+        let descriptor = FetchDescriptor<CachedAnswer>(predicate: #Predicate { $0.id == id })
+        if let existing = try modelContext.fetch(descriptor).first {
+            existing.reflectionID = answer.reflectionID
+            existing.questionId = answer.questionId
+            existing.text = answer.text
+            if answer.imageData != nil || existing.modifiedAt != answer.modifiedAt {
+                existing.imageData = answer.imageData
+            }
+            existing.authorRecordName = answer.authorRecordName
+            if let name = answer.authorDisplayName {
+                existing.authorDisplayName = name
+            }
+            existing.createdAt = answer.createdAt
+            existing.modifiedAt = answer.modifiedAt
+            // Sticky true: see the matching comment in upsertReflection — never let a
+            // resync downgrade a row already known to be mine, only let it flip false → true.
+            existing.isMine = existing.isMine || answer.isMine
+            existing.lastFetchedAt = Date()
+        } else {
+            modelContext.insert(CachedAnswer(from: answer))
+        }
+    }
+
+    /// Removes a reflection (and its responses and answers) or a response/answer by id from
+    /// the cache. The cloud service cascades the delete to child response/answer records on
+    /// the server (parent references with action `.none` do NOT auto-cascade), so the cache
+    /// mirrors that here.
     private func removeCachedContent(id: String) throws {
         try removeCachedContentRow(id: id)
         try modelContext.save()
@@ -377,6 +454,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         let reflectionDescriptor = FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.id == reflectionID })
         if let reflection = try modelContext.fetch(reflectionDescriptor).first {
             try removeCachedResponses(reflectionID: reflection.id)
+            try removeCachedAnswers(reflectionID: reflection.id)
             modelContext.delete(reflection)
         }
 
@@ -385,12 +463,27 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         if let response = try modelContext.fetch(responseDescriptor).first {
             modelContext.delete(response)
         }
+
+        let answerID = id
+        let answerDescriptor = FetchDescriptor<CachedAnswer>(predicate: #Predicate { $0.id == answerID })
+        if let answer = try modelContext.fetch(answerDescriptor).first {
+            modelContext.delete(answer)
+        }
     }
 
     /// Deletes all cached responses under a reflection. Does not save — callers batch saves.
     private func removeCachedResponses(reflectionID: String) throws {
         let target = reflectionID
         let descriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.reflectionID == target })
+        for row in try modelContext.fetch(descriptor) {
+            modelContext.delete(row)
+        }
+    }
+
+    /// Deletes all cached answers under a reflection. Does not save — callers batch saves.
+    private func removeCachedAnswers(reflectionID: String) throws {
+        let target = reflectionID
+        let descriptor = FetchDescriptor<CachedAnswer>(predicate: #Predicate { $0.reflectionID == target })
         for row in try modelContext.fetch(descriptor) {
             modelContext.delete(row)
         }
