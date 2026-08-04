@@ -8,8 +8,17 @@ import SwiftUI
 /// drag-to-reorder (long-press, no `EditButton` required — SwiftUI's `List` supports this
 /// natively once `.onMove` is attached). Reordering and deletion both rewrite `order` so it
 /// always matches the array index.
+///
+/// `answerCount` lets a caller (the Phase 5 edit screen) surface how many answers already
+/// exist for a question; when a row with answers is deleted, a destructive
+/// `confirmationDialog` gates the removal instead of deleting immediately. Callers with no
+/// answers yet (the create-space compose flow) can leave it at the default, which deletes
+/// rows immediately as before.
 struct SpaceQuestionListEditor: View {
     @Binding var questions: [SpaceQuestion]
+    var answerCount: (String) -> Int = { _ in 0 }
+
+    @State private var pendingDeleteQuestion: SpaceQuestion?
 
     private var isAtLimit: Bool {
         questions.count >= Constants.Limits.spaceMaxQuestions
@@ -29,6 +38,31 @@ struct SpaceQuestionListEditor: View {
         } footer: {
             Text("\(questions.count) of \(Constants.Limits.spaceMaxQuestions)")
         }
+        .confirmationDialog(
+            deleteConfirmationTitle,
+            isPresented: Binding(
+                get: { pendingDeleteQuestion != nil },
+                set: { isPresented in if !isPresented { pendingDeleteQuestion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete Question", role: .destructive) {
+                if let question = pendingDeleteQuestion {
+                    performDelete(id: question.id)
+                }
+                pendingDeleteQuestion = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteQuestion = nil
+            }
+        } message: {
+            Text("Members' answers to it will be permanently deleted.")
+        }
+    }
+
+    private var deleteConfirmationTitle: String {
+        let count = pendingDeleteQuestion.map { answerCount($0.id) } ?? 0
+        return "Delete this question and its \(count) answer\(count == 1 ? "" : "s")?"
     }
 
     // MARK: - Row
@@ -50,14 +84,23 @@ struct SpaceQuestionListEditor: View {
                 }
             }
 
-            Text("\(question.wrappedValue.text.count)/\(Constants.Limits.spaceQuestionTextMaxLength)")
-                .font(.caption2)
-                .foregroundStyle(
-                    question.wrappedValue.text.count > Constants.Limits.spaceQuestionTextMaxLength
-                        ? Color.error
-                        : Color.secondary
-                )
-                .monospacedDigit()
+            HStack {
+                Text("\(question.wrappedValue.text.count)/\(Constants.Limits.spaceQuestionTextMaxLength)")
+                    .foregroundStyle(
+                        question.wrappedValue.text.count > Constants.Limits.spaceQuestionTextMaxLength
+                            ? Color.error
+                            : Color.secondary
+                    )
+                    .monospacedDigit()
+
+                let rowAnswerCount = answerCount(question.wrappedValue.id)
+                if rowAnswerCount > 0 {
+                    Spacer()
+                    Text("\(rowAnswerCount) answer\(rowAnswerCount == 1 ? "" : "s")")
+                        .foregroundStyle(Color.secondary)
+                }
+            }
+            .font(.caption2)
         }
         .swipeActions(edge: .trailing) {
             if questions.count > 1 {
@@ -86,16 +129,26 @@ struct SpaceQuestionListEditor: View {
         questions.append(SpaceQuestion(id: UUID().uuidString, text: "", order: questions.count))
     }
 
+    /// Routes through the confirmation dialog when the question already has answers;
+    /// deletes immediately otherwise.
     private func deleteQuestion(id: String) {
         guard questions.count > 1 else { return }
+        guard let question = questions.first(where: { $0.id == id }) else { return }
+        if answerCount(question.id) > 0 {
+            pendingDeleteQuestion = question
+        } else {
+            performDelete(id: id)
+        }
+    }
+
+    private func performDelete(id: String) {
         questions.removeAll { $0.id == id }
         reindex()
     }
 
     private func delete(at offsets: IndexSet) {
-        guard questions.count > offsets.count else { return }
-        questions.remove(atOffsets: offsets)
-        reindex()
+        guard questions.count > offsets.count, let index = offsets.first else { return }
+        deleteQuestion(id: questions[index].id)
     }
 
     private func move(from source: IndexSet, to destination: Int) {
