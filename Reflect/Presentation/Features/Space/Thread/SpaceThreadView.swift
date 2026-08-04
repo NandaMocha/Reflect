@@ -131,6 +131,19 @@ struct SpaceThreadView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
+                            .contextMenu {
+                                Button {
+                                    viewModel.select(questionId: question.id)
+                                    composerFocused = true
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    Task { await viewModel.deleteOwnAnswer(for: question.id) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                     }
                 }
                 .padding(Constants.Spacing.sm)
