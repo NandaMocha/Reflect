@@ -301,6 +301,11 @@ struct SpaceAllResponsesView: View {
         viewModel.reflection.questions.first { $0.id == selectedQuestionId }
     }
 
+    private var filteredAnswers: [SpaceAnswer] {
+        guard let selectedQuestionId else { return [] }
+        return viewModel.answers(for: selectedQuestionId)
+    }
+
     @ViewBuilder
     private var questionFilterHeader: some View {
         let questions = viewModel.reflection.questions
@@ -329,14 +334,14 @@ struct SpaceAllResponsesView: View {
             LazyVStack(alignment: .leading, spacing: Constants.Spacing.md) {
                 questionFilterHeader
 
-                if viewModel.answers.isEmpty {
-                    Text("No feedback yet.")
+                if filteredAnswers.isEmpty {
+                    Text(viewModel.answers.isEmpty ? "No feedback yet." : "No answers to this question yet.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, Constants.Spacing.xl)
                 } else {
-                    ForEach(viewModel.answers) { answer in
+                    ForEach(filteredAnswers) { answer in
                         // Edit/Delete only render for own answers (guarded by `answer.isMine`
                         // inside `AnswerBubble`), so passing them for every row is safe.
                         let questionNumber = (viewModel.reflection.questions.firstIndex(where: { $0.id == answer.questionId }) ?? 0) + 1
