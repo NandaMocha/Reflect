@@ -8,6 +8,7 @@ struct SpaceDetailView: View {
     @State private var showCompose = false
     @State private var showMembers = false
     @State private var reflectionToDelete: SpaceReflection?
+    @State private var reflectionToEdit: SpaceReflection?
     @State private var selectedPhotoItem: PhotosPickerItem?
     @Environment(\.scenePhase) private var scenePhase
 
@@ -51,6 +52,12 @@ struct SpaceDetailView: View {
         }
         .sheet(isPresented: $showMembers) {
             SpaceMembersView(space: viewModel.space)
+        }
+        .sheet(item: $reflectionToEdit) { reflection in
+            SpaceReflectionEditView(
+                viewModel: DIContainer.shared.makeSpaceReflectionEditViewModel(reflection: reflection, space: viewModel.space),
+                onSave: { updated in viewModel.updateReflection(updated) }
+            )
         }
         .task { await viewModel.load() }
         .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in
@@ -99,6 +106,13 @@ struct SpaceDetailView: View {
                             }
                         }
                         .contextMenu {
+                            if reflection.isMine {
+                                Button {
+                                    reflectionToEdit = reflection
+                                } label: {
+                                    Label("Edit questions", systemImage: "pencil")
+                                }
+                            }
                             ReportContentButton(
                                 contentKind: "request",
                                 contentID: reflection.id,

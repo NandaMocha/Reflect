@@ -136,6 +136,12 @@ final class SpaceDetailViewModel {
         }
     }
 
+    /// Replaces a reflection in the list after an in-place edit (title/note/questions).
+    func updateReflection(_ updated: SpaceReflection) {
+        guard let index = reflections.firstIndex(where: { $0.id == updated.id }) else { return }
+        reflections[index] = updated
+    }
+
     func deleteOwn(_ reflection: SpaceReflection) async {
         do {
             try await deleteUseCase.execute(reflection: reflection, in: space)

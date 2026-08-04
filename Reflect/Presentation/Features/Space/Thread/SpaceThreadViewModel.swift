@@ -12,7 +12,7 @@ final class SpaceThreadViewModel {
     // MARK: - State
 
     let space: Space
-    let reflection: SpaceReflection
+    var reflection: SpaceReflection
     var answers: [SpaceAnswer] = []
     /// The question currently shown in the composer. Defaults to the first question I haven't
     /// answered yet so members are steered toward finishing the set.
@@ -165,6 +165,16 @@ final class SpaceThreadViewModel {
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
         }
+    }
+
+    /// Adopts an edited reflection (new title/note/questions) and refreshes answers, since a
+    /// question rewording or removal cascade may have deleted some of them server-side.
+    func applyEditedReflection(_ updated: SpaceReflection) async {
+        reflection = updated
+        if let activeQuestionId, !updated.questions.contains(where: { $0.id == activeQuestionId }) {
+            self.activeQuestionId = nil
+        }
+        await refresh()
     }
 
     func deleteOwnAnswer(for questionId: String) async {
