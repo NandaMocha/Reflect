@@ -10,6 +10,12 @@ enum SpaceError: Error, LocalizedError {
     case promptTooLong
     case bodyRequired
     case bodyTooLong
+    case tooManyQuestions
+    case emptyQuestionText
+    case questionTextTooLong
+    case noteTooLong
+    case answerNotFound
+    case notReflectionOwner
     case notFound
     case notOwner
     case notAuthor
@@ -28,6 +34,12 @@ enum SpaceError: Error, LocalizedError {
         case .promptTooLong: return "That prompt is too long."
         case .bodyRequired: return "Response can't be empty."
         case .bodyTooLong: return "Response is too long."
+        case .tooManyQuestions: return "A feedback request can have up to 5 questions."
+        case .emptyQuestionText: return "Questions can't be empty."
+        case .questionTextTooLong: return "That question is too long."
+        case .noteTooLong: return "That note is too long."
+        case .answerNotFound: return "That answer could not be found."
+        case .notReflectionOwner: return "Only the feedback request owner can do that."
         case .notFound: return "That space could not be found."
         case .notOwner: return "Only the space's owner can do that."
         case .notAuthor: return "You can only delete your own content."
