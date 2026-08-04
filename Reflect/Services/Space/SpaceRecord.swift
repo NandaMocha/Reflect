@@ -11,6 +11,8 @@ enum SpaceRecordType {
     static let response = "Response"
     /// A participant's self-registered display name, so members can see who each other are.
     static let memberProfile = "MemberProfile"
+    /// A participant's answer to one question of a `SpaceReflection`.
+    static let answer = "Answer"
 }
 
 // MARK: - Field Keys
@@ -28,6 +30,8 @@ enum SpaceRecordField {
     static let title = "title"
     static let promptText = "promptText"
     static let imageAsset = "imageAsset"
+    static let note = "note"
+    static let questionsJSON = "questionsJSON"
 
     // Response (child of SpaceReflection)
     static let reflectionID = "reflectionID"
@@ -36,6 +40,10 @@ enum SpaceRecordField {
     // MemberProfile (child of Space)
     static let displayName = "displayName"
     static let memberRecordName = "memberRecordName"
+
+    // Answer (child of SpaceReflection)
+    static let questionId = "questionId"
+    static let text = "text"
 }
 
 // MARK: - CKRecord <-> Entity Mapping
@@ -216,6 +224,68 @@ enum SpaceRecordMapper {
             spaceID: spaceID,
             title: title,
             promptText: promptText,
+            imageData: imageData,
+            authorRecordName: record.creatorUserRecordID?.recordName,
+            authorDisplayName: nil, // resolved from CKShare.participants by the caller
+            createdAt: record.creationDate,
+            modifiedAt: record.modificationDate,
+            isMine: isMine
+        )
+    }
+
+    // MARK: Answer
+
+    /// Builds a new `Answer` CKRecord as a child of its `SpaceReflection` record. The
+    /// record name is deterministic (`SpaceAnswer.recordName`) so re-saving a participant's
+    /// answer to the same question overwrites the same record instead of creating a
+    /// duplicate. The `parent` reference again carries the share down the hierarchy.
+    static func makeAnswerRecord(
+        recordName: String,
+        zoneID: CKRecordZone.ID,
+        reflectionID: String,
+        questionId: String,
+        text: String,
+        imageAsset: CKAsset? = nil
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
+        let record = CKRecord(recordType: SpaceRecordType.answer, recordID: recordID)
+        record[SpaceRecordField.questionId] = questionId as CKRecordValue
+        record[SpaceRecordField.text] = text as CKRecordValue
+        record[SpaceRecordField.reflectionID] = reflectionID as CKRecordValue
+        if let imageAsset {
+            record[SpaceRecordField.imageAsset] = imageAsset
+        }
+        let parentID = CKRecord.ID(recordName: reflectionID, zoneID: zoneID)
+        record.parent = CKRecord.Reference(recordID: parentID, action: .none)
+        return record
+    }
+
+    /// Maps a fetched `Answer` CKRecord into the domain entity.
+    static func answer(from record: CKRecord, isMine: Bool) -> SpaceAnswer? {
+        guard record.recordType == SpaceRecordType.answer,
+              let questionId = record[SpaceRecordField.questionId] as? String,
+              let text = record[SpaceRecordField.text] as? String else {
+            return nil
+        }
+
+        let reflectionID = record.parent?.recordID.recordName
+            ?? record[SpaceRecordField.reflectionID] as? String
+            ?? ""
+
+        // Asset staging files can be gone by read time; a missing image degrades to
+        // text-only rather than dropping the whole record (same tolerance
+        // `spaceReflection(from:)` uses).
+        var imageData: Data?
+        if let asset = record[SpaceRecordField.imageAsset] as? CKAsset,
+           let fileURL = asset.fileURL {
+            imageData = try? Data(contentsOf: fileURL)
+        }
+
+        return SpaceAnswer(
+            id: record.recordID.recordName,
+            reflectionID: reflectionID,
+            questionId: questionId,
+            text: text,
             imageData: imageData,
             authorRecordName: record.creatorUserRecordID?.recordName,
             authorDisplayName: nil, // resolved from CKShare.participants by the caller
