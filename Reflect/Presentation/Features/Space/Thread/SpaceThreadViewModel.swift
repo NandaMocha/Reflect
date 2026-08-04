@@ -23,6 +23,8 @@ final class SpaceThreadViewModel {
     var draft: String = ""
     var draftImage: UIImage?
     var isPosting: Bool = false
+    /// Set after a successful export; the view watches this to present the share sheet.
+    var exportedFileURL: URL?
 
     // MARK: - Dependencies
 
@@ -30,6 +32,7 @@ final class SpaceThreadViewModel {
     private let upsertUseCase: UpsertAnswerUseCaseProtocol
     private let deleteUseCase: DeleteOwnSpaceContentUseCaseProtocol
     private let repository: SpaceRepositoryProtocol
+    private let exportUseCase: ExportFeedbackRequestUseCaseProtocol
 
     // MARK: - Initialization
 
@@ -39,7 +42,8 @@ final class SpaceThreadViewModel {
         fetchUseCase: FetchAnswersUseCaseProtocol,
         upsertUseCase: UpsertAnswerUseCaseProtocol,
         deleteUseCase: DeleteOwnSpaceContentUseCaseProtocol,
-        repository: SpaceRepositoryProtocol
+        repository: SpaceRepositoryProtocol,
+        exportUseCase: ExportFeedbackRequestUseCaseProtocol
     ) {
         self.space = space
         self.reflection = reflection
@@ -47,6 +51,7 @@ final class SpaceThreadViewModel {
         self.upsertUseCase = upsertUseCase
         self.deleteUseCase = deleteUseCase
         self.repository = repository
+        self.exportUseCase = exportUseCase
     }
 
     // MARK: - Computed
@@ -187,6 +192,20 @@ final class SpaceThreadViewModel {
                 draftImage = nil
             }
             HapticManager.shared.success()
+        } catch {
+            errorMessage = error.localizedDescription
+            HapticManager.shared.error()
+        }
+    }
+
+    /// Exports every question's answers (not just the currently filtered one) to a file and
+    /// stages it for sharing via `exportedFileURL`.
+    func export(format: FeedbackExportFormat) async {
+        do {
+            let url = try await exportUseCase.execute(
+                input: ExportFeedbackRequestUseCase.Input(reflection: reflection, answers: answers, format: format)
+            )
+            exportedFileURL = url
         } catch {
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
