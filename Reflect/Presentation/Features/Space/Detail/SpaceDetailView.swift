@@ -143,7 +143,7 @@ struct SpaceDetailView: View {
                 }
 
                 Section("Details") {
-                    TextField("Add context or specific questions…", text: $viewModel.newPrompt, axis: .vertical)
+                    TextField("Add context or specific questions…", text: $viewModel.newQuestions[0].text, axis: .vertical)
                         .lineLimit(3...8)
                 }
 
