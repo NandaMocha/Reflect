@@ -4,7 +4,7 @@ import CloudKit
 /// `SpaceStore` cache. The cloud is always the source of truth: every mutation goes to
 /// CloudKit first and only touches the cache on success — the cache never leads.
 ///
-/// Covers spaces and their child records (`SpaceReflection` / `SpaceResponse`).
+/// Covers spaces and their child records (`SpaceReflection`).
 @MainActor
 protocol SpaceRepositoryProtocol {
     /// Synchronous read straight from the cache for an instant first paint. Never throws:
@@ -42,7 +42,7 @@ protocol SpaceRepositoryProtocol {
     /// Participant-only: drops the current user's access, then removes it from the cache.
     func leaveSpace(_ space: Space) async throws
 
-    // MARK: - Reflections / Responses — T17
+    // MARK: - Reflections — T17
 
     /// Synchronous cache read of a space's reflections, for instant first paint.
     func cachedReflections(spaceID: String) -> [SpaceReflection]
@@ -53,22 +53,31 @@ protocol SpaceRepositoryProtocol {
 
     /// Creates a reflection in the space's zone, then caches it. `imageData` is
     /// already-compressed JPEG bytes (compression happens in the use case).
-    func createReflection(in space: Space, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection
+    func createReflection(in space: Space, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection
 
-    /// Synchronous cache read of a reflection's responses, for instant first paint.
-    func cachedResponses(reflectionID: String) -> [SpaceResponse]
+    /// Updates a reflection's title, note, and questions (edit-your-own). Any question
+    /// present on `reflection` but absent from `questions` is treated as removed: every
+    /// answer to that question (from any participant) is hard-deleted from CloudKit and
+    /// the cache before the reflection itself is updated. Caller guards `isMine`.
+    func updateReflectionQuestions(_ reflection: SpaceReflection, in space: Space, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection
 
-    /// Fetches a reflection's responses from CloudKit and reconciles the cache (scoped to
-    /// this reflection). Returns the reconciled cache.
-    func fetchResponses(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceResponse]
-
-    /// Posts a response to a reflection, then caches it.
-    func createResponse(to reflection: SpaceReflection, in space: Space, body: String) async throws -> SpaceResponse
-
-    /// Updates the body of the user's own response (cloud first, then cache). Caller guards `isMine`.
-    func updateResponse(_ response: SpaceResponse, in space: Space, body: String) async throws -> SpaceResponse
-
-    /// Deletes the user's own reflection or response (cloud first, then cache; deleting a
-    /// reflection also removes its cached responses). Caller guards `isMine`.
+    /// Deletes the user's own reflection (cloud first, then cache; deleting a reflection
+    /// also removes its cached answers). Caller guards `isMine`.
     func deleteContent(id: String, in space: Space) async throws
+
+    // MARK: - Answers
+
+    /// Synchronous cache read of a reflection's answers, for instant first paint.
+    func cachedAnswers(reflectionID: String) -> [SpaceAnswer]
+
+    /// Fetches a reflection's answers from CloudKit and reconciles the cache (scoped to
+    /// this reflection). Returns the reconciled cache.
+    func fetchAnswers(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceAnswer]
+
+    /// Creates or overwrites the current user's answer to one question, then caches it
+    /// (cloud first, per `SpaceCloudServiceProtocol.upsertAnswer`).
+    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer
+
+    /// Deletes the user's own answer (cloud first, then cache row removal). Caller guards `isMine`.
+    func deleteOwnAnswer(_ answer: SpaceAnswer, in space: Space) async throws
 }

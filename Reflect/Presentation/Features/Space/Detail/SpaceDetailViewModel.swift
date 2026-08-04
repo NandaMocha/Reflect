@@ -18,7 +18,8 @@ final class SpaceDetailViewModel {
 
     // Compose
     var newTitle: String = ""
-    var newPrompt: String = ""
+    var newNote: String = ""
+    var newQuestions: [SpaceQuestion] = [SpaceQuestion(id: UUID().uuidString, text: "", order: 0)]
     var newImage: UIImage?
     var isSaving: Bool = false
 
@@ -49,14 +50,20 @@ final class SpaceDetailViewModel {
 
     var titleCount: Int { newTitle.count }
     var titleLimit: Int { Constants.Limits.spaceReflectionTitleMaxLength }
-    var promptLimit: Int { Constants.Limits.spaceReflectionPromptMaxLength }
+    var noteLimit: Int { Constants.Limits.spaceReflectionNoteMaxLength }
+    var questionLimit: Int { Constants.Limits.spaceQuestionTextMaxLength }
 
     var canSave: Bool {
         let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prompt = newPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !title.isEmpty && title.count <= titleLimit
-            && !prompt.isEmpty && prompt.count <= promptLimit
-            && !isSaving
+        let note = newNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty && title.count <= titleLimit else { return false }
+        guard note.count <= noteLimit else { return false }
+        guard (1...Constants.Limits.spaceMaxQuestions).contains(newQuestions.count) else { return false }
+        for question in newQuestions {
+            let text = question.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty && text.count <= questionLimit else { return false }
+        }
+        return !isSaving
     }
 
     /// Reflections bucketed into date sections (newest group first, newest reflection first
@@ -113,11 +120,12 @@ final class SpaceDetailViewModel {
         // so other members see who posted it.
         await registerMyDisplayNameIfKnown()
         do {
-            let reflection = try await createUseCase.execute(in: space, title: newTitle, promptText: newPrompt, image: newImage)
+            let reflection = try await createUseCase.execute(in: space, title: newTitle, note: newNote, questions: newQuestions, image: newImage)
             reflections.append(reflection)
             reflections.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
             newTitle = ""
-            newPrompt = ""
+            newNote = ""
+            newQuestions = [SpaceQuestion(id: UUID().uuidString, text: "", order: 0)]
             newImage = nil
             HapticManager.shared.success()
             return true
@@ -126,6 +134,12 @@ final class SpaceDetailViewModel {
             HapticManager.shared.error()
             return false
         }
+    }
+
+    /// Replaces a reflection in the list after an in-place edit (title/note/questions).
+    func updateReflection(_ updated: SpaceReflection) {
+        guard let index = reflections.firstIndex(where: { $0.id == updated.id }) else { return }
+        reflections[index] = updated
     }
 
     func deleteOwn(_ reflection: SpaceReflection) async {

@@ -8,6 +8,7 @@ struct SpaceDetailView: View {
     @State private var showCompose = false
     @State private var showMembers = false
     @State private var reflectionToDelete: SpaceReflection?
+    @State private var reflectionToEdit: SpaceReflection?
     @State private var selectedPhotoItem: PhotosPickerItem?
     @Environment(\.scenePhase) private var scenePhase
 
@@ -51,6 +52,12 @@ struct SpaceDetailView: View {
         }
         .sheet(isPresented: $showMembers) {
             SpaceMembersView(space: viewModel.space)
+        }
+        .sheet(item: $reflectionToEdit) { reflection in
+            SpaceReflectionEditView(
+                viewModel: DIContainer.shared.makeSpaceReflectionEditViewModel(reflection: reflection, space: viewModel.space),
+                onSave: { updated in viewModel.updateReflection(updated) }
+            )
         }
         .task { await viewModel.load() }
         .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in
@@ -99,6 +106,13 @@ struct SpaceDetailView: View {
                             }
                         }
                         .contextMenu {
+                            if reflection.isMine {
+                                Button {
+                                    reflectionToEdit = reflection
+                                } label: {
+                                    Label("Edit questions", systemImage: "pencil")
+                                }
+                            }
                             ReportContentButton(
                                 contentKind: "request",
                                 contentID: reflection.id,
@@ -142,10 +156,21 @@ struct SpaceDetailView: View {
                     }
                 }
 
-                Section("Details") {
-                    TextField("Add context or specific questions…", text: $viewModel.newPrompt, axis: .vertical)
+                Section {
+                    TextField("Add context (optional)…", text: $viewModel.newNote, axis: .vertical)
                         .lineLimit(3...8)
+                } header: {
+                    Text("Note")
+                } footer: {
+                    HStack {
+                        Spacer()
+                        Text("\(viewModel.newNote.count)/\(viewModel.noteLimit)")
+                            .foregroundStyle(viewModel.newNote.count > viewModel.noteLimit ? Color.error : .secondary)
+                            .monospacedDigit()
+                    }
                 }
+
+                SpaceQuestionListEditor(questions: $viewModel.newQuestions)
 
                 Section {
                     if let image = viewModel.newImage {
@@ -222,11 +247,23 @@ struct SpaceReflectionRow: View {
                     .font(.body.weight(.semibold))
                     .lineLimit(2)
 
-                if !reflection.promptText.isEmpty {
-                    Text(reflection.promptText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                if let firstQuestion = reflection.questions.first {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(firstQuestion.text)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+
+                        if reflection.questions.count > 1 {
+                            Text("\(reflection.questions.count) questions")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(4)
+                        }
+                    }
                 }
 
                 HStack(spacing: 4) {

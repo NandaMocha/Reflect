@@ -145,7 +145,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         }
     }
 
-    /// Deletes all cached reflections (and their responses) for a space — the flattened
+    /// Deletes all cached reflections (and their answers) for a space — the flattened
     /// cache has no cascade, so a space delete/leave/prune must clean up children itself.
     /// Does not save — callers batch saves.
     private func removeCachedChildren(spaceID: String) throws {
@@ -154,7 +154,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.spaceID == target })
         )
         for reflection in reflections {
-            try removeCachedResponses(reflectionID: reflection.id)
+            try removeCachedAnswers(reflectionID: reflection.id)
             modelContext.delete(reflection)
         }
     }
@@ -177,12 +177,13 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return cachedReflections(spaceID: space.id)
     }
 
-    func createReflection(in space: Space, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection {
+    func createReflection(in space: Space, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection {
         let reflection = try await cloudService.createReflection(
             in: space.zoneID,
             spaceID: space.id,
             title: title,
-            promptText: promptText,
+            note: note,
+            questions: questions,
             imageData: imageData
         )
         try upsertReflection(reflection)
@@ -190,34 +191,28 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return reflection
     }
 
-    // MARK: - Responses
+    /// Updates a reflection's title/note/questions. Questions removed relative to
+    /// `reflection.questions` cascade-delete every participant's answer to them (clarified
+    /// decision 6: hard-delete, not orphan, not blocked) before the reflection is saved.
+    /// Ordering: cascade deletes (cloud + cache) -> reflection save (cloud) -> cache upsert.
+    func updateReflectionQuestions(_ reflection: SpaceReflection, in space: Space, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection {
+        let oldQuestionIDs = Set(reflection.questions.map { $0.id })
+        let newQuestionIDs = Set(questions.map { $0.id })
+        let removedQuestionIDs = oldQuestionIDs.subtracting(newQuestionIDs)
 
-    func cachedResponses(reflectionID: String) -> [SpaceResponse] {
-        let target = reflectionID
-        let descriptor = FetchDescriptor<CachedSpaceResponse>(
-            predicate: #Predicate { $0.reflectionID == target },
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        let rows = (try? modelContext.fetch(descriptor)) ?? []
-        return rows.map { $0.toDomain() }
-    }
+        if !removedQuestionIDs.isEmpty {
+            // Fetch once up front so every removed question's answers (from any
+            // participant) are known by id — deletes below go straight by id rather than
+            // re-discovering each answer's record.
+            let answers = try await fetchAnswers(for: reflection, in: space)
+            for answer in answers where removedQuestionIDs.contains(answer.questionId) {
+                try await cloudService.deleteRecord(id: answer.id, in: space.zoneID)
+                try removeCachedContent(id: answer.id)
+            }
+        }
 
-    func fetchResponses(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceResponse] {
-        let delta = try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
-        try applyZoneDelta(delta, spaceID: space.id)
-        return cachedResponses(reflectionID: reflection.id)
-    }
-
-    func createResponse(to reflection: SpaceReflection, in space: Space, body: String) async throws -> SpaceResponse {
-        let response = try await cloudService.createResponse(to: reflection, body: body, in: space.zoneID)
-        try upsertResponse(response)
-        try modelContext.save()
-        return response
-    }
-
-    func updateResponse(_ response: SpaceResponse, in space: Space, body: String) async throws -> SpaceResponse {
-        let updated = try await cloudService.updateResponse(id: response.id, in: space.zoneID, body: body)
-        try upsertResponse(updated)
+        let updated = try await cloudService.updateReflection(id: reflection.id, in: space.zoneID, title: title, note: note, questions: questions)
+        try upsertReflection(updated)
         try modelContext.save()
         return updated
     }
@@ -227,6 +222,36 @@ final class SpaceRepository: SpaceRepositoryProtocol {
     func deleteContent(id: String, in space: Space) async throws {
         try await cloudService.deleteRecord(id: id, in: space.zoneID)
         try removeCachedContent(id: id)
+    }
+
+    // MARK: - Answers
+
+    func cachedAnswers(reflectionID: String) -> [SpaceAnswer] {
+        let target = reflectionID
+        let descriptor = FetchDescriptor<CachedAnswer>(
+            predicate: #Predicate { $0.reflectionID == target },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        return rows.map { $0.toDomain() }
+    }
+
+    func fetchAnswers(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceAnswer] {
+        let delta = try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        try applyZoneDelta(delta, spaceID: space.id)
+        return cachedAnswers(reflectionID: reflection.id)
+    }
+
+    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer {
+        let answer = try await cloudService.upsertAnswer(to: reflection, questionId: questionId, text: text, imageData: imageData, in: space.zoneID)
+        try upsertAnswer(answer)
+        try modelContext.save()
+        return answer
+    }
+
+    func deleteOwnAnswer(_ answer: SpaceAnswer, in space: Space) async throws {
+        try await cloudService.deleteRecord(id: answer.id, in: space.zoneID)
+        try removeCachedContent(id: answer.id)
     }
 
     // MARK: - Child cache reconciliation (T27)
@@ -239,8 +264,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         for reflection in delta.reflections {
             try upsertReflection(reflection)
         }
-        for response in delta.responses {
-            try upsertResponse(response)
+        for answer in delta.answers {
+            try upsertAnswer(answer)
         }
         for deletedID in delta.deletedRecordIDs {
             try removeCachedContentRow(id: deletedID)
@@ -268,20 +293,19 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         var keptReflectionIDs: Set<String> = []
         for row in reflectionRows {
             if !fetchedReflectionIDs.contains(row.id) && row.lastFetchedAt < staleCutoff {
-                try removeCachedResponses(reflectionID: row.id)
+                try removeCachedAnswers(reflectionID: row.id)
                 modelContext.delete(row)
             } else {
                 keptReflectionIDs.insert(row.id)
             }
         }
 
-        // A full snapshot carries every response in the zone, so this prune can cover the
-        // whole space (the old per-thread reconcile only covered one reflection at a time).
-        let fetchedResponseIDs = Set(delta.responses.map { $0.id })
-        let responseRows = try modelContext.fetch(FetchDescriptor<CachedSpaceResponse>())
-        for row in responseRows
+        // Same set-difference prune for answers, scoped the same way responses used to be.
+        let fetchedAnswerIDs = Set(delta.answers.map { $0.id })
+        let answerRows = try modelContext.fetch(FetchDescriptor<CachedAnswer>())
+        for row in answerRows
         where keptReflectionIDs.contains(row.reflectionID)
-            && !fetchedResponseIDs.contains(row.id)
+            && !fetchedAnswerIDs.contains(row.id)
             && row.lastFetchedAt < staleCutoff {
             modelContext.delete(row)
         }
@@ -302,8 +326,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
                 row.authorDisplayName = name
             }
         }
-        let responseRows = try modelContext.fetch(FetchDescriptor<CachedSpaceResponse>())
-        for row in responseRows where !row.isMine && reflectionIDs.contains(row.reflectionID) {
+        let answerRows = try modelContext.fetch(FetchDescriptor<CachedAnswer>())
+        for row in answerRows where !row.isMine && reflectionIDs.contains(row.reflectionID) {
             if let author = row.authorRecordName, let name = names[author], row.authorDisplayName != name {
                 row.authorDisplayName = name
             }
@@ -316,7 +340,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         if let existing = try modelContext.fetch(descriptor).first {
             existing.spaceID = reflection.spaceID
             existing.title = reflection.title
-            existing.promptText = reflection.promptText
+            existing.note = reflection.note
+            existing.questionsData = (try? JSONEncoder().encode(reflection.questions)) ?? Data()
             // T28: an unchanged record whose asset failed to stage locally must not wipe
             // the cached photo — only take the incoming value when there is one, or when
             // the record genuinely changed upstream.
@@ -341,29 +366,34 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         }
     }
 
-    private func upsertResponse(_ response: SpaceResponse) throws {
-        let id = response.id
-        let descriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.id == id })
+    private func upsertAnswer(_ answer: SpaceAnswer) throws {
+        let id = answer.id
+        let descriptor = FetchDescriptor<CachedAnswer>(predicate: #Predicate { $0.id == id })
         if let existing = try modelContext.fetch(descriptor).first {
-            existing.reflectionID = response.reflectionID
-            existing.body = response.body
-            existing.authorRecordName = response.authorRecordName
-            if let name = response.authorDisplayName {
+            existing.reflectionID = answer.reflectionID
+            existing.questionId = answer.questionId
+            existing.text = answer.text
+            if answer.imageData != nil || existing.modifiedAt != answer.modifiedAt {
+                existing.imageData = answer.imageData
+            }
+            existing.authorRecordName = answer.authorRecordName
+            if let name = answer.authorDisplayName {
                 existing.authorDisplayName = name
             }
-            existing.createdAt = response.createdAt
+            existing.createdAt = answer.createdAt
+            existing.modifiedAt = answer.modifiedAt
             // Sticky true: see the matching comment in upsertReflection — never let a
             // resync downgrade a row already known to be mine, only let it flip false → true.
-            existing.isMine = existing.isMine || response.isMine
+            existing.isMine = existing.isMine || answer.isMine
             existing.lastFetchedAt = Date()
         } else {
-            modelContext.insert(CachedSpaceResponse(from: response))
+            modelContext.insert(CachedAnswer(from: answer))
         }
     }
 
-    /// Removes a reflection (and its responses) or a response by id from the cache. The
-    /// cloud service cascades the delete to child response records on the server (parent
-    /// references with action `.none` do NOT auto-cascade), so the cache mirrors that here.
+    /// Removes a reflection (and its answers) or an answer by id from the cache. The cloud
+    /// service cascades the delete to child answer records on the server (parent references
+    /// with action `.none` do NOT auto-cascade), so the cache mirrors that here.
     private func removeCachedContent(id: String) throws {
         try removeCachedContentRow(id: id)
         try modelContext.save()
@@ -374,21 +404,21 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         let reflectionID = id
         let reflectionDescriptor = FetchDescriptor<CachedSpaceReflection>(predicate: #Predicate { $0.id == reflectionID })
         if let reflection = try modelContext.fetch(reflectionDescriptor).first {
-            try removeCachedResponses(reflectionID: reflection.id)
+            try removeCachedAnswers(reflectionID: reflection.id)
             modelContext.delete(reflection)
         }
 
-        let responseID = id
-        let responseDescriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.id == responseID })
-        if let response = try modelContext.fetch(responseDescriptor).first {
-            modelContext.delete(response)
+        let answerID = id
+        let answerDescriptor = FetchDescriptor<CachedAnswer>(predicate: #Predicate { $0.id == answerID })
+        if let answer = try modelContext.fetch(answerDescriptor).first {
+            modelContext.delete(answer)
         }
     }
 
-    /// Deletes all cached responses under a reflection. Does not save — callers batch saves.
-    private func removeCachedResponses(reflectionID: String) throws {
+    /// Deletes all cached answers under a reflection. Does not save — callers batch saves.
+    private func removeCachedAnswers(reflectionID: String) throws {
         let target = reflectionID
-        let descriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.reflectionID == target })
+        let descriptor = FetchDescriptor<CachedAnswer>(predicate: #Predicate { $0.reflectionID == target })
         for row in try modelContext.fetch(descriptor) {
             modelContext.delete(row)
         }

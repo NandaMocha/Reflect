@@ -99,8 +99,16 @@ than necessary just means re-creating test data twice. Status: **not yet done** 
 - **H3** two-device P1 UI verification (incl. the R4-F1 `isMine` authorship check on the shared lane,
   + cold-launch invite).
 - **H4** CloudKit Console: **deploy schema Dev→Production** (record types `Space`/`SpaceReflection`/
-  `Response` + subscriptions, **incl. the new `SpaceReflection.imageAsset` field** — post one
-  photo from a dev build first so it exists in Dev) — release footgun; TestFlight talks to Production.
+  `MemberProfile`/`Answer` + subscriptions, **incl. the new `SpaceReflection.imageAsset` field** —
+  post one photo from a dev build first so it exists in Dev) — release footgun; TestFlight talks
+  to Production. **Breaking change (multi-question feedback, TASKS 001–040, 2026-08-04):** the
+  `Response` record type is gone and replaced by `Answer` (child of `SpaceReflection`, keyed by
+  `questionId` + `reflectionID`); `SpaceReflection` dropped its single `promptText`/`responseText`
+  fields in favor of a `questionsJSON` field (1–5 questions per request) with one `Answer` record
+  per question per member. This is a **schema change, not just a Swift-side rename** — the Dev
+  environment schema must be updated (new `Answer` record type + `questionsJSON` field on
+  `SpaceReflection`; old `Response`/`promptText` fields can be dropped) before H4's Dev→Production
+  deploy, or Production will still reflect the old single-response shape.
 - **H5** TestFlight two-device E2E incl. silent push.
 - **R5** review (triage H5 findings) + **T25** final regression/decoupling audit.
 - Optional: **push `develop`** to origin when ready (agents never push).

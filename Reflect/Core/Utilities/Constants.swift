@@ -29,6 +29,9 @@ enum Constants {
         static let spaceReflectionTitleMaxLength = 200
         static let spaceReflectionPromptMaxLength = 5000
         static let spaceResponseMaxLength = 5000
+        static let spaceMaxQuestions = 5
+        static let spaceQuestionTextMaxLength = 500
+        static let spaceReflectionNoteMaxLength = 1000
     }
 
     // MARK: - Spacing Tokens

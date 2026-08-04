@@ -498,7 +498,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         saveChangeToken(nil, key: Self.zoneTokenKey(zoneName: zone.zoneName, ownerName: zone.ownerName))
     }
 
-    // MARK: - Child records (SpaceReflection / Response)
+    // MARK: - Child records (SpaceReflection / Answer)
 
     func fetchChanges(in zone: SpaceZoneRef, spaceID: String) async throws -> SpaceZoneDelta {
         let database = database(for: zone.lane)
@@ -533,7 +533,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         let authors = await authorNames(from: authorSourceRecords, database: database)
 
         var reflections: [SpaceReflection] = []
-        var responses: [SpaceResponse] = []
+        var answers: [SpaceAnswer] = []
         for record in result.changed {
             switch record.recordType {
             case SpaceRecordType.spaceReflection:
@@ -545,21 +545,21 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                     reflection.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
                 }
                 reflections.append(reflection)
-            case SpaceRecordType.response:
-                guard var response = SpaceRecordMapper.spaceResponse(
+            case SpaceRecordType.answer:
+                guard var answer = SpaceRecordMapper.answer(
                     from: record,
                     isMine: isMine(record, lane: zone.lane, myUserRecordName: myName)
                 ) else { continue }
-                if !response.isMine {
-                    response.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
+                if !answer.isMine {
+                    answer.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
                 }
-                responses.append(response)
+                answers.append(answer)
             default:
                 break
             }
         }
         reflections.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-        responses.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        answers.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
 
         // Advance the token only after a fully successful pass, so a thrown fetch never
         // skips changes.
@@ -567,21 +567,21 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
         #if DEBUG
         UserDefaults.standard.set(
-            "\(isFullSnapshot ? "full" : "delta"): \(reflections.count) refl, \(responses.count) resp, \(result.deletedRecordIDs.count) deleted (\(zone.zoneName))",
+            "\(isFullSnapshot ? "full" : "delta"): \(reflections.count) refl, \(answers.count) ans, \(result.deletedRecordIDs.count) deleted (\(zone.zoneName))",
             forKey: "spaceDebugLastZoneFetch"
         )
         #endif
 
         return SpaceZoneDelta(
             reflections: reflections,
-            responses: responses,
+            answers: answers,
             deletedRecordIDs: result.deletedRecordIDs.map { $0.recordName },
             authorNames: authors,
             isFullSnapshot: isFullSnapshot
         )
     }
 
-    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection {
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection {
         let database = database(for: zone.lane)
         var imageAsset: CKAsset?
         if let imageData {
@@ -591,7 +591,8 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             zoneID: ckZoneID(for: zone),
             spaceID: spaceID,
             title: title,
-            promptText: promptText,
+            note: note,
+            questions: questions,
             imageAsset: imageAsset
         )
         let saved = try await withRetry { try await database.save(record) }
@@ -602,43 +603,68 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         return reflection
     }
 
-    func createResponse(to reflection: SpaceReflection, body: String, in zone: SpaceZoneRef) async throws -> SpaceResponse {
-        let database = database(for: zone.lane)
-        let record = SpaceRecordMapper.makeResponseRecord(
-            zoneID: ckZoneID(for: zone),
-            reflectionID: reflection.id,
-            body: body
-        )
-        let saved = try await withRetry { try await database.save(record) }
-        guard let response = SpaceRecordMapper.spaceResponse(from: saved, isMine: true) else {
-            throw SpaceError.syncFailed("Could not map the saved response")
-        }
-        return response
-    }
-
-    func updateResponse(id: String, in zone: SpaceZoneRef, body: String) async throws -> SpaceResponse {
+    func updateReflection(id: String, in zone: SpaceZoneRef, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection {
         let database = database(for: zone.lane)
         let recordID = CKRecord.ID(recordName: id, zoneID: ckZoneID(for: zone))
 
-        // Fetch-modify-save. On `serverRecordChanged`, re-fetch the latest and re-apply the
-        // edit (last-writer-wins with the server record as base, plan §9). `withRetry`
-        // covers transient network errors within each attempt.
+        // Fetch-modify-save, same conflict handling as `updateResponse`: on
+        // `serverRecordChanged`, re-fetch and re-apply (last-writer-wins, plan §9).
         var conflictRetries = 0
         while true {
             do {
                 let saved = try await withRetry { () -> CKRecord in
                     let record = try await database.record(for: recordID)
-                    record[SpaceRecordField.body] = body as CKRecordValue
+                    record[SpaceRecordField.title] = title as CKRecordValue
+                    record[SpaceRecordField.note] = note as CKRecordValue?
+                    record[SpaceRecordField.questionsJSON] = SpaceQuestion.encodeJSON(questions) as CKRecordValue
                     return try await database.save(record)
                 }
-                guard let response = SpaceRecordMapper.spaceResponse(from: saved, isMine: true) else {
-                    throw SpaceError.syncFailed("Could not map the updated response")
+                guard let reflection = SpaceRecordMapper.spaceReflection(from: saved, isMine: true) else {
+                    throw SpaceError.syncFailed("Could not map the updated reflection")
                 }
-                return response
+                return reflection
             } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
                 conflictRetries += 1
             }
         }
+    }
+
+    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer {
+        let database = database(for: zone.lane)
+        let zoneID = ckZoneID(for: zone)
+        guard let myRecordName = await currentUserRecordName() else {
+            throw SpaceError.syncFailed("Could not resolve the current user's record name")
+        }
+
+        let recordName = SpaceAnswer.recordName(reflectionID: reflection.id, questionId: questionId, authorRecordName: myRecordName)
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
+        let imageAsset = try imageData.map { try Self.makeImageAsset($0) }
+
+        let saved = try await withRetry { () -> CKRecord in
+            let record: CKRecord
+            do {
+                record = try await database.record(for: recordID)
+            } catch let error as CKError where error.code == .unknownItem {
+                record = SpaceRecordMapper.makeAnswerRecord(
+                    recordName: recordName,
+                    zoneID: zoneID,
+                    reflectionID: reflection.id,
+                    questionId: questionId,
+                    text: text,
+                    imageAsset: imageAsset
+                )
+                return try await database.save(record)
+            }
+            record[SpaceRecordField.text] = text as CKRecordValue
+            // nil imageData clears the asset — CloudKit removes a field when set to nil.
+            record[SpaceRecordField.imageAsset] = imageAsset
+            return try await database.save(record)
+        }
+
+        guard let answer = SpaceRecordMapper.answer(from: saved, isMine: true) else {
+            throw SpaceError.syncFailed("Could not map the saved answer")
+        }
+        return answer
     }
 
     /// Deletes a record and any children parented to it. The hierarchy uses parent

@@ -151,23 +151,41 @@ final class DIContainer {
     }
 
     @MainActor
-    func makeCreateSpaceResponseUseCase() -> CreateSpaceResponseUseCaseProtocol {
-        CreateSpaceResponseUseCase(repository: makeSpaceRepository())
-    }
-
-    @MainActor
-    func makeFetchSpaceResponsesUseCase() -> FetchSpaceResponsesUseCaseProtocol {
-        FetchSpaceResponsesUseCase(repository: makeSpaceRepository())
-    }
-
-    @MainActor
     func makeDeleteOwnSpaceContentUseCase() -> DeleteOwnSpaceContentUseCaseProtocol {
         DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
     }
 
     @MainActor
-    func makeEditOwnSpaceResponseUseCase() -> EditOwnSpaceResponseUseCaseProtocol {
-        EditOwnSpaceResponseUseCase(repository: makeSpaceRepository())
+    func makeUpsertAnswerUseCase() -> UpsertAnswerUseCaseProtocol {
+        UpsertAnswerUseCase(
+            repository: makeSpaceRepository(),
+            imageService: makeImageProcessingService()
+        )
+    }
+
+    @MainActor
+    func makeFetchAnswersUseCase() -> FetchAnswersUseCaseProtocol {
+        FetchAnswersUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteOwnAnswerUseCase() -> DeleteOwnSpaceContentUseCaseProtocol {
+        DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeUpdateReflectionQuestionsUseCase() -> UpdateReflectionQuestionsUseCaseProtocol {
+        UpdateReflectionQuestionsUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeSpaceReflectionEditViewModel(reflection: SpaceReflection, space: Space) -> SpaceReflectionEditViewModel {
+        SpaceReflectionEditViewModel(
+            space: space,
+            reflection: reflection,
+            updateUseCase: makeUpdateReflectionQuestionsUseCase(),
+            fetchAnswersUseCase: makeFetchAnswersUseCase()
+        )
     }
 
     @MainActor
@@ -191,15 +209,20 @@ final class DIContainer {
     }
 
     @MainActor
+    func makeExportFeedbackRequestUseCase() -> ExportFeedbackRequestUseCaseProtocol {
+        ExportFeedbackRequestUseCase()
+    }
+
+    @MainActor
     func makeSpaceThreadViewModel(reflection: SpaceReflection, space: Space) -> SpaceThreadViewModel {
         SpaceThreadViewModel(
             space: space,
             reflection: reflection,
-            fetchUseCase: makeFetchSpaceResponsesUseCase(),
-            createUseCase: makeCreateSpaceResponseUseCase(),
-            editUseCase: makeEditOwnSpaceResponseUseCase(),
-            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
-            repository: makeSpaceRepository()
+            fetchUseCase: makeFetchAnswersUseCase(),
+            upsertUseCase: makeUpsertAnswerUseCase(),
+            deleteUseCase: makeDeleteOwnAnswerUseCase(),
+            repository: makeSpaceRepository(),
+            exportUseCase: makeExportFeedbackRequestUseCase()
         )
     }
 

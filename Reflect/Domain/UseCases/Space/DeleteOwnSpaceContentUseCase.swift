@@ -2,7 +2,7 @@ import Foundation
 
 protocol DeleteOwnSpaceContentUseCaseProtocol {
     func execute(reflection: SpaceReflection, in space: Space) async throws
-    func execute(response: SpaceResponse, in space: Space) async throws
+    func execute(answer: SpaceAnswer, in space: Space) async throws
 }
 
 /// Deletes the user's own reflection or response. The `isMine` guard is the ONLY thing
@@ -21,8 +21,8 @@ final class DeleteOwnSpaceContentUseCase: DeleteOwnSpaceContentUseCaseProtocol {
         try await repository.deleteContent(id: reflection.id, in: space)
     }
 
-    func execute(response: SpaceResponse, in space: Space) async throws {
-        guard response.isMine else { throw SpaceError.notAuthor }
-        try await repository.deleteContent(id: response.id, in: space)
+    func execute(answer: SpaceAnswer, in space: Space) async throws {
+        guard answer.isMine else { throw SpaceError.notAuthor }
+        try await repository.deleteContent(id: answer.id, in: space)
     }
 }

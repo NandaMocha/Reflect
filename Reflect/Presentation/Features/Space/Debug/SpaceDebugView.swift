@@ -224,7 +224,8 @@ struct SpaceDebugView: View {
             record.parent = CKRecord.Reference(recordID: parentRecordID, action: .none)
             record[SpaceRecordField.spaceID] = space.id as CKRecordValue
             record[SpaceRecordField.title] = "Spike probe" as CKRecordValue
-            record[SpaceRecordField.promptText] = "Probe written at \(shortDateString)" as CKRecordValue
+            let probeQuestion = SpaceQuestion(id: UUID().uuidString, text: "Probe written at \(shortDateString)", order: 0)
+            record[SpaceRecordField.questionsJSON] = SpaceQuestion.encodeJSON([probeQuestion]) as CKRecordValue
 
             let saved = try await database(for: space.zoneID.lane).save(record)
             appendLog("Saved probe reflection \(saved.recordID.recordName)")
@@ -242,7 +243,7 @@ struct SpaceDebugView: View {
 
         let zoneID = CKRecordZone.ID(zoneName: space.zoneID.zoneName, ownerName: space.zoneID.ownerName)
         let database = database(for: space.zoneID.lane)
-        let recordTypes = [SpaceRecordType.space, SpaceRecordType.spaceReflection, SpaceRecordType.response]
+        let recordTypes = [SpaceRecordType.space, SpaceRecordType.spaceReflection, SpaceRecordType.answer]
 
         for recordType in recordTypes {
             do {

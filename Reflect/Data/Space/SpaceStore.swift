@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// The dedicated, isolated SwiftData store for cached Space data. Used to cache
-/// CloudKit Spaces, SpaceReflections, and SpaceResponses locally without coupling
+/// CloudKit Spaces and SpaceReflections locally without coupling
 /// to the main app's schema or requiring App Group sharing.
 /// Kept separate from the main app's ModelContainer so Space data never couples
 /// to Reflection/Learning/Insight.
@@ -17,7 +17,7 @@ enum SpaceStore {
     /// local on-disk store → in-memory store. Only the on-disk tier persists
     /// across launches; the in-memory tier trades durability for stability.
     static let container: ModelContainer = {
-        let schema = Schema([CachedSpace.self, CachedSpaceReflection.self, CachedSpaceResponse.self])
+        let schema = Schema([CachedSpace.self, CachedSpaceReflection.self, CachedAnswer.self])
 
         // A distinct store name ("Space") so this never shares the app's `default.store`.
         let localConfiguration = ModelConfiguration(

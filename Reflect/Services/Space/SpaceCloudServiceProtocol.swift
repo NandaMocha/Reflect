@@ -5,8 +5,8 @@ import CloudKit
 struct SpaceZoneDelta: Sendable {
     /// Reflections created/modified since the token (author + `isMine` resolved).
     var reflections: [SpaceReflection]
-    /// Responses created/modified since the token (author + `isMine` resolved).
-    var responses: [SpaceResponse]
+    /// Answers created/modified since the token (author + `isMine` resolved).
+    var answers: [SpaceAnswer]
     /// Record names CloudKit explicitly reported deleted since the token.
     var deletedRecordIDs: [String]
     /// Author resolution map (creator recordName → display name) for this fetch, so
@@ -23,7 +23,7 @@ struct SpaceZoneDelta: Sendable {
 ///
 /// Implementations route every operation by `SpaceZoneRef.lane` — `.privateDB` for
 /// spaces the current user owns, `.sharedDB` for spaces they've joined. Child record
-/// CRUD (`SpaceReflection`, `Response`) is out of scope here; see T17.
+/// CRUD (`SpaceReflection`, `Answer`) is out of scope here; see T17.
 protocol SpaceCloudServiceProtocol {
     /// Current iCloud account availability for the Space container.
     func checkAvailability() async -> CloudAvailability
@@ -63,10 +63,10 @@ protocol SpaceCloudServiceProtocol {
     /// only; removes only their own access, leaves the space intact for others.
     func leaveSpace(_ zone: SpaceZoneRef) async throws
 
-    // MARK: - Child records (SpaceReflection / Response) — T17 / T26
+    // MARK: - Child records (SpaceReflection / Answer) — T17 / T26
 
     /// Everything changed in the space's zone since the saved per-zone change token —
-    /// reflections, responses, and explicit deletions — advancing the token on success.
+    /// reflections, answers, and explicit deletions — advancing the token on success.
     /// With no saved token (first fetch, or expired) this degrades to a full-zone fetch
     /// and the delta reports `isFullSnapshot`. Unchanged records (and their assets) are
     /// not re-downloaded on incremental fetches.
@@ -75,15 +75,21 @@ protocol SpaceCloudServiceProtocol {
     /// Creates a reflection as a child of the root `Space` record (parent reference set so
     /// the share reaches it). Writes to the zone's database per `zone.lane`.
     /// `imageData` (already-compressed JPEG bytes) is uploaded as a `CKAsset` when present.
-    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection
 
-    /// Creates a response as a child of its `SpaceReflection` record.
-    func createResponse(to reflection: SpaceReflection, body: String, in zone: SpaceZoneRef) async throws -> SpaceResponse
+    /// Updates a reflection's title, note, and questions (edit-your-own; used by
+    /// requester question-editing). Answer deletion when a question is removed reuses
+    /// `deleteRecord(id:in:)` — there is no separate delete primitive for answers.
+    /// Caller guards `isMine`.
+    func updateReflection(id: String, in zone: SpaceZoneRef, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection
 
-    /// Updates a response's body (edit-your-own). Caller guards `isMine`.
-    func updateResponse(id: String, in zone: SpaceZoneRef, body: String) async throws -> SpaceResponse
+    /// Creates or overwrites the current user's answer to one question of a reflection.
+    /// The record name is deterministic (`SpaceAnswer.recordName`), so re-submitting an
+    /// answer to the same question overwrites the same record rather than creating a
+    /// duplicate. `imageData` nil clears any existing image asset.
+    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer
 
-    /// Deletes a single child record (reflection or response) by record name. UI-level
+    /// Deletes a single child record (reflection or answer) by record name. UI-level
     /// trust: the caller guards `isMine` (no server enforcement, plan §11.2).
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws
 
