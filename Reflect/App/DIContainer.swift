@@ -171,6 +171,29 @@ final class DIContainer {
     }
 
     @MainActor
+    func makeUpsertAnswerUseCase() -> UpsertAnswerUseCaseProtocol {
+        UpsertAnswerUseCase(
+            repository: makeSpaceRepository(),
+            imageService: makeImageProcessingService()
+        )
+    }
+
+    @MainActor
+    func makeFetchAnswersUseCase() -> FetchAnswersUseCaseProtocol {
+        FetchAnswersUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeDeleteOwnAnswerUseCase() -> DeleteOwnSpaceContentUseCaseProtocol {
+        DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeUpdateReflectionQuestionsUseCase() -> UpdateReflectionQuestionsUseCaseProtocol {
+        UpdateReflectionQuestionsUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
     func makeSpaceDetailViewModel(space: Space) -> SpaceDetailViewModel {
         SpaceDetailViewModel(
             space: space,
