@@ -102,8 +102,8 @@ struct SpaceThreadView: View {
             Text(viewModel.reflection.title)
                 .font(.title3.weight(.bold))
 
-            if !viewModel.reflection.promptText.isEmpty {
-                Text(viewModel.reflection.promptText)
+            if let note = viewModel.reflection.note, !note.isEmpty {
+                Text(note)
                     .font(.body)
                     .foregroundStyle(.secondary)
             }

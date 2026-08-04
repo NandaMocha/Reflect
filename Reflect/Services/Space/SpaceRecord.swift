@@ -28,7 +28,6 @@ enum SpaceRecordField {
     // SpaceReflection (child of Space)
     static let spaceID = "spaceID"
     static let title = "title"
-    static let promptText = "promptText"
     static let imageAsset = "imageAsset"
     static let note = "note"
     static let questionsJSON = "questionsJSON"

@@ -13,7 +13,4 @@ struct SpaceReflection: Identifiable, Hashable, Sendable {
     var createdAt: Date?
     var modifiedAt: Date?
     var isMine: Bool
-
-    // TRANSITIONAL — removed in TASK-037
-    var promptText: String { questions.first?.text ?? "" }
 }
