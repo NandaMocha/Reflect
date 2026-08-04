@@ -236,20 +236,6 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return cachedResponses(reflectionID: reflection.id)
     }
 
-    func createResponse(to reflection: SpaceReflection, in space: Space, body: String) async throws -> SpaceResponse {
-        let response = try await cloudService.createResponse(to: reflection, body: body, in: space.zoneID)
-        try upsertResponse(response)
-        try modelContext.save()
-        return response
-    }
-
-    func updateResponse(_ response: SpaceResponse, in space: Space, body: String) async throws -> SpaceResponse {
-        let updated = try await cloudService.updateResponse(id: response.id, in: space.zoneID, body: body)
-        try upsertResponse(updated)
-        try modelContext.save()
-        return updated
-    }
-
     // MARK: - Delete own content
 
     func deleteContent(id: String, in space: Space) async throws {
@@ -297,9 +283,6 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         for reflection in delta.reflections {
             try upsertReflection(reflection)
         }
-        for response in delta.responses {
-            try upsertResponse(response)
-        }
         for answer in delta.answers {
             try upsertAnswer(answer)
         }
@@ -337,18 +320,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             }
         }
 
-        // A full snapshot carries every response in the zone, so this prune can cover the
-        // whole space (the old per-thread reconcile only covered one reflection at a time).
-        let fetchedResponseIDs = Set(delta.responses.map { $0.id })
-        let responseRows = try modelContext.fetch(FetchDescriptor<CachedSpaceResponse>())
-        for row in responseRows
-        where keptReflectionIDs.contains(row.reflectionID)
-            && !fetchedResponseIDs.contains(row.id)
-            && row.lastFetchedAt < staleCutoff {
-            modelContext.delete(row)
-        }
-
-        // Same set-difference prune for answers, scoped the same way as responses.
+        // Same set-difference prune for answers, scoped the same way responses used to be.
         let fetchedAnswerIDs = Set(delta.answers.map { $0.id })
         let answerRows = try modelContext.fetch(FetchDescriptor<CachedAnswer>())
         for row in answerRows
@@ -417,26 +389,6 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             existing.lastFetchedAt = Date()
         } else {
             modelContext.insert(CachedSpaceReflection(from: reflection))
-        }
-    }
-
-    private func upsertResponse(_ response: SpaceResponse) throws {
-        let id = response.id
-        let descriptor = FetchDescriptor<CachedSpaceResponse>(predicate: #Predicate { $0.id == id })
-        if let existing = try modelContext.fetch(descriptor).first {
-            existing.reflectionID = response.reflectionID
-            existing.body = response.body
-            existing.authorRecordName = response.authorRecordName
-            if let name = response.authorDisplayName {
-                existing.authorDisplayName = name
-            }
-            existing.createdAt = response.createdAt
-            // Sticky true: see the matching comment in upsertReflection — never let a
-            // resync downgrade a row already known to be mine, only let it flip false → true.
-            existing.isMine = existing.isMine || response.isMine
-            existing.lastFetchedAt = Date()
-        } else {
-            modelContext.insert(CachedSpaceResponse(from: response))
         }
     }
 

@@ -151,11 +151,6 @@ final class DIContainer {
     }
 
     @MainActor
-    func makeCreateSpaceResponseUseCase() -> CreateSpaceResponseUseCaseProtocol {
-        CreateSpaceResponseUseCase(repository: makeSpaceRepository())
-    }
-
-    @MainActor
     func makeFetchSpaceResponsesUseCase() -> FetchSpaceResponsesUseCaseProtocol {
         FetchSpaceResponsesUseCase(repository: makeSpaceRepository())
     }
@@ -163,11 +158,6 @@ final class DIContainer {
     @MainActor
     func makeDeleteOwnSpaceContentUseCase() -> DeleteOwnSpaceContentUseCaseProtocol {
         DeleteOwnSpaceContentUseCase(repository: makeSpaceRepository())
-    }
-
-    @MainActor
-    func makeEditOwnSpaceResponseUseCase() -> EditOwnSpaceResponseUseCaseProtocol {
-        EditOwnSpaceResponseUseCase(repository: makeSpaceRepository())
     }
 
     @MainActor

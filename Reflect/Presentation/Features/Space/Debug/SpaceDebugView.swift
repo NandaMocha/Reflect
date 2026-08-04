@@ -243,7 +243,7 @@ struct SpaceDebugView: View {
 
         let zoneID = CKRecordZone.ID(zoneName: space.zoneID.zoneName, ownerName: space.zoneID.ownerName)
         let database = database(for: space.zoneID.lane)
-        let recordTypes = [SpaceRecordType.space, SpaceRecordType.spaceReflection, SpaceRecordType.response]
+        let recordTypes = [SpaceRecordType.space, SpaceRecordType.spaceReflection, SpaceRecordType.answer]
 
         for recordType in recordTypes {
             do {

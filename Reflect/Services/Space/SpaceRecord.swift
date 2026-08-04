@@ -8,7 +8,6 @@ import Foundation
 enum SpaceRecordType {
     static let space = "Space"
     static let spaceReflection = "SpaceReflection"
-    static let response = "Response"
     /// A participant's self-registered display name, so members can see who each other are.
     static let memberProfile = "MemberProfile"
     /// A participant's answer to one question of a `SpaceReflection`.
@@ -32,9 +31,8 @@ enum SpaceRecordField {
     static let note = "note"
     static let questionsJSON = "questionsJSON"
 
-    // Response (child of SpaceReflection)
+    // SpaceReflection child records (Answer)
     static let reflectionID = "reflectionID"
-    static let body = "body"
 
     // MemberProfile (child of Space)
     static let displayName = "displayName"
@@ -151,7 +149,7 @@ enum SpaceRecordMapper {
         return (key, name)
     }
 
-    // MARK: SpaceReflection / Response mapping helpers
+    // MARK: SpaceReflection mapping helpers
 
     /// Builds a new `SpaceReflection` CKRecord as a child of the root `Space` record.
     ///
@@ -180,23 +178,6 @@ enum SpaceRecordMapper {
             record[SpaceRecordField.imageAsset] = imageAsset
         }
         let parentID = CKRecord.ID(recordName: spaceID, zoneID: zoneID)
-        record.parent = CKRecord.Reference(recordID: parentID, action: .none)
-        return record
-    }
-
-    /// Builds a new `Response` CKRecord as a child of its `SpaceReflection` record. The
-    /// `parent` reference again carries the share down the hierarchy.
-    static func makeResponseRecord(
-        recordName: String = UUID().uuidString,
-        zoneID: CKRecordZone.ID,
-        reflectionID: String,
-        body: String
-    ) -> CKRecord {
-        let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
-        let record = CKRecord(recordType: SpaceRecordType.response, recordID: recordID)
-        record[SpaceRecordField.body] = body as CKRecordValue
-        record[SpaceRecordField.reflectionID] = reflectionID as CKRecordValue
-        let parentID = CKRecord.ID(recordName: reflectionID, zoneID: zoneID)
         record.parent = CKRecord.Reference(recordID: parentID, action: .none)
         return record
     }
@@ -297,28 +278,6 @@ enum SpaceRecordMapper {
             authorDisplayName: nil, // resolved from CKShare.participants by the caller
             createdAt: record.creationDate,
             modifiedAt: record.modificationDate,
-            isMine: isMine
-        )
-    }
-
-    /// Maps a fetched `Response` CKRecord into the domain entity.
-    static func spaceResponse(from record: CKRecord, isMine: Bool) -> SpaceResponse? {
-        guard record.recordType == SpaceRecordType.response,
-              let body = record[SpaceRecordField.body] as? String else {
-            return nil
-        }
-
-        let reflectionID = record.parent?.recordID.recordName
-            ?? record[SpaceRecordField.reflectionID] as? String
-            ?? ""
-
-        return SpaceResponse(
-            id: record.recordID.recordName,
-            reflectionID: reflectionID,
-            body: body,
-            authorRecordName: record.creatorUserRecordID?.recordName,
-            authorDisplayName: nil, // resolved from CKShare.participants by the caller
-            createdAt: record.creationDate,
             isMine: isMine
         )
     }
