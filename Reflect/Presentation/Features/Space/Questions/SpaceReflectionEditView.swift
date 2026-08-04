@@ -9,6 +9,8 @@ struct SpaceReflectionEditView: View {
     @Environment(\.dismiss) private var dismiss
     var onSave: ((SpaceReflection) -> Void)?
 
+    @State private var showRewordWarning = false
+
     var body: some View {
         NavigationStack {
             Form {
@@ -40,7 +42,7 @@ struct SpaceReflectionEditView: View {
                         ProgressView()
                     } else {
                         Button("Save") {
-                            Task { await save() }
+                            saveTapped()
                         }
                         .fontWeight(.semibold)
                         .disabled(!canSave)
@@ -49,6 +51,14 @@ struct SpaceReflectionEditView: View {
             }
             .task {
                 await viewModel.load()
+            }
+            .alert("Question Reworded", isPresented: $showRewordWarning) {
+                Button("Save Anyway") {
+                    Task { await save() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(rewordWarningMessage)
             }
         }
     }
@@ -76,6 +86,19 @@ struct SpaceReflectionEditView: View {
 
     private var canSave: Bool {
         !viewModel.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var rewordWarningMessage: String {
+        let count = viewModel.editedAnswersCount
+        return "\(count) \(count == 1 ? "person" : "people") already answered with the previous wording — their answers stay linked but won't reflect your edit."
+    }
+
+    private func saveTapped() {
+        if !viewModel.editedQuestionIdsWithAnswers.isEmpty {
+            showRewordWarning = true
+        } else {
+            Task { await save() }
+        }
     }
 
     private func save() async {
