@@ -7,6 +7,8 @@ struct SpaceZoneDelta: Sendable {
     var reflections: [SpaceReflection]
     /// Responses created/modified since the token (author + `isMine` resolved).
     var responses: [SpaceResponse]
+    /// Answers created/modified since the token (author + `isMine` resolved).
+    var answers: [SpaceAnswer]
     /// Record names CloudKit explicitly reported deleted since the token.
     var deletedRecordIDs: [String]
     /// Author resolution map (creator recordName → display name) for this fetch, so
