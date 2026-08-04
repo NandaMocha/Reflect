@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// The "respond" page for one reflection. It deliberately shows only the prompt and *your
@@ -8,6 +9,7 @@ struct SpaceThreadView: View {
     @FocusState private var composerFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
     @State private var showImageFullscreen = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
 
     init(space: Space, reflection: SpaceReflection) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceThreadViewModel(reflection: reflection, space: space))
@@ -163,12 +165,21 @@ struct SpaceThreadView: View {
         VStack(spacing: Constants.Spacing.xs) {
             Divider()
             if let activeQuestion = viewModel.activeQuestion {
-                Text(viewModel.isEditingExistingAnswer ? "Editing your answer to: \(activeQuestion.text)" : "Replying to: \(activeQuestion.text)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, Constants.Spacing.md)
+                replyingToChip(activeQuestion)
+            }
+            if let draftImage = viewModel.draftImage {
+                draftImageThumbnail(draftImage)
             }
             HStack(alignment: .bottom, spacing: Constants.Spacing.sm) {
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.title2)
+                        .foregroundStyle(viewModel.activeQuestionId == nil ? Color.secondary : Color.primaryDefault)
+                        .frame(width: 36, height: 36)
+                }
+                .disabled(viewModel.activeQuestionId == nil)
+                .accessibilityLabel("Attach photo")
+
                 TextField("Share your answer…", text: $viewModel.draft, axis: .vertical)
                     .focused($composerFocused)
                     .lineLimit(1...6)
@@ -183,7 +194,10 @@ struct SpaceThreadView: View {
                 } else {
                     Button {
                         composerFocused = false
-                        Task { await viewModel.submit() }
+                        Task {
+                            await viewModel.submit()
+                            selectedPhotoItem = nil
+                        }
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.title)
@@ -197,6 +211,60 @@ struct SpaceThreadView: View {
             .padding(.vertical, Constants.Spacing.xs)
         }
         .background(.bar)
+        .onChange(of: selectedPhotoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    viewModel.draftImage = image
+                }
+            }
+        }
+    }
+
+    private func replyingToChip(_ question: SpaceQuestion) -> some View {
+        let index = (viewModel.reflection.questions.firstIndex(where: { $0.id == question.id }) ?? 0) + 1
+        return HStack(spacing: Constants.Spacing.xs) {
+            Image(systemName: viewModel.isEditingExistingAnswer ? "pencil" : "arrowshape.turn.up.left")
+                .font(.caption)
+            Text(viewModel.isEditingExistingAnswer ? "Editing Q\(index): \(question.text)" : "Replying to Q\(index): \(question.text)")
+                .font(.caption)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            Button {
+                viewModel.clearDraftPrefill()
+                selectedPhotoItem = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityLabel("Clear draft")
+        }
+        .foregroundStyle(Color.primaryDefault)
+        .padding(.horizontal, Constants.Spacing.sm)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Color.primaryDefault.opacity(0.10)))
+        .padding(.horizontal, Constants.Spacing.md)
+    }
+
+    private func draftImageThumbnail(_ image: UIImage) -> some View {
+        HStack(spacing: Constants.Spacing.sm) {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 44, height: 44)
+                .clipShape(.rect(cornerRadius: Constants.CornerRadius.small))
+            Spacer(minLength: 0)
+            Button(role: .destructive) {
+                viewModel.draftImage = nil
+                selectedPhotoItem = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityLabel("Remove photo")
+        }
+        .padding(.horizontal, Constants.Spacing.md)
     }
 }
 
