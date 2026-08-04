@@ -233,11 +233,23 @@ struct SpaceReflectionRow: View {
                     .font(.body.weight(.semibold))
                     .lineLimit(2)
 
-                if !reflection.promptText.isEmpty {
-                    Text(reflection.promptText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                if let firstQuestion = reflection.questions.first {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(firstQuestion.text)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+
+                        if reflection.questions.count > 1 {
+                            Text("\(reflection.questions.count) questions")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(4)
+                        }
+                    }
                 }
 
                 HStack(spacing: 4) {
