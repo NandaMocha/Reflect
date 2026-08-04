@@ -86,7 +86,10 @@ TASKS = [
      "(title, note, questions: [SpaceQuestion], image) with SpaceQuestion.validate. Update the single "
      "call site SpaceDetailViewModel.save() transitionally: wrap newPrompt as one "
      "SpaceQuestion(order: 0), note: nil. This task MUST leave the build green — it's the pivot point "
-     "everything else builds on.", "2,4,5"),
+     "everything else builds on. This genuinely spans more files/layers than any other task in this "
+     "plan — build and fix incrementally per file rather than editing everything then attempting one "
+     "build; if it's too large for one session it's fine to land as two commits on the same PR (entity+"
+     "mapper+cache, then service+repo+usecase+VM shim) rather than force one giant diff.", "2,4,5"),
 
     ("TASK-008: Sweep remaining promptText writers (SpaceDebugView)", "trivial",
      f"See {PLAN_DOC} Phase 1 TASK-008. Fix SpaceDebugView's probe record to write questionsJSON "
@@ -127,7 +130,9 @@ TASKS = [
      "questions:) async throws -> SpaceReflection to SpaceRepository. Diff old vs new question IDs; "
      "for each REMOVED questionId, fetch that reflection's answers and delete every matching Answer "
      "CKRecord in CloudKit, then delete their cache rows; then call updateReflection (TASK-010) and "
-     "upsert the reflection cache row. Ordering matters: cascade deletes -> reflection save -> cache.", "10,12"),
+     "upsert the reflection cache row. Ordering matters: cascade deletes -> reflection save -> cache. "
+     "Since the answer IDs to delete are already known from the fetch, delete them directly by ID "
+     "rather than routing through any child-discovery/fetch-before-delete path.", "10,12"),
 
     ("TASK-014: UpsertAnswerUseCase + FetchAnswersUseCase", "standard",
      f"See {PLAN_DOC} Phase 1 TASK-014. New files in Domain/UseCases/Space/: UpsertAnswerUseCase "
@@ -135,10 +140,15 @@ TASKS = [
      "calls SpaceRepository.upsertAnswer) and FetchAnswersUseCase. Protocol + struct Input + "
      "execute(input:) async throws per project convention.", "12"),
 
-    ("TASK-015: DeleteOwnAnswerUseCase + UpdateReflectionQuestionsUseCase", "standard",
-     f"See {PLAN_DOC} Phase 1 TASK-015. New use cases: DeleteOwnAnswerUseCase (guards isMine) and "
-     "UpdateReflectionQuestionsUseCase (guards reflection.isMine, runs SpaceQuestion.validate, calls "
-     "SpaceRepository.updateReflectionQuestions from TASK-013).", "13"),
+    ("TASK-015: Answer deletion + UpdateReflectionQuestionsUseCase", "standard",
+     f"See {PLAN_DOC} Phase 1 TASK-015. Deletion already has a precedent in this codebase — "
+     "Domain/UseCases/Space/DeleteOwnSpaceContentUseCase.swift defines "
+     "DeleteOwnSpaceContentUseCaseProtocol with overloaded execute(reflection:)/execute(response:) "
+     "methods on one class. Extend that existing protocol/class with an execute(answer:) overload "
+     "(guards isMine) instead of creating a new standalone DeleteOwnAnswerUseCase class, to match the "
+     "established pattern. Also add UpdateReflectionQuestionsUseCase (new file — no existing precedent "
+     "to match here) guarding reflection.isMine, running SpaceQuestion.validate, calling "
+     "SpaceRepository.updateReflectionQuestions from TASK-013.", "13"),
 
     ("TASK-016: Wire Answer/question-editing use cases into DIContainer", "trivial",
      f"See {PLAN_DOC} Phase 1 TASK-016. In App/DIContainer.swift add makeUpsertAnswerUseCase, "
@@ -261,7 +271,7 @@ TASKS = [
      "menu item on SpaceReflectionRow in SpaceDetailView (guarded by isMine) and a toolbar menu item in "
      "SpaceThreadView when reflection.isMine. After a successful save, propagate the updated reflection "
      "into SpaceThreadViewModel/SpaceDetailViewModel state — make SpaceThreadViewModel.reflection `var` "
-     "and refresh its answers, since a cascade may have deleted some.", "31,32"),
+     "and refresh its answers, since a cascade may have deleted some.", "21,31,32"),
 
     ("TASK-034: ExportFeedbackRequestUseCase — JSON path", "standard",
      f"See {PLAN_DOC} Phase 6 TASK-034. Create Domain/UseCases/Space/ExportFeedbackRequestUseCase.swift "
@@ -296,7 +306,10 @@ TASKS = [
      f"See {PLAN_DOC} Phase 7 TASK-038. Remove: SpaceRecordType.response + body/reflectionID response "
      "fields + makeResponseRecord/spaceResponse(from:) in SpaceRecord.swift; createResponse/"
      "updateResponse in SpaceCloudService(+Protocol); `responses` from SpaceZoneDelta and its parsing "
-     "in fetchChanges.", "21,28"),
+     "in fetchChanges. IMPORTANT: also remove the delta.responses consumers in "
+     "SpaceRepository.applyZoneDelta and pruneRowsAbsent in this SAME task/commit — leaving them in "
+     "place after removing SpaceZoneDelta.responses will not compile. Do not split this across "
+     "TASK-038/039; land it as one atomic change here.", "21,28"),
 
     ("TASK-039: Remove Response domain/data remainder", "standard",
      f"See {PLAN_DOC} Phase 7 TASK-039. Remove: SpaceResponse entity, CachedSpaceResponse (+ drop from "
