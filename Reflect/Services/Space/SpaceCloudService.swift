@@ -581,7 +581,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         )
     }
 
-    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection {
+    func createReflection(in zone: SpaceZoneRef, spaceID: String, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection {
         let database = database(for: zone.lane)
         var imageAsset: CKAsset?
         if let imageData {
@@ -591,7 +591,8 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             zoneID: ckZoneID(for: zone),
             spaceID: spaceID,
             title: title,
-            promptText: promptText,
+            note: note,
+            questions: questions,
             imageAsset: imageAsset
         )
         let saved = try await withRetry { try await database.save(record) }

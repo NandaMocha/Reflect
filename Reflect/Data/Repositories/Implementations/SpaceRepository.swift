@@ -177,12 +177,13 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return cachedReflections(spaceID: space.id)
     }
 
-    func createReflection(in space: Space, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection {
+    func createReflection(in space: Space, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection {
         let reflection = try await cloudService.createReflection(
             in: space.zoneID,
             spaceID: space.id,
             title: title,
-            promptText: promptText,
+            note: note,
+            questions: questions,
             imageData: imageData
         )
         try upsertReflection(reflection)
@@ -316,7 +317,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         if let existing = try modelContext.fetch(descriptor).first {
             existing.spaceID = reflection.spaceID
             existing.title = reflection.title
-            existing.promptText = reflection.promptText
+            existing.note = reflection.note
+            existing.questionsData = (try? JSONEncoder().encode(reflection.questions)) ?? Data()
             // T28: an unchanged record whose asset failed to stage locally must not wipe
             // the cached photo — only take the incoming value when there is one, or when
             // the record genuinely changed upstream.
