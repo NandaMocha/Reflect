@@ -11,6 +11,7 @@ struct SpaceThreadView: View {
     @State private var showImageFullscreen = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var answerPendingDeletion: (questionId: String, number: Int)?
+    @State private var showEditQuestions = false
 
     init(space: Space, reflection: SpaceReflection) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceThreadViewModel(reflection: reflection, space: space))
@@ -46,6 +47,28 @@ struct SpaceThreadView: View {
                 }
                 .accessibilityLabel("View all feedback")
             }
+            if viewModel.reflection.isMine {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            showEditQuestions = true
+                        } label: {
+                            Label("Edit questions", systemImage: "pencil")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("Reflection options")
+                }
+            }
+        }
+        .sheet(isPresented: $showEditQuestions) {
+            SpaceReflectionEditView(
+                viewModel: DIContainer.shared.makeSpaceReflectionEditViewModel(reflection: viewModel.reflection, space: viewModel.space),
+                onSave: { updated in
+                    Task { await viewModel.applyEditedReflection(updated) }
+                }
+            )
         }
         .task { await viewModel.load() }
         .onReceive(NotificationCenter.default.publisher(for: .spaceRemoteChangeReceived)) { _ in
