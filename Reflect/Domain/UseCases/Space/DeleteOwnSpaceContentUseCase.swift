@@ -2,7 +2,6 @@ import Foundation
 
 protocol DeleteOwnSpaceContentUseCaseProtocol {
     func execute(reflection: SpaceReflection, in space: Space) async throws
-    func execute(response: SpaceResponse, in space: Space) async throws
     func execute(answer: SpaceAnswer, in space: Space) async throws
 }
 
@@ -20,11 +19,6 @@ final class DeleteOwnSpaceContentUseCase: DeleteOwnSpaceContentUseCaseProtocol {
     func execute(reflection: SpaceReflection, in space: Space) async throws {
         guard reflection.isMine else { throw SpaceError.notAuthor }
         try await repository.deleteContent(id: reflection.id, in: space)
-    }
-
-    func execute(response: SpaceResponse, in space: Space) async throws {
-        guard response.isMine else { throw SpaceError.notAuthor }
-        try await repository.deleteContent(id: response.id, in: space)
     }
 
     func execute(answer: SpaceAnswer, in space: Space) async throws {
