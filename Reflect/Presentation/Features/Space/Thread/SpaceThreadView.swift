@@ -10,6 +10,7 @@ struct SpaceThreadView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showImageFullscreen = false
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var answerPendingDeletion: (questionId: String, number: Int)?
 
     init(space: Space, reflection: SpaceReflection) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceThreadViewModel(reflection: reflection, space: space))
@@ -54,6 +55,21 @@ struct SpaceThreadView: View {
             if phase == .active { Task { await viewModel.refresh() } }
         }
         .errorAlert($viewModel.errorMessage)
+        .confirmationDialog(
+            "Delete your answer to Q\(answerPendingDeletion?.number ?? 0)? This can't be undone.",
+            isPresented: Binding(
+                get: { answerPendingDeletion != nil },
+                set: { if !$0 { answerPendingDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let pending = answerPendingDeletion {
+                    Task { await viewModel.deleteOwnAnswer(for: pending.questionId) }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     // MARK: - Header
@@ -141,7 +157,7 @@ struct SpaceThreadView: View {
                                     Label("Edit", systemImage: "pencil")
                                 }
                                 Button(role: .destructive) {
-                                    Task { await viewModel.deleteOwnAnswer(for: question.id) }
+                                    answerPendingDeletion = (question.id, index + 1)
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
@@ -288,9 +304,11 @@ struct SpaceAllResponsesView: View {
                     ForEach(viewModel.answers) { answer in
                         // Edit/Delete only render for own answers (guarded by `answer.isMine`
                         // inside `AnswerBubble`), so passing them for every row is safe.
+                        let questionNumber = (viewModel.reflection.questions.firstIndex(where: { $0.id == answer.questionId }) ?? 0) + 1
                         AnswerBubble(
                             answer: answer,
                             spaceName: viewModel.space.name,
+                            questionNumber: questionNumber,
                             onEdit: {
                                 viewModel.select(questionId: answer.questionId)
                                 dismiss()
@@ -315,6 +333,7 @@ struct SpaceAllResponsesView: View {
 struct AnswerBubble: View {
     let answer: SpaceAnswer
     let spaceName: String
+    let questionNumber: Int
     var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
 
@@ -376,7 +395,7 @@ struct AnswerBubble: View {
             ReportContentButton(contentKind: "feedback", contentID: answer.id, spaceName: spaceName)
         }
         .confirmationDialog(
-            "Delete your answer? This can't be undone.",
+            "Delete your answer to Q\(questionNumber)? This can't be undone.",
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible
         ) {
