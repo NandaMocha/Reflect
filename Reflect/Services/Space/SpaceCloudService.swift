@@ -534,6 +534,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
         var reflections: [SpaceReflection] = []
         var responses: [SpaceResponse] = []
+        var answers: [SpaceAnswer] = []
         for record in result.changed {
             switch record.recordType {
             case SpaceRecordType.spaceReflection:
@@ -554,12 +555,22 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                     response.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
                 }
                 responses.append(response)
+            case SpaceRecordType.answer:
+                guard var answer = SpaceRecordMapper.answer(
+                    from: record,
+                    isMine: isMine(record, lane: zone.lane, myUserRecordName: myName)
+                ) else { continue }
+                if !answer.isMine {
+                    answer.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
+                }
+                answers.append(answer)
             default:
                 break
             }
         }
         reflections.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         responses.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        answers.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
 
         // Advance the token only after a fully successful pass, so a thrown fetch never
         // skips changes.
@@ -567,7 +578,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
         #if DEBUG
         UserDefaults.standard.set(
-            "\(isFullSnapshot ? "full" : "delta"): \(reflections.count) refl, \(responses.count) resp, \(result.deletedRecordIDs.count) deleted (\(zone.zoneName))",
+            "\(isFullSnapshot ? "full" : "delta"): \(reflections.count) refl, \(responses.count) resp, \(answers.count) ans, \(result.deletedRecordIDs.count) deleted (\(zone.zoneName))",
             forKey: "spaceDebugLastZoneFetch"
         )
         #endif
@@ -575,6 +586,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         return SpaceZoneDelta(
             reflections: reflections,
             responses: responses,
+            answers: answers,
             deletedRecordIDs: result.deletedRecordIDs.map { $0.recordName },
             authorNames: authors,
             isFullSnapshot: isFullSnapshot
