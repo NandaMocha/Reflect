@@ -12,7 +12,8 @@ final class CachedSpaceReflection {
     @Attribute(.unique) var id: String
     var spaceID: String
     var title: String
-    var promptText: String
+    var note: String?
+    var questionsData: Data
     @Attribute(.externalStorage) var imageData: Data?
     var authorRecordName: String?
     var authorDisplayName: String?
@@ -25,7 +26,8 @@ final class CachedSpaceReflection {
         id: String,
         spaceID: String,
         title: String,
-        promptText: String,
+        note: String? = nil,
+        questionsData: Data = Data(),
         imageData: Data? = nil,
         authorRecordName: String? = nil,
         authorDisplayName: String? = nil,
@@ -37,7 +39,8 @@ final class CachedSpaceReflection {
         self.id = id
         self.spaceID = spaceID
         self.title = title
-        self.promptText = promptText
+        self.note = note
+        self.questionsData = questionsData
         self.imageData = imageData
         self.authorRecordName = authorRecordName
         self.authorDisplayName = authorDisplayName
@@ -52,7 +55,8 @@ final class CachedSpaceReflection {
         self.id = domain.id
         self.spaceID = domain.spaceID
         self.title = domain.title
-        self.promptText = domain.promptText
+        self.note = domain.note
+        self.questionsData = (try? JSONEncoder().encode(domain.questions)) ?? Data()
         self.imageData = domain.imageData
         self.authorRecordName = domain.authorRecordName
         self.authorDisplayName = domain.authorDisplayName
@@ -64,11 +68,13 @@ final class CachedSpaceReflection {
 
     /// Convert back to a domain SpaceReflection.
     func toDomain() -> SpaceReflection {
-        SpaceReflection(
+        let questions = (try? JSONDecoder().decode([SpaceQuestion].self, from: questionsData)) ?? []
+        return SpaceReflection(
             id: id,
             spaceID: spaceID,
             title: title,
-            promptText: promptText,
+            note: note,
+            questions: questions,
             imageData: imageData,
             authorRecordName: authorRecordName,
             authorDisplayName: authorDisplayName,

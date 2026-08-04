@@ -165,14 +165,18 @@ enum SpaceRecordMapper {
         zoneID: CKRecordZone.ID,
         spaceID: String,
         title: String,
-        promptText: String,
+        note: String?,
+        questions: [SpaceQuestion],
         imageAsset: CKAsset? = nil
     ) -> CKRecord {
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: SpaceRecordType.spaceReflection, recordID: recordID)
         record[SpaceRecordField.title] = title as CKRecordValue
-        record[SpaceRecordField.promptText] = promptText as CKRecordValue
+        record[SpaceRecordField.questionsJSON] = SpaceQuestion.encodeJSON(questions) as CKRecordValue
         record[SpaceRecordField.spaceID] = spaceID as CKRecordValue
+        if let note {
+            record[SpaceRecordField.note] = note as CKRecordValue
+        }
         if let imageAsset {
             record[SpaceRecordField.imageAsset] = imageAsset
         }
@@ -201,14 +205,16 @@ enum SpaceRecordMapper {
     /// Maps a fetched `SpaceReflection` CKRecord into the domain entity.
     static func spaceReflection(from record: CKRecord, isMine: Bool) -> SpaceReflection? {
         guard record.recordType == SpaceRecordType.spaceReflection,
-              let title = record[SpaceRecordField.title] as? String,
-              let promptText = record[SpaceRecordField.promptText] as? String else {
+              let title = record[SpaceRecordField.title] as? String else {
             return nil
         }
 
         let spaceID = record.parent?.recordID.recordName
             ?? record[SpaceRecordField.spaceID] as? String
             ?? ""
+
+        let questionsJSON = record[SpaceRecordField.questionsJSON] as? String ?? "[]"
+        let questions = SpaceQuestion.decodeJSON(questionsJSON)
 
         // Asset staging files can be gone by read time; a missing image degrades to
         // text-only rather than dropping the whole record (same tolerance the
@@ -223,7 +229,8 @@ enum SpaceRecordMapper {
             id: record.recordID.recordName,
             spaceID: spaceID,
             title: title,
-            promptText: promptText,
+            note: record[SpaceRecordField.note] as? String,
+            questions: questions,
             imageData: imageData,
             authorRecordName: record.creatorUserRecordID?.recordName,
             authorDisplayName: nil, // resolved from CKShare.participants by the caller

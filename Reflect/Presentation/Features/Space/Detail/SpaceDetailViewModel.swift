@@ -113,7 +113,10 @@ final class SpaceDetailViewModel {
         // so other members see who posted it.
         await registerMyDisplayNameIfKnown()
         do {
-            let reflection = try await createUseCase.execute(in: space, title: newTitle, promptText: newPrompt, image: newImage)
+            // TRANSITIONAL — removed in TASK-037: single-question shim until the compose
+            // sheet grows a multi-question editor (Phase 2).
+            let question = SpaceQuestion(id: UUID().uuidString, text: newPrompt, order: 0)
+            let reflection = try await createUseCase.execute(in: space, title: newTitle, note: nil, questions: [question], image: newImage)
             reflections.append(reflection)
             reflections.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
             newTitle = ""

@@ -53,7 +53,7 @@ protocol SpaceRepositoryProtocol {
 
     /// Creates a reflection in the space's zone, then caches it. `imageData` is
     /// already-compressed JPEG bytes (compression happens in the use case).
-    func createReflection(in space: Space, title: String, promptText: String, imageData: Data?) async throws -> SpaceReflection
+    func createReflection(in space: Space, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection
 
     /// Synchronous cache read of a reflection's responses, for instant first paint.
     func cachedResponses(reflectionID: String) -> [SpaceResponse]
