@@ -218,10 +218,9 @@ final class DIContainer {
         SpaceThreadViewModel(
             space: space,
             reflection: reflection,
-            fetchUseCase: makeFetchSpaceResponsesUseCase(),
-            createUseCase: makeCreateSpaceResponseUseCase(),
-            editUseCase: makeEditOwnSpaceResponseUseCase(),
-            deleteUseCase: makeDeleteOwnSpaceContentUseCase(),
+            fetchUseCase: makeFetchAnswersUseCase(),
+            upsertUseCase: makeUpsertAnswerUseCase(),
+            deleteUseCase: makeDeleteOwnAnswerUseCase(),
             repository: makeSpaceRepository()
         )
     }

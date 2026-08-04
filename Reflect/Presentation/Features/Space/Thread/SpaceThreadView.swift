@@ -7,7 +7,6 @@ struct SpaceThreadView: View {
     @State private var viewModel: SpaceThreadViewModel
     @FocusState private var composerFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
-    @State private var responseToEdit: SpaceResponse?
     @State private var showImageFullscreen = false
 
     init(space: Space, reflection: SpaceReflection) {
@@ -20,7 +19,7 @@ struct SpaceThreadView: View {
                 LazyVStack(alignment: .leading, spacing: Constants.Spacing.md) {
                     header
                     Divider()
-                    yourResponses
+                    questionsSection
                 }
                 .padding(Constants.Spacing.md)
             }
@@ -37,8 +36,8 @@ struct SpaceThreadView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "bubble.left.and.bubble.right")
-                        if !viewModel.responses.isEmpty {
-                            Text("\(viewModel.responses.count)")
+                        if !viewModel.answers.isEmpty {
+                            Text("\(viewModel.answers.count)")
                         }
                     }
                 }
@@ -51,11 +50,6 @@ struct SpaceThreadView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await viewModel.refresh() } }
-        }
-        .sheet(item: $responseToEdit) { response in
-            SpaceResponseEditSheet(initialBody: response.body, limit: viewModel.responseLimit) { newBody in
-                await viewModel.edit(response, body: newBody)
-            }
         }
         .errorAlert($viewModel.errorMessage)
     }
@@ -108,28 +102,45 @@ struct SpaceThreadView: View {
         }
     }
 
-    // MARK: - Your responses
+    // MARK: - Questions
 
     @ViewBuilder
-    private var yourResponses: some View {
-        if viewModel.myResponses.isEmpty {
-            Text("Share your feedback below. You can see everyone else's from the button above once you're ready.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, Constants.Spacing.lg)
-        } else {
-            Text("Your feedback")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-            ForEach(viewModel.myResponses) { response in
-                ResponseBubble(
-                    response: response,
-                    spaceName: viewModel.space.name,
-                    onEdit: { responseToEdit = response },
-                    onDelete: { Task { await viewModel.deleteOwn(response) } }
+    private var questionsSection: some View {
+        Text("Questions")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+        ForEach(Array(viewModel.reflection.questions.enumerated()), id: \.element.id) { index, question in
+            let mine = viewModel.myAnswer(for: question.id)
+            Button {
+                viewModel.select(questionId: question.id)
+                composerFocused = true
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: Constants.Spacing.xs) {
+                        Text("Q\(index + 1). \(question.text)")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if mine != nil {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Color.primaryDefault)
+                        }
+                    }
+                    if let mine {
+                        Text(mine.text)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(Constants.Spacing.sm)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                        .fill(viewModel.activeQuestionId == question.id ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
                 )
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -138,8 +149,14 @@ struct SpaceThreadView: View {
     private var composerBar: some View {
         VStack(spacing: Constants.Spacing.xs) {
             Divider()
+            if let activeQuestion = viewModel.activeQuestion {
+                Text(viewModel.isEditingExistingAnswer ? "Editing your answer to: \(activeQuestion.text)" : "Replying to: \(activeQuestion.text)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, Constants.Spacing.md)
+            }
             HStack(alignment: .bottom, spacing: Constants.Spacing.sm) {
-                TextField("Share your feedback…", text: $viewModel.draft, axis: .vertical)
+                TextField("Share your answer…", text: $viewModel.draft, axis: .vertical)
                     .focused($composerFocused)
                     .lineLimit(1...6)
                     .padding(Constants.Spacing.sm)
@@ -153,13 +170,13 @@ struct SpaceThreadView: View {
                 } else {
                     Button {
                         composerFocused = false
-                        Task { await viewModel.post() }
+                        Task { await viewModel.submit() }
                     } label: {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.title)
                             .foregroundStyle(viewModel.canPost ? Color.primaryDefault : Color.secondary)
                     }
-                    .accessibilityLabel("Send feedback")
+                    .accessibilityLabel("Send answer")
                     .disabled(!viewModel.canPost)
                 }
             }
@@ -170,30 +187,29 @@ struct SpaceThreadView: View {
     }
 }
 
-/// The full response list for a reflection — everyone's, including yours. Own responses can
-/// be edited/deleted; every response can be reported. Composing stays on the respond page.
+/// The full answer list for a reflection — everyone's, including yours, across every
+/// question. Own answers can be deleted (edit happens back on the respond page, via
+/// selecting the question); every answer can be reported.
 struct SpaceAllResponsesView: View {
     let viewModel: SpaceThreadViewModel
-    @State private var responseToEdit: SpaceResponse?
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Constants.Spacing.md) {
-                if viewModel.responses.isEmpty {
+                if viewModel.answers.isEmpty {
                     Text("No feedback yet.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, Constants.Spacing.xl)
                 } else {
-                    ForEach(viewModel.responses) { response in
-                        // Edit/Delete only render for own responses (guarded inside the
-                        // bubble by `response.isMine`), so passing them for every row is safe.
-                        ResponseBubble(
-                            response: response,
+                    ForEach(viewModel.answers) { answer in
+                        // Delete only renders for own answers (guarded by `answer.isMine`),
+                        // so passing it for every row is safe.
+                        AnswerRow(
+                            answer: answer,
                             spaceName: viewModel.space.name,
-                            onEdit: { responseToEdit = response },
-                            onDelete: { Task { await viewModel.deleteOwn(response) } }
+                            onDelete: { Task { await viewModel.deleteOwnAnswer(for: answer.questionId) } }
                         )
                     }
                 }
@@ -204,10 +220,44 @@ struct SpaceAllResponsesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await viewModel.refresh() }
         .task { await viewModel.refresh() }
-        .sheet(item: $responseToEdit) { response in
-            SpaceResponseEditSheet(initialBody: response.body, limit: viewModel.responseLimit) { newBody in
-                await viewModel.edit(response, body: newBody)
+    }
+}
+
+/// A single answer, styled for own vs others'. Context menu offers Delete on your own and
+/// Report on any. Superseded by `AnswerBubble` in TASK-025.
+struct AnswerRow: View {
+    let answer: SpaceAnswer
+    let spaceName: String
+    var onDelete: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(SpaceAuthor.label(isMine: answer.isMine, name: answer.authorDisplayName))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(answer.isMine ? Color.primaryDefault : .secondary)
+                if let createdAt = answer.createdAt {
+                    Text("·")
+                    Text(createdAt, format: .relative(presentation: .named))
+                }
             }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Text(answer.text)
+                .font(.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(Constants.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
+                .fill(answer.isMine ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
+        )
+        .contextMenu {
+            if answer.isMine, let onDelete {
+                Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
+            }
+            ReportContentButton(contentKind: "feedback", contentID: answer.id, spaceName: spaceName)
         }
     }
 }
