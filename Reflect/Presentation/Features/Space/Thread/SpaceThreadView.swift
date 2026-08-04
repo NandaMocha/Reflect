@@ -311,9 +311,11 @@ struct SpaceThreadView: View {
 /// question. Own answers can be deleted (edit happens back on the respond page, via
 /// selecting the question); every answer can be reported.
 struct SpaceAllResponsesView: View {
-    let viewModel: SpaceThreadViewModel
+    @Bindable var viewModel: SpaceThreadViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var selectedQuestionId: String?
+    @State private var showExportOptions = false
+    @State private var showShareSheet = false
 
     init(viewModel: SpaceThreadViewModel) {
         self.viewModel = viewModel
@@ -387,6 +389,30 @@ struct SpaceAllResponsesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await viewModel.refresh() }
         .task { await viewModel.refresh() }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showExportOptions = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("Export feedback")
+            }
+        }
+        .confirmationDialog("Export feedback", isPresented: $showExportOptions, titleVisibility: .visible) {
+            Button("Export as JSON") { Task { await viewModel.export(format: .json) } }
+            Button("Export as CSV") { Task { await viewModel.export(format: .csv) } }
+            Button("Cancel", role: .cancel) {}
+        }
+        .onChange(of: viewModel.exportedFileURL) { _, url in
+            showShareSheet = url != nil
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let url = viewModel.exportedFileURL {
+                ReflectionShareSheet(items: [url])
+            }
+        }
+        .errorAlert($viewModel.errorMessage)
     }
 }
 

@@ -224,6 +224,11 @@ final class DIContainer {
     }
 
     @MainActor
+    func makeExportFeedbackRequestUseCase() -> ExportFeedbackRequestUseCaseProtocol {
+        ExportFeedbackRequestUseCase()
+    }
+
+    @MainActor
     func makeSpaceThreadViewModel(reflection: SpaceReflection, space: Space) -> SpaceThreadViewModel {
         SpaceThreadViewModel(
             space: space,
@@ -231,7 +236,8 @@ final class DIContainer {
             fetchUseCase: makeFetchAnswersUseCase(),
             upsertUseCase: makeUpsertAnswerUseCase(),
             deleteUseCase: makeDeleteOwnAnswerUseCase(),
-            repository: makeSpaceRepository()
+            repository: makeSpaceRepository(),
+            exportUseCase: makeExportFeedbackRequestUseCase()
         )
     }
 
