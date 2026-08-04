@@ -69,6 +69,22 @@ protocol SpaceRepositoryProtocol {
     func updateResponse(_ response: SpaceResponse, in space: Space, body: String) async throws -> SpaceResponse
 
     /// Deletes the user's own reflection or response (cloud first, then cache; deleting a
-    /// reflection also removes its cached responses). Caller guards `isMine`.
+    /// reflection also removes its cached responses and answers). Caller guards `isMine`.
     func deleteContent(id: String, in space: Space) async throws
+
+    // MARK: - Answers
+
+    /// Synchronous cache read of a reflection's answers, for instant first paint.
+    func cachedAnswers(reflectionID: String) -> [SpaceAnswer]
+
+    /// Fetches a reflection's answers from CloudKit and reconciles the cache (scoped to
+    /// this reflection). Returns the reconciled cache.
+    func fetchAnswers(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceAnswer]
+
+    /// Creates or overwrites the current user's answer to one question, then caches it
+    /// (cloud first, per `SpaceCloudServiceProtocol.upsertAnswer`).
+    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer
+
+    /// Deletes the user's own answer (cloud first, then cache row removal). Caller guards `isMine`.
+    func deleteOwnAnswer(_ answer: SpaceAnswer, in space: Space) async throws
 }
