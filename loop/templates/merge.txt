@@ -41,11 +41,14 @@ approved branch is already checked out in your working tree.
    (squash merge — one clean commit on WORK_BRANCH per task; deletes the
    feature branch both locally and on the remote once merged.)
 
-4. Update your local WORK_BRANCH and verify it still builds clean:
-   `git checkout <WORK_BRANCH> && git pull --rebase`
-   (--rebase, not a plain pull: your local WORK_BRANCH may carry a checkoff
-   commit from an earlier merge in this same lane, and a merge-pull would
-   create a pointless merge commit on top of it.)
+4. Pick up the merged state and verify it still builds clean. Do this DETACHED —
+   never `git checkout <WORK_BRANCH>`:
+   `git fetch origin <WORK_BRANCH> && git checkout --detach origin/<WORK_BRANCH>`
+   Git allows a branch to be checked out in only ONE worktree, and
+   <WORK_BRANCH> is almost always held by the main checkout, so
+   `git checkout <WORK_BRANCH>` fails outright from a lane worktree. Detaching
+   at the remote ref gives you exactly the post-merge tree with no such
+   conflict, and it cannot serve a stale local branch.
    then run TEST_CMD (given below). If this fails, something merged badly —
    call `python3 loop/loop.py block <TASK_ID> --reason "post-merge build
    broke WORK_BRANCH: <what failed>"` and stop; do NOT attempt to fix it
@@ -53,24 +56,28 @@ approved branch is already checked out in your working tree.
 
 5. Also check the corresponding "- [ ] TASK-<N>" box in the plan doc (PLAN_DOC,
    path given below) and check it off
-   ("- [x] TASK-<N>: ..."), committing that single-line change directly to
-   WORK_BRANCH with message "Check off TASK-<N> in <plan doc's feature name>".
-   Then `git push origin <WORK_BRANCH>` immediately. This is not optional: the
+   ("- [x] TASK-<N>: ..."), committing that single-line change on your detached
+   HEAD with message "Check off TASK-<N> in <plan doc's feature name>".
+   Then publish it with `git push origin HEAD:<WORK_BRANCH>` immediately —
+   pushing HEAD to the branch works from a detached worktree, where a plain
+   `git push origin <WORK_BRANCH>` has no local branch to push. This is not
+   optional: the
    next task's `gh pr merge` operates against the REMOTE branch and a
    subsequent `git pull` re-syncs your local branch to match it — any commit
    left unpushed here (this one, or any other local-only WORK_BRANCH commit)
    gets silently orphaned the moment the next merge cycle's pull runs. Push
    before moving on, every time, no exceptions.
    If that push is REJECTED (non-fast-forward), the remote moved under you:
-   run `git pull --rebase && git push origin <WORK_BRANCH>` and, if it is
-   rejected a second time, block the task rather than force-pushing. NEVER use
-   --force or --force-with-lease on WORK_BRANCH.
+   `git fetch origin <WORK_BRANCH> && git rebase origin/<WORK_BRANCH>` then push
+   again, and if it is rejected a second time, block the task rather than
+   force-pushing. NEVER use --force or --force-with-lease on WORK_BRANCH.
 
    TIMING: in a multi-lane run the runner holds a mutex for this whole session
    so no two lanes merge at once, and every other lane needing to merge is
    blocked until you exit. Do the steps and finish — do not go exploring.
 
-6. Get the merge commit SHA: `git log -1 --format=%H` on WORK_BRANCH.
+6. Get the merge commit SHA: `git log -1 --format=%H` (you are on the detached
+   post-merge HEAD, so this is the right commit).
    Call: `python3 loop/loop.py done <TASK_ID> --handover "<max 5 short
    lines: anything the next task should know>" --commit <sha>`
 
