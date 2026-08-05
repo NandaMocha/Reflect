@@ -35,7 +35,14 @@ const KEY_PATH = '/home/sesirkel/nandamochammad.xyz/cloudkit-key.pem';
 const CONTAINER   = 'iCloud.xyz.nandamochammad.Reflect';
 const ENVIRONMENT = 'development';   // 'development' | 'production'
 
-/** Record type to write. Auto-created in development on first write. */
+/**
+ * Record type to write.
+ *
+ * NOTE: this must already exist in the CloudKit schema. Server-to-server
+ * keys cannot create record types, so unlike a first write from the app,
+ * nothing is auto-created here. Create it in CloudKit Console > Schema >
+ * Record Types before running (fields listed in the failure message).
+ */
 const RECORD_TYPE = 'PendingClipFeedback';
 
 // ------------------------------------------------------------------ OUTPUT
@@ -208,6 +215,10 @@ if ($create['code'] === 401) {
     $fix = 'Authorized but forbidden. Confirm the container identifier is correct and the server-to-server key belongs to it.';
 } elseif ($create['code'] === 421) {
     $fix = 'Wrong environment. Try switching ENVIRONMENT between development and production.';
+} elseif (str_contains($create['body'] ?? '', 'record_type')) {
+    // Auth succeeded and CloudKit simply has no such type. Server-to-server
+    // keys cannot create schema, so this one is done by hand in the Console.
+    $fix = "Authentication SUCCEEDED - only the record type is missing. Server-to-server keys cannot create record types, so create it manually: CloudKit Console > Schema > Record Types > New Type, named '" . RECORD_TYPE . "', in the " . ENVIRONMENT . " environment, with these String fields: requestToken, questionId, guestId, guestName, body. Mark requestToken QUERYABLE (the owner's app fetches pending feedback by token) and add a QUERYABLE index on recordName. Then run this again.";
 } elseif (!$createdOk) {
     $fix = 'See the response body above for the CloudKit error code.';
 }
