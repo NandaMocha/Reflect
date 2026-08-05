@@ -33,14 +33,22 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     /// (DIContainer, `SpaceDebugView`) keeps working unchanged.
     private let mirrorService: SpaceMirrorServiceProtocol
 
+    /// Ingests `PendingClipFeedback` into real `Answer` records (AC-012). Injectable for
+    /// testing, same rationale as `mirrorService`.
+    private let ingestService: SpaceClipIngestServiceProtocol
+
     /// The current user's record name in this container, resolved once and reused for
     /// `isMine` comparisons. Guarded by `userRecordNameLock` because the service is not
     /// actor-isolated and fetches can run concurrently.
     private var cachedUserRecordName: String?
     private let userRecordNameLock = NSLock()
 
-    init(mirrorService: SpaceMirrorServiceProtocol = SpaceMirrorService()) {
+    init(
+        mirrorService: SpaceMirrorServiceProtocol = SpaceMirrorService(),
+        ingestService: SpaceClipIngestServiceProtocol = SpaceClipIngestService()
+    ) {
         self.mirrorService = mirrorService
+        self.ingestService = ingestService
     }
 
     // MARK: - Availability
@@ -629,6 +637,14 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         // nothing here persists a "mirror published" flag.
         publishMirrorsIfOwned(zone: zone, reflections: reflections, answers: answers)
 
+        // AC-012 hook: ingest any pending Clip guest feedback for the same candidate
+        // reflections. Newly-created guest `Answer`s from this pass aren't in `reflections`/
+        // `answers` above (they're fetched fresh next sync), so they reach the public
+        // mirror on the *next* `fetchChanges` call, not this one — the documented guest
+        // round-trip latency. Fire-and-forget for the same reason as the mirror publish:
+        // an ingestion failure must never fail the owner's own sync.
+        ingestPendingFeedbackIfOwned(zone: zone, reflections: reflections, answers: answers)
+
         return SpaceZoneDelta(
             reflections: reflections,
             answers: answers,
@@ -828,6 +844,34 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                     print("[SpaceMirrorService] revoke failed for token \(token): \(error)")
                     #endif
                 }
+            }
+        }
+    }
+
+    // MARK: - Clip pending-feedback ingestion — AC-012
+
+    /// Kicks off a detached, best-effort ingestion pass for every reflection this sync
+    /// touched — only for owned (private-DB) zones; a joined participant never ingests
+    /// on someone else's behalf. Same candidate set as `publishMirrorsIfOwned` (the
+    /// service resolves tokenization itself via a cheap precheck fetch), and the same
+    /// "per-candidate failures don't abort the batch" contract.
+    private func ingestPendingFeedbackIfOwned(zone: SpaceZoneRef, reflections: [SpaceReflection], answers: [SpaceAnswer]) {
+        guard zone.lane == .privateDB else { return }
+
+        var candidateReflectionIDs = Set(reflections.map { $0.id })
+        for answer in answers {
+            candidateReflectionIDs.insert(answer.reflectionID)
+        }
+        guard !candidateReflectionIDs.isEmpty else { return }
+
+        let ingestService = self.ingestService
+        Task.detached(priority: .utility) {
+            do {
+                try await ingestService.ingestPendingFeedback(reflectionIDs: candidateReflectionIDs, zone: zone)
+            } catch {
+                #if DEBUG
+                print("[SpaceClipIngestService] ingest batch failed for \(candidateReflectionIDs): \(error)")
+                #endif
             }
         }
     }
