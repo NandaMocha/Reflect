@@ -20,6 +20,39 @@ R4 review) all landed. `develop` builds green on the iPhone 17 (iOS 26.2) simula
 done directly on **`develop`** (in the `.../Reflect/Reflect` worktree) — the stacked-worktree phase
 is over.
 
+### Multiple answers per question (2026-08-05) — code-complete, hardware gate open
+
+[multi-answer-ui-plan.md](multi-answer-ui-plan.md)'s 14 tasks (TASK-001–014) are all checked off.
+Members can now post more than one answer to the same question (`SpaceAnswer` record names carry
+a UUID, replacing the deterministic `(reflection, question, author)` name that used to make a
+second answer silently overwrite the first); `SpaceThreadView` got the horizontal header + segmented
+question picker + always-live composer from the sketch; export moved to a `Menu` and CSV/JSON both
+carry a per-member-per-question `answerIndex`. No CloudKit schema/record-type change and no Console
+work was needed (decision 5/6 in the plan) — this rode on the existing Dev-only `Answer` shape from
+the multi-question cutover above.
+
+TASK-014's code and doc portions are done: `grep -rn "upsertAnswer\|firstUnansweredQuestionId\|activeQuestionId" Reflect/`
+returns nothing, the simulator build is green, and a static review of all six behaviors the manual
+script below exercises (multi-answer post/edit/delete matched by answer id, cascade delete of every
+member's answers when the owner deletes a question, per-member-per-question `answerIndex` in both
+export formats with no cross-question/member leak, cache-first paint on relaunch now that
+`CachedAnswer` is keyed by per-record UUID names, photo attach on a non-first answer, and the
+per-question segment dot) turned up no bugs. **What's still open is the actual two-simulator /
+two-account walkthrough** — same hardware gate as H2/H3 below, not reachable from an unattended
+session:
+
+- Account A posts three answers to one question → edits the middle one → deletes the first
+- Account B confirms, after sync, that the other two answers are untouched
+- Account A attaches a photo to a second answer (not the first) to the same question
+- Switch segments between questions and confirm the answer list + dot follow the selection
+- Owner deletes a question and confirms the cascade removes **all** of that question's answers
+  across both accounts, not one per member
+- Both exports (JSON + CSV) show `answerIndex` incrementing per member per question
+- Kill and relaunch either account's app and confirm cache-first paint (answers appear before
+  the network refresh completes)
+
+Do this once alongside H2/H3 before considering the feedback flow fully shipped.
+
 ### Multi-question feedback cutover (2026-08-04) — schema change, Dev-only, no migration
 
 The `promptText`/`Response` record shape is being replaced by `questionsJSON`/`Answer` as part of
