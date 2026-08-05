@@ -17,16 +17,24 @@ nonisolated struct PendingAnswer: Codable, Equatable, Sendable, Identifiable {
     /// Modeled as an enum (not booleans) per AC-031's watch-out: "queued vs sent vs confirmed" is
     /// design-critical, and separate `isSent`/`isConfirmed` bools can represent nonsense states.
     /// "Confirmed" itself isn't stored here — a `.sent` entry simply stops existing once
-    /// `dropConfirmedAnswers` removes it, so the store only ever holds `.queued`/`.sent`.
+    /// `dropConfirmedAnswers` removes it, so the store only ever holds `.queued`/`.sent`/`.failed`.
     enum State: String, Codable, Sendable {
-        /// Enqueued locally; either never POSTed yet or every POST attempt so far has failed.
-        /// Still eligible for retry.
+        /// Enqueued locally; either never POSTed yet or every POST attempt so far has failed with
+        /// a transient error. Still eligible for retry.
         case queued
         /// The write endpoint (AC-015) confirmed this `submissionId` was written. Kept around
         /// (rather than deleted immediately) so the optimistic echo still renders it until a
         /// `MirroredAnswer` shows up — deleting on `.sent` would reopen the exact gap the
         /// mitigation exists to close.
         case sent
+        /// The write endpoint deterministically rejected this `submissionId`'s link as revoked or
+        /// expired (`ClipFeedbackError.linkRevoked`, HTTP 404/410) — retrying is pointless since
+        /// the link is gone, not just temporarily unreachable. Kept around (not deleted) rather
+        /// than silently dropped, per AC-021's watch-out ("don't clear queued answers on
+        /// `.linkRevoked` silently — surface state so the UI can explain"), so a future UI
+        /// (AC-032) can render an honest "couldn't be delivered" state instead of "Sending…"
+        /// forever, and so the offline retry loop skips it rather than hammering a dead link.
+        case failed
     }
 
     /// Minted once, at compose time (`PendingAnswerStore.enqueue`), and never changed after —
@@ -92,10 +100,24 @@ protocol PendingAnswerStoring: Sendable {
     @discardableResult
     func enqueue(questionId: String, body: String) async -> PendingAnswer
 
+    /// Updates the body text of an existing entry in place — `submissionId`, `questionId`, and
+    /// `state` are all left untouched. Used when the guest edits a draft after a failed submit,
+    /// so a retry carries the corrected text under the *same* idempotency key rather than
+    /// `submit()` minting a brand-new `submissionId` (which would duplicate-enqueue). A no-op if
+    /// no entry has this `submissionId`.
+    func amend(submissionId: String, body: String) async
+
     /// Marks every entry whose `submissionId` is in `submissionIds` as `.sent`, after
     /// `ClipFeedbackSubmitting` confirms the endpoint wrote it. A no-op for any id that isn't
     /// currently `.queued` (e.g. already `.sent`, or unknown).
     func markSent(submissionIds: [String]) async
+
+    /// Marks every entry whose `submissionId` is in `submissionIds` as `.failed`, after
+    /// `ClipFeedbackSubmitting` reports `ClipFeedbackError.linkRevoked` for them — a deterministic,
+    /// non-retryable rejection. The entries are kept (not deleted) so their state stays honest for
+    /// a future UI rather than retrying forever against a dead link. A no-op for any id that isn't
+    /// currently `.queued`.
+    func markFailed(submissionIds: [String]) async
 
     /// Drops every `.sent` entry whose `questionId` is in `confirmedQuestionIds` — call this
     /// after a mirror fetch (`ClipSpaceRepositoring.fetchAnswers`) comes back with a
@@ -153,14 +175,30 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
         return answer
     }
 
+    func amend(submissionId: String, body: String) {
+        var answers = loadIfNeeded()
+        guard let index = answers.firstIndex(where: { $0.submissionId == submissionId }) else { return }
+        guard answers[index].body != body else { return }
+        answers[index].body = body
+        persist(answers)
+    }
+
     func markSent(submissionIds: [String]) {
+        setState(.sent, forSubmissionIds: submissionIds)
+    }
+
+    func markFailed(submissionIds: [String]) {
+        setState(.failed, forSubmissionIds: submissionIds)
+    }
+
+    private func setState(_ state: PendingAnswer.State, forSubmissionIds submissionIds: [String]) {
         guard !submissionIds.isEmpty else { return }
         var answers = loadIfNeeded()
         let idsToMark = Set(submissionIds)
         var changed = false
         for index in answers.indices where idsToMark.contains(answers[index].submissionId) {
-            if answers[index].state != .sent {
-                answers[index].state = .sent
+            if answers[index].state != state {
+                answers[index].state = state
                 changed = true
             }
         }
