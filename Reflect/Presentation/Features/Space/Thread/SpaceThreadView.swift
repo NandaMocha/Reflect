@@ -10,7 +10,6 @@ struct SpaceThreadView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showImageFullscreen = false
     @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var answerPendingDeletion: SpaceAnswer?
     @State private var showEditQuestions = false
     @State private var noteExpanded = false
 
@@ -24,7 +23,7 @@ struct SpaceThreadView: View {
                 LazyVStack(alignment: .leading, spacing: Constants.Spacing.md) {
                     header
                     Divider()
-                    questionsSection
+                    yourAnswersSection
                 }
                 .padding(Constants.Spacing.md)
             }
@@ -79,21 +78,6 @@ struct SpaceThreadView: View {
             if phase == .active { Task { await viewModel.refresh() } }
         }
         .errorAlert($viewModel.errorMessage)
-        .confirmationDialog(
-            "Delete this answer? This can't be undone.",
-            isPresented: Binding(
-                get: { answerPendingDeletion != nil },
-                set: { if !$0 { answerPendingDeletion = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive) {
-                if let pending = answerPendingDeletion {
-                    Task { await viewModel.deleteOwnAnswer(pending) }
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
     }
 
     // MARK: - Header
@@ -157,58 +141,58 @@ struct SpaceThreadView: View {
         }
     }
 
-    // MARK: - Questions
+    // MARK: - Your answers
 
     @ViewBuilder
-    private var questionsSection: some View {
-        Text("Questions")
+    private var yourAnswersSection: some View {
+        let questions = viewModel.reflection.questions
+        if questions.count > 1 {
+            Picker("Question", selection: $viewModel.selectedQuestionId) {
+                ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+                    questionSegmentLabel(index: index, question: question)
+                        .tag(question.id)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+
+        if let selectedQuestion = viewModel.selectedQuestion {
+            Text(selectedQuestion.text)
+                .font(questions.count > 1 ? .subheadline.weight(.semibold) : .headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        let myAnswers = viewModel.myAnswers(for: viewModel.selectedQuestionId)
+        Text("Your answers / \(myAnswers.count)")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
-        ForEach(Array(viewModel.reflection.questions.enumerated()), id: \.element.id) { index, question in
-            let mine = viewModel.myAnswers(for: question.id).first
-            Button {
-                viewModel.select(questionId: question.id)
-                composerFocused = true
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: Constants.Spacing.xs) {
-                        Text("Q\(index + 1). \(question.text)")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if mine != nil {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.primaryDefault)
-                        }
-                    }
-                    if let mine {
-                        Text(mine.text)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .contextMenu {
-                                Button {
-                                    viewModel.beginEditing(mine)
-                                    composerFocused = true
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) {
-                                    answerPendingDeletion = mine
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                    }
-                }
-                .padding(Constants.Spacing.sm)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                        .fill(viewModel.selectedQuestionId == question.id ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
-                )
+
+        ForEach(myAnswers) { answer in
+            AnswerBubble(
+                answer: answer,
+                spaceName: viewModel.space.name,
+                questionNumber: (questions.firstIndex(where: { $0.id == answer.questionId }) ?? 0) + 1,
+                onEdit: {
+                    viewModel.beginEditing(answer)
+                    composerFocused = true
+                },
+                onDelete: { Task { await viewModel.deleteOwnAnswer(answer) } }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func questionSegmentLabel(index: Int, question: SpaceQuestion) -> some View {
+        if viewModel.myAnswerCount(for: question.id) > 0 {
+            Label {
+                Text("Q\(index + 1)")
+            } icon: {
+                Circle()
+                    .fill(Color.primaryDefault)
+                    .frame(width: 6, height: 6)
             }
-            .buttonStyle(.plain)
+        } else {
+            Text("Q\(index + 1)")
         }
     }
 
@@ -217,9 +201,7 @@ struct SpaceThreadView: View {
     private var composerBar: some View {
         VStack(spacing: Constants.Spacing.xs) {
             Divider()
-            if let selectedQuestion = viewModel.selectedQuestion {
-                replyingToChip(selectedQuestion)
-            }
+            composerCaption
             if let draftImage = viewModel.draftImage {
                 draftImageThumbnail(draftImage)
             }
@@ -274,29 +256,25 @@ struct SpaceThreadView: View {
         }
     }
 
-    private func replyingToChip(_ question: SpaceQuestion) -> some View {
-        let index = (viewModel.reflection.questions.firstIndex(where: { $0.id == question.id }) ?? 0) + 1
+    private var composerCaption: some View {
         let isEditing = viewModel.editingAnswerID != nil
+        let index = (viewModel.reflection.questions.firstIndex(where: { $0.id == viewModel.selectedQuestionId }) ?? 0) + 1
         return HStack(spacing: Constants.Spacing.xs) {
-            Image(systemName: isEditing ? "pencil" : "arrowshape.turn.up.left")
+            Text(isEditing ? "Editing your answer" : "Posting to Q\(index)")
                 .font(.caption)
-            Text(isEditing ? "Editing your answer" : "Posting to Q\(index): \(question.text)")
-                .font(.caption)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            Button {
-                viewModel.cancelEditing()
-                selectedPhotoItem = nil
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
+                .foregroundStyle(.secondary)
+            if isEditing {
+                Spacer(minLength: 0)
+                Button {
+                    viewModel.cancelEditing()
+                    selectedPhotoItem = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Cancel editing")
             }
-            .accessibilityLabel("Clear draft")
         }
-        .foregroundStyle(Color.primaryDefault)
-        .padding(.horizontal, Constants.Spacing.sm)
-        .padding(.vertical, 6)
-        .background(Capsule().fill(Color.primaryDefault.opacity(0.10)))
         .padding(.horizontal, Constants.Spacing.md)
     }
 
