@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["9NAU7R3577.xyz.nandamochammad.Reflect"],
+        "components": [
+          {
+            "/": "/f/*",
+            "comment": "Feedback request link - opens the full app to the request thread"
+          }
+        ]
+      }
+    ]
+  },
+  "appclips": {
+    "apps": ["9NAU7R3577.xyz.nandamochammad.Reflect.Clip"]
+  }
+}
