@@ -15,30 +15,28 @@ import SwiftUI
 /// `Color.error`) isn't shared into this target yet (see `Reflect/ClipShared/README.md`), same
 /// constraint noted in `ClipRootView`.
 ///
-/// **Edit-name stub:** initializing with an already-saved identity (`session.guestIdentity` is
-/// non-nil) prefills the field with the current name instead of starting blank. That prefill is
-/// cosmetic only — it does **not** make this view ready to double as an "edit name" prompt.
-/// `submit()` below always calls `ClipSession.submitDisplayName(_:)`, which unconditionally
-/// constructs a fresh `GuestIdentity(guestId: UUID(), displayName: trimmed)`; re-submitting
-/// through this view issues a *new* `guestId` on every call, silently re-identifying the guest and
-/// orphaning any answers already submitted under the old id. Wiring an edit-name affordance (the
-/// composer toolbar entry point that is AC-031's job) to this view as-is would break AC-032's
-/// `guestId`+`questionId` dedup contract. A real edit-name path additionally needs a
-/// guestId-preserving rename on `ClipSession` (e.g. `updateDisplayName(_:)` that mutates
-/// `guestIdentity.displayName` in place and re-saves) — that API does not exist yet and is out of
-/// this ticket's lock on `ClipSession.swift`; AC-031 must add it before reusing this view for edits.
+/// **Edit-name mode (AC-031):** `isEditMode` switches `submit()` from
+/// `ClipSession.submitDisplayName(_:)` (which unconditionally mints a *new* `guestId` — correct
+/// for first-run, since there is no existing identity to preserve) to
+/// `ClipSession.updateDisplayName(_:)` (which renames in place, keeping the existing `guestId`).
+/// The composer's "Edit name" toolbar affordance presents this view with `isEditMode: true` so a
+/// mid-session rename can't orphan answers already submitted under the old `guestId` — AC-032's
+/// dedup key is `guestId`+`questionId`, not display name.
 struct GuestNamePrompt: View {
     let session: ClipSession
+    var isEditMode: Bool = false
 
     @State private var name: String
     @FocusState private var nameFieldFocused: Bool
     @ScaledMetric(relativeTo: .title) private var iconSize: CGFloat = 40
+    @Environment(\.dismiss) private var dismiss
 
     /// Matches `GUEST_NAME_MAX_LENGTH` in `scripts/server/clip-feedback.php`.
     static let maxLength = 50
 
-    init(session: ClipSession) {
+    init(session: ClipSession, isEditMode: Bool = false) {
         self.session = session
+        self.isEditMode = isEditMode
         _name = State(initialValue: session.guestIdentity?.displayName ?? "")
     }
 
@@ -59,7 +57,7 @@ struct GuestNamePrompt: View {
             VStack(spacing: Constants.Spacing.lg) {
                 header
                 field
-                Button("Continue", action: submit)
+                Button(isEditMode ? "Save" : "Continue", action: submit)
                     .buttonStyle(.borderedProminent)
                     .disabled(!canSubmit)
             }
@@ -75,7 +73,7 @@ struct GuestNamePrompt: View {
                 .font(.system(size: iconSize))
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
-            Text("What should we call you?")
+            Text(isEditMode ? "Edit your name" : "What should we call you?")
                 .font(.title2.bold())
             Text("Your name is shown next to what you write.")
                 .font(.subheadline)
@@ -113,6 +111,11 @@ struct GuestNamePrompt: View {
 
     private func submit() {
         guard canSubmit else { return }
-        session.submitDisplayName(trimmedName)
+        if isEditMode {
+            session.updateDisplayName(trimmedName)
+            dismiss()
+        } else {
+            session.submitDisplayName(trimmedName)
+        }
     }
 }
