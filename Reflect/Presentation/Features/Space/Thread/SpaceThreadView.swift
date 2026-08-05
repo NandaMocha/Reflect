@@ -171,6 +171,7 @@ struct SpaceThreadView: View {
             AnswerBubble(
                 answer: answer,
                 spaceName: viewModel.space.name,
+                isSpaceOwner: viewModel.space.isOwner,
                 onEdit: { answer in
                     viewModel.beginEditing(answer)
                     composerFocused = true
