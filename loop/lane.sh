@@ -36,9 +36,16 @@ case "$cmd" in
   start)
     N="${2:?usage: lane.sh start <n>}"
     [ -f "$QUEUE_DB" ] || { echo "no queue at $QUEUE_DB — run loop.py init + a seeder first"; exit 1; }
-    : > "$PIDS"
+    # Idempotent: `start 3` against 2 running lanes adds a third and leaves the
+    # other two alone. Truncating $PIDS here (the original behaviour) orphaned
+    # the running lanes — `stop` could no longer kill them.
+    touch "$PIDS"
     for i in $(seq 1 "$N"); do
       WT="$LANE_DIR/loop-lane-$i"
+      if [ -f "$WT/loop/.runner.lock" ]; then
+        echo "== lane $i already running (lock present) — leaving it alone =="
+        continue
+      fi
       if [ ! -d "$WT" ]; then
         echo "== creating lane $i worktree at $WT =="
         # Detached: the lane never needs a branch of its own, and detaching

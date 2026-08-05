@@ -87,6 +87,14 @@ Four things make concurrent lanes safe; all four are inert in a single-lane run:
   detach at `origin/<WORK_BRANCH>` instead; executors cut their own branch
   anyway. Lanes also detach after each task so they don't hold a `feat/` branch
   another lane needs for review or merge.
+- **`WAIT` vs `EMPTY`** — `next` used to say `EMPTY` whenever nothing was
+  dispatchable, and the runner treated that as "queue finished" and exited.
+  With several lanes that is almost always wrong: it means "every ready task is
+  claimed, a sibling lane will unblock me shortly". `next` now returns `WAIT`
+  when work is genuinely in flight (`in_progress`/`pr_open`/`approved`) and the
+  runner idles instead of dying. It still returns `EMPTY` when only unreachable
+  queued tasks remain — a dep stuck in `blocked` never clears, so a lane must
+  not spin on it.
 - **Merge mutex** — `gh pr merge` is server-side and safe, but the local work
   after it (pull, build, plan-doc checkoff, push `WORK_BRANCH`) races: one push
   gets rejected non-fast-forward and one build verifies a tree that never
