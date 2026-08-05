@@ -12,6 +12,12 @@
 		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		153AF6CCD848B91FC767DF7F /* DSWaveformImageViews in Frameworks */ = {isa = PBXBuildFile; productRef = DBB814AFA67536633EFF9DDB /* DSWaveformImageViews */; };
 		D7C8DFC6E7726E03C07703DE /* DSWaveformImage in Frameworks */ = {isa = PBXBuildFile; productRef = F93A04F213FA82B6592668B6 /* DSWaveformImage */; };
+		ACC0000000000000000000AA /* ReflectClip.app in Embed App Clips */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000A1 /* ReflectClip.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		ACC0000000000000000000D2 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C2 /* Constants.swift */; };
+		ACC0000000000000000000D3 /* SpaceReflection.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C3 /* SpaceReflection.swift */; };
+		ACC0000000000000000000D4 /* SpaceAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C4 /* SpaceAnswer.swift */; };
+		ACC0000000000000000000D5 /* SpaceQuestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C5 /* SpaceQuestion.swift */; };
+		ACC0000000000000000000D6 /* SpaceError.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C6 /* SpaceError.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -21,6 +27,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 04F2606D2F33602B00BF5E99;
 			remoteInfo = "Quick ActionsExtension";
+		};
+		ACC0000000000000000000AB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 042635E82F288EA100BB939D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ACC0000000000000000000A2;
+			remoteInfo = ReflectClip;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -36,6 +49,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ACC0000000000000000000A9 /* Embed App Clips */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/AppClips";
+			dstSubfolderSpec = 16;
+			files = (
+				ACC0000000000000000000AA /* ReflectClip.app in Embed App Clips */,
+			);
+			name = "Embed App Clips";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +67,12 @@
 		04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Quick ActionsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		04F260702F33602B00BF5E99 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		04F260722F33602B00BF5E99 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		ACC0000000000000000000A1 /* ReflectClip.app */ = {isa = PBXFileReference; explicitFileType = "wrapper.application"; includeInIndex = 0; path = ReflectClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACC0000000000000000000C2 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = Reflect/Core/Utilities/Constants.swift; sourceTree = "<group>"; };
+		ACC0000000000000000000C3 /* SpaceReflection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpaceReflection.swift; path = Reflect/Domain/Entities/Space/SpaceReflection.swift; sourceTree = "<group>"; };
+		ACC0000000000000000000C4 /* SpaceAnswer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpaceAnswer.swift; path = Reflect/Domain/Entities/Space/SpaceAnswer.swift; sourceTree = "<group>"; };
+		ACC0000000000000000000C5 /* SpaceQuestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpaceQuestion.swift; path = Reflect/Domain/Entities/Space/SpaceQuestion.swift; sourceTree = "<group>"; };
+		ACC0000000000000000000C6 /* SpaceError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpaceError.swift; path = Reflect/Domain/Entities/Space/SpaceError.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -50,8 +80,16 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				ClipShared/README.md,
 			);
 			target = 042635EF2F288EA100BB939D /* Reflect */;
+		};
+		ACC0000000000000000000C7 /* Exceptions for "ClipShared" folder in "ReflectClip" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				README.md,
+			);
+			target = ACC0000000000000000000A2 /* ReflectClip */;
 		};
 		04F260832F33602C00BF5E99 /* Exceptions for "Quick Actions" folder in "Quick ActionsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -59,6 +97,13 @@
 				Info.plist,
 			);
 			target = 04F2606D2F33602B00BF5E99 /* Quick ActionsExtension */;
+		};
+		ACC0000000000000000000A7 /* Exceptions for "ReflectClip" folder in "ReflectClip" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = ACC0000000000000000000A2 /* ReflectClip */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -84,6 +129,22 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		ACC0000000000000000000A6 /* ReflectClip */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ACC0000000000000000000A7 /* Exceptions for "ReflectClip" folder in "ReflectClip" target */,
+			);
+			path = ReflectClip;
+			sourceTree = "<group>";
+		};
+		ACC0000000000000000000A8 /* ClipShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ACC0000000000000000000C7 /* Exceptions for "ClipShared" folder in "ReflectClip" target */,
+			);
+			path = "Reflect/ClipShared";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +166,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ACC0000000000000000000AE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -114,6 +182,9 @@
 				042635F22F288EA100BB939D /* Reflect */,
 				04F260742F33602B00BF5E99 /* Quick Actions */,
 				19A28503CC25FB806F38FF04 /* Shared */,
+				ACC0000000000000000000A6 /* ReflectClip */,
+				ACC0000000000000000000A8 /* ClipShared */,
+				ACC0000000000000000000B0 /* ClipShared (app-owned refs) */,
 				04F2606F2F33602B00BF5E99 /* Frameworks */,
 				042635F12F288EA100BB939D /* Products */,
 			);
@@ -124,6 +195,7 @@
 			children = (
 				042635F02F288EA100BB939D /* Reflect.app */,
 				04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */,
+				ACC0000000000000000000A1 /* ReflectClip.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -137,6 +209,18 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		ACC0000000000000000000B0 /* ClipShared (app-owned refs) */ = {
+			isa = PBXGroup;
+			children = (
+				ACC0000000000000000000C2 /* Constants.swift */,
+				ACC0000000000000000000C3 /* SpaceReflection.swift */,
+				ACC0000000000000000000C4 /* SpaceAnswer.swift */,
+				ACC0000000000000000000C5 /* SpaceQuestion.swift */,
+				ACC0000000000000000000C6 /* SpaceError.swift */,
+			);
+			name = "ClipShared (app-owned refs)";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -148,11 +232,13 @@
 				042635ED2F288EA100BB939D /* Frameworks */,
 				042635EE2F288EA100BB939D /* Resources */,
 				04F2607F2F33602C00BF5E99 /* Embed Foundation Extensions */,
+				ACC0000000000000000000A9 /* Embed App Clips */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				04F2607D2F33602C00BF5E99 /* PBXTargetDependency */,
+				ACC0000000000000000000AC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				042635F22F288EA100BB939D /* Reflect */,
@@ -190,6 +276,29 @@
 			productReference = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		ACC0000000000000000000A2 /* ReflectClip */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ACC0000000000000000000A3 /* Build configuration list for PBXNativeTarget "ReflectClip" */;
+			buildPhases = (
+				ACC0000000000000000000AD /* Sources */,
+				ACC0000000000000000000AE /* Frameworks */,
+				ACC0000000000000000000AF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				ACC0000000000000000000A6 /* ReflectClip */,
+				ACC0000000000000000000A8 /* ClipShared */,
+			);
+			name = ReflectClip;
+			packageProductDependencies = (
+			);
+			productName = ReflectClip;
+			productReference = ACC0000000000000000000A1 /* ReflectClip.app */;
+			productType = "com.apple.product-type.application.on-demand-install-capable";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -204,6 +313,9 @@
 						CreatedOnToolsVersion = 26.2;
 					};
 					04F2606D2F33602B00BF5E99 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					ACC0000000000000000000A2 = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
@@ -227,6 +339,7 @@
 			targets = (
 				042635EF2F288EA100BB939D /* Reflect */,
 				04F2606D2F33602B00BF5E99 /* Quick ActionsExtension */,
+				ACC0000000000000000000A2 /* ReflectClip */,
 			);
 		};
 /* End PBXProject section */
@@ -240,6 +353,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		04F2606C2F33602B00BF5E99 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ACC0000000000000000000AF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -263,6 +383,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ACC0000000000000000000AD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ACC0000000000000000000D2 /* Constants.swift in Sources */,
+				ACC0000000000000000000D3 /* SpaceReflection.swift in Sources */,
+				ACC0000000000000000000D4 /* SpaceAnswer.swift in Sources */,
+				ACC0000000000000000000D5 /* SpaceQuestion.swift in Sources */,
+				ACC0000000000000000000D6 /* SpaceError.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -270,6 +402,11 @@
 			isa = PBXTargetDependency;
 			target = 04F2606D2F33602B00BF5E99 /* Quick ActionsExtension */;
 			targetProxy = 04F2607C2F33602C00BF5E99 /* PBXContainerItemProxy */;
+		};
+		ACC0000000000000000000AC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ACC0000000000000000000A2 /* ReflectClip */;
+			targetProxy = ACC0000000000000000000AB /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -533,6 +670,76 @@
 			};
 			name = Release;
 		};
+		ACC0000000000000000000A4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ReflectClip/ReflectClip.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 9NAU7R3577;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ReflectClip/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect.Clip;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		ACC0000000000000000000A5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ReflectClip/ReflectClip.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 9NAU7R3577;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ReflectClip/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect.Clip;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -559,6 +766,15 @@
 			buildConfigurations = (
 				04F260802F33602C00BF5E99 /* Debug */,
 				04F260812F33602C00BF5E99 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ACC0000000000000000000A3 /* Build configuration list for PBXNativeTarget "ReflectClip" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ACC0000000000000000000A4 /* Debug */,
+				ACC0000000000000000000A5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
