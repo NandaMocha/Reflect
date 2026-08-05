@@ -70,7 +70,7 @@ struct SpaceAllResponsesView: View {
                                 viewModel.select(questionId: answer.questionId)
                                 dismiss()
                             },
-                            onDelete: { Task { await viewModel.deleteOwnAnswer(for: answer.questionId) } }
+                            onDelete: { Task { await viewModel.deleteOwnAnswer(answer) } }
                         )
                     }
                 }

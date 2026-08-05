@@ -4,7 +4,8 @@ import UIKit
 
 /// Backs one reflection's answering flow: per-question answers, posting, and deleting your
 /// own. Cache-first paint, sync-on-appear; not real-time — designed for "recently synced"
-/// (plan §11.4). One answer per member per question (upsert replaces, never duplicates).
+/// (plan §11.4). Members may post multiple answers per question; editing targets a specific
+/// answer id rather than a question.
 @Observable
 @MainActor
 final class SpaceThreadViewModel {
@@ -14,9 +15,11 @@ final class SpaceThreadViewModel {
     let space: Space
     var reflection: SpaceReflection
     var answers: [SpaceAnswer] = []
-    /// The question currently shown in the composer. Defaults to the first question I haven't
-    /// answered yet so members are steered toward finishing the set.
-    var activeQuestionId: String?
+    /// The question currently shown in the segmented control / composer. Always has a value —
+    /// there is no "nothing selected" state.
+    var selectedQuestionId: String
+    /// The answer id being edited, if any. `nil` means the composer will create a new answer.
+    var editingAnswerID: String?
     var isRefreshing: Bool = false
     var errorMessage: String?
 
@@ -47,6 +50,7 @@ final class SpaceThreadViewModel {
     ) {
         self.space = space
         self.reflection = reflection
+        self.selectedQuestionId = reflection.questions.first?.id ?? ""
         self.fetchUseCase = fetchUseCase
         self.upsertUseCase = upsertUseCase
         self.deleteUseCase = deleteUseCase
@@ -59,45 +63,38 @@ final class SpaceThreadViewModel {
     var responseLimit: Int { Constants.Limits.spaceResponseMaxLength }
     var draftCount: Int { draft.count }
 
-    /// My answer to a given question, if I've posted one.
-    func myAnswer(for questionId: String?) -> SpaceAnswer? {
-        guard let questionId else { return nil }
-        return answers.first { $0.isMine && $0.questionId == questionId }
+    /// My answers to a given question, oldest first.
+    func myAnswers(for questionId: String) -> [SpaceAnswer] {
+        answers
+            .filter { $0.isMine && $0.questionId == questionId }
+            .sorted { ($0.modifiedAt ?? $0.createdAt ?? .distantPast) < ($1.modifiedAt ?? $1.createdAt ?? .distantPast) }
     }
 
-    /// IDs of the questions I've already answered.
-    var answeredQuestionIds: Set<String> {
-        Set(answers.filter(\.isMine).map(\.questionId))
+    /// The number of answers I've posted to a given question, for the segment dot.
+    func myAnswerCount(for questionId: String) -> Int {
+        myAnswers(for: questionId).count
     }
 
-    /// All answers (any author) to a given question.
+    /// All answers (any author) to a given question, oldest first.
     func answers(for questionId: String) -> [SpaceAnswer] {
-        answers.filter { $0.questionId == questionId }
+        answers
+            .filter { $0.questionId == questionId }
+            .sorted { ($0.modifiedAt ?? $0.createdAt ?? .distantPast) < ($1.modifiedAt ?? $1.createdAt ?? .distantPast) }
     }
 
-    var activeQuestion: SpaceQuestion? {
-        guard let activeQuestionId else { return nil }
-        return reflection.questions.first { $0.id == activeQuestionId }
-    }
-
-    /// True when submitting the composer would overwrite an answer I already posted, rather
-    /// than create a new one.
-    var isEditingExistingAnswer: Bool {
-        myAnswer(for: activeQuestionId) != nil
+    var selectedQuestion: SpaceQuestion? {
+        reflection.questions.first { $0.id == selectedQuestionId }
     }
 
     var canPost: Bool {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        return activeQuestionId != nil && !trimmed.isEmpty && trimmed.count <= responseLimit && !isPosting
+        return !trimmed.isEmpty && trimmed.count <= responseLimit && !isPosting
     }
 
     // MARK: - Actions
 
     func load() async {
         answers = repository.cachedAnswers(reflectionID: reflection.id)
-        if activeQuestionId == nil {
-            activeQuestionId = firstUnansweredQuestionId()
-        }
         await refresh()
     }
 
@@ -107,9 +104,6 @@ final class SpaceThreadViewModel {
         defer { isRefreshing = false }
         do {
             answers = try await fetchUseCase.execute(for: reflection, in: space)
-            if activeQuestionId == nil {
-                activeQuestionId = firstUnansweredQuestionId()
-            }
             errorMessage = nil
         } catch is CancellationError {
             // Cancelled pull-to-refresh — not a real error.
@@ -118,41 +112,47 @@ final class SpaceThreadViewModel {
         }
     }
 
-    /// Clears whatever the composer is currently showing (edit prefill or a fresh draft),
-    /// leaving `activeQuestionId` untouched so the composer stays pointed at the same question.
-    func clearDraftPrefill() {
+    /// Changes which question's answers are shown. Does not touch the composer.
+    func select(questionId: String) {
+        selectedQuestionId = questionId
+    }
+
+    /// Points the composer at an existing answer for editing.
+    func beginEditing(_ answer: SpaceAnswer) {
+        editingAnswerID = answer.id
+        selectedQuestionId = answer.questionId
+        draft = answer.text
+        draftImage = answer.imageData.flatMap(UIImage.init(data:))
+    }
+
+    /// Abandons an in-progress edit, clearing the composer back to a fresh draft.
+    func cancelEditing() {
+        editingAnswerID = nil
         draft = ""
         draftImage = nil
     }
 
-    /// Makes a question active, prefilling the composer from my existing answer when present.
-    func select(questionId: String) {
-        activeQuestionId = questionId
-        if let existing = myAnswer(for: questionId) {
-            draft = existing.text
-            draftImage = existing.imageData.flatMap(UIImage.init(data:))
-        } else {
-            draft = ""
-            draftImage = nil
-        }
-    }
-
-    /// Posts the draft to the active question and auto-advances to the next unanswered one.
+    /// Posts the draft — creating a new answer, or updating the one being edited.
     func submit() async {
-        guard canPost, let questionId = activeQuestionId else { return }
+        guard canPost else { return }
         isPosting = true
         defer { isPosting = false }
         // Land our display name in the zone before the answer, so other members see who
         // answered instead of "A member".
         await registerMyDisplayNameIfKnown()
         do {
-            let answer = try await upsertUseCase.execute(
-                to: reflection,
-                in: space,
-                questionId: questionId,
-                text: draft,
-                image: draftImage
-            )
+            let answer: SpaceAnswer
+            if let editingAnswerID, let existing = answers.first(where: { $0.id == editingAnswerID }) {
+                answer = try await upsertUseCase.update(answer: existing, in: space, text: draft, image: draftImage)
+            } else {
+                answer = try await upsertUseCase.create(
+                    to: reflection,
+                    in: space,
+                    questionId: selectedQuestionId,
+                    text: draft,
+                    image: draftImage
+                )
+            }
             if let index = answers.firstIndex(where: { $0.id == answer.id }) {
                 answers[index] = answer
             } else {
@@ -160,12 +160,8 @@ final class SpaceThreadViewModel {
             }
             draft = ""
             draftImage = nil
+            editingAnswerID = nil
             HapticManager.shared.success()
-            if let next = firstUnansweredQuestionId() {
-                select(questionId: next)
-            } else {
-                activeQuestionId = nil
-            }
         } catch {
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
@@ -176,18 +172,18 @@ final class SpaceThreadViewModel {
     /// question rewording or removal cascade may have deleted some of them server-side.
     func applyEditedReflection(_ updated: SpaceReflection) async {
         reflection = updated
-        if let activeQuestionId, !updated.questions.contains(where: { $0.id == activeQuestionId }) {
-            self.activeQuestionId = nil
+        if !updated.questions.contains(where: { $0.id == selectedQuestionId }) {
+            selectedQuestionId = updated.questions.first?.id ?? ""
         }
         await refresh()
     }
 
-    func deleteOwnAnswer(for questionId: String) async {
-        guard let answer = myAnswer(for: questionId) else { return }
+    func deleteOwnAnswer(_ answer: SpaceAnswer) async {
         do {
             try await deleteUseCase.execute(answer: answer, in: space)
             answers.removeAll { $0.id == answer.id }
-            if activeQuestionId == questionId {
+            if editingAnswerID == answer.id {
+                editingAnswerID = nil
                 draft = ""
                 draftImage = nil
             }
@@ -213,11 +209,6 @@ final class SpaceThreadViewModel {
     }
 
     // MARK: - Private Helpers
-
-    private func firstUnansweredQuestionId() -> String? {
-        let answered = answeredQuestionIds
-        return reflection.questions.first { !answered.contains($0.id) }?.id
-    }
 
     /// Best-effort mirror of the saved display name into the space's zone. Silent — a failed
     /// registration must never block posting.
