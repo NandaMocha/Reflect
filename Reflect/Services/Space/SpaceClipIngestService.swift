@@ -72,11 +72,23 @@ final class SpaceClipIngestService: SpaceClipIngestServiceProtocol {
         // Cheap batched precheck restricted to `requestToken`/`questionsJSON`, same
         // pattern `SpaceMirrorService.publishMirrors` uses, so a sync pass with no
         // tokenized reflections in it never pays for a public-DB query at all.
-        let precheckRecords = try await fetchRecords(
-            recordIDs: reflectionIDs.map { CKRecord.ID(recordName: $0, zoneID: zoneID) },
-            database: database,
-            desiredKeys: [SpaceRecordField.requestToken, SpaceRecordField.questionsJSON]
-        )
+        //
+        // `reflectionIDs` is the whole zone's tokenized-reflection set on a full
+        // snapshot sync (first sync, or after `changeTokenExpired`), not just the
+        // delta — chunked to CloudKit's ≤400-records-per-operation limit (same
+        // convention as `SpaceMirrorService.chunked(into:)`) so a single oversized
+        // fetch can't throw and abort the entire ingestion pass before any pending
+        // record is looked at.
+        let recordIDs = reflectionIDs.map { CKRecord.ID(recordName: $0, zoneID: zoneID) }
+        var precheckRecords: [CKRecord.ID: Result<CKRecord, Error>] = [:]
+        for batch in Self.chunked(recordIDs, into: 400) {
+            let batchResults = try await fetchRecords(
+                recordIDs: batch,
+                database: database,
+                desiredKeys: [SpaceRecordField.requestToken, SpaceRecordField.questionsJSON]
+            )
+            precheckRecords.merge(batchResults) { _, new in new }
+        }
 
         for (recordID, result) in precheckRecords {
             guard case .success(let record) = result,
@@ -176,7 +188,20 @@ final class SpaceClipIngestService: SpaceClipIngestServiceProtocol {
         // "pcf-<submissionId>" -> "guest-<submissionId>": the deterministic Answer
         // recordName AC-012 owns. Must derive from the SAME submissionId the client
         // minted, never a fresh one, or a retried ingest would double-post.
+        //
+        // Never trust the endpoint's recordName alone: without this prefix/emptiness
+        // guard, a malformed or adversarial recordName (e.g. "xyz-ABC123", or exactly
+        // "pcf-") derives a colliding or shared "guest-..." Answer recordName — combined
+        // with the `.serverRecordChanged`-is-idempotent-success path below, that second
+        // colliding record would be silently treated as "already ingested" and its
+        // PendingClipFeedback deleted, destroying the guest's real feedback.
+        guard pending.recordID.recordName.hasPrefix(ClipMirrorRecordName.pendingClipFeedbackPrefix) else {
+            throw SpaceClipIngestError.ingestFailed("malformed pending recordName")
+        }
         let submissionId = String(pending.recordID.recordName.dropFirst(ClipMirrorRecordName.pendingClipFeedbackPrefix.count))
+        guard !submissionId.isEmpty else {
+            throw SpaceClipIngestError.ingestFailed("malformed pending recordName")
+        }
         let answerRecordName = "guest-" + submissionId
         let answerRecord = SpaceRecordMapper.makeAnswerRecord(
             recordName: answerRecordName,
@@ -227,6 +252,16 @@ final class SpaceClipIngestService: SpaceClipIngestServiceProtocol {
     }
 
     // MARK: - CloudKit primitives
+
+    /// Splits `items` into chunks of at most `size`. Same convention as
+    /// `SpaceMirrorService`'s private `Array.chunked(into:)` — duplicated rather than
+    /// shared per this service's deliberate independence from `SpaceMirrorService`.
+    private static func chunked<T>(_ items: [T], into size: Int) -> [[T]] {
+        guard size > 0, !items.isEmpty else { return items.isEmpty ? [] : [items] }
+        return stride(from: 0, to: items.count, by: size).map {
+            Array(items[$0..<Swift.min($0 + size, items.count)])
+        }
+    }
 
     private func database(for lane: SpaceLane) -> CKDatabase {
         switch lane {
