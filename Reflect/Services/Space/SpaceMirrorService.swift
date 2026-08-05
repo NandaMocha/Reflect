@@ -60,8 +60,17 @@ final class SpaceMirrorService: SpaceMirrorServiceProtocol {
     // MARK: - Dependencies
 
     private let container = CKContainer(identifier: "iCloud.xyz.nandamochammad.Reflect")
-    private lazy var privateDB: CKDatabase = container.privateCloudDatabase
-    private lazy var publicDB: CKDatabase = container.publicCloudDatabase
+    // Non-lazy: `publishMirrorsIfOwned`, `publishMirrorIfOwned`, and `revokeMirrorsIfOwned`
+    // each spawn their own `Task.detached` against this one shared instance, so first
+    // access can race across concurrent tasks. `lazy` stored-property initialization is
+    // not thread-safe; a plain `let` sidesteps the race entirely.
+    private let privateDB: CKDatabase
+    private let publicDB: CKDatabase
+
+    init() {
+        privateDB = container.privateCloudDatabase
+        publicDB = container.publicCloudDatabase
+    }
 
     // MARK: - Publish
 
@@ -71,6 +80,31 @@ final class SpaceMirrorService: SpaceMirrorServiceProtocol {
         guard zone.lane == .privateDB else { throw SpaceMirrorError.notOwner }
 
         let zoneID = CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
+
+        // Cheap pre-check: fetch just this one reflection record (not a full zone
+        // download) and bail out on `.noRequestToken` before paying for
+        // `fetchAllRecords`'s tokenless zone-changes fetch, which pulls down every
+        // record — including every image CKAsset — in the zone. Callers publish
+        // per-reflection on every sync pass regardless of whether that reflection is
+        // actually tokenized, so this check has to be cheap for the common
+        // not-yet-shared case.
+        let reflectionRecordID = CKRecord.ID(recordName: reflectionID, zoneID: zoneID)
+        let precheckRecord: CKRecord
+        do {
+            precheckRecord = try await privateDB.record(for: reflectionRecordID)
+        } catch let error as CKError where error.code == .unknownItem {
+            throw SpaceMirrorError.reflectionNotFound
+        } catch {
+            throw SpaceMirrorError.publishFailed(error.localizedDescription)
+        }
+        guard precheckRecord.recordType == SpaceRecordType.spaceReflection else {
+            throw SpaceMirrorError.reflectionNotFound
+        }
+        guard let precheckToken = precheckRecord[SpaceRecordField.requestToken] as? String,
+              !precheckToken.isEmpty else {
+            throw SpaceMirrorError.noRequestToken
+        }
+
         let records: [CKRecord]
         do {
             records = try await fetchAllRecords(in: zoneID)
@@ -339,27 +373,52 @@ final class SpaceMirrorService: SpaceMirrorServiceProtocol {
         }
     }
 
-    /// Queries the public database. Requires the field's Queryable index (AC-H1) — until
-    /// that Console setup lands this throws, which callers here treat as "nothing to
-    /// diff against yet" rather than a hard failure.
+    /// Queries the public database, following the query cursor to every page. Requires
+    /// the field's Queryable index (AC-H1) — until that Console setup lands this throws,
+    /// which callers here treat as "nothing to diff against yet" rather than a hard
+    /// failure.
+    ///
+    /// CloudKit caps a single query response (~100 records) and returns a cursor for the
+    /// rest — the earlier single-page version silently dropped everything past page 1,
+    /// which in `revokeMirror` left later `MirroredAnswer` pages live and publicly
+    /// readable after "revocation", and in `diffAndSave` broke orphan detection past
+    /// page 1. Same page-walking convention as `CloudSyncService.forEachPage`.
     private func queryRecords(type: String, predicate: NSPredicate) async throws -> [CKRecord] {
+        var records: [CKRecord] = []
         let query = CKQuery(recordType: type, predicate: predicate)
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecord], Error>) in
-            var records: [CKRecord] = []
-            let operation = CKQueryOperation(query: query)
+        var cursor = try await runQueryPage(CKQueryOperation(query: query), into: &records)
+
+        while let currentCursor = cursor {
+            cursor = try await runQueryPage(CKQueryOperation(cursor: currentCursor), into: &records)
+        }
+
+        return records
+    }
+
+    /// Runs one `CKQueryOperation` page against the public database, appends its
+    /// matches to `records`, and returns the cursor for the next page (nil when this was
+    /// the last page).
+    private func runQueryPage(
+        _ operation: CKQueryOperation,
+        into records: inout [CKRecord]
+    ) async throws -> CKQueryOperation.Cursor? {
+        let (pageRecords, cursor) = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<([CKRecord], CKQueryOperation.Cursor?), Error>) in
+            var pageRecords: [CKRecord] = []
             operation.recordMatchedBlock = { _, result in
-                if case .success(let record) = result { records.append(record) }
+                if case .success(let record) = result { pageRecords.append(record) }
             }
             operation.queryResultBlock = { result in
                 switch result {
-                case .success:
-                    continuation.resume(returning: records)
+                case .success(let cursor):
+                    continuation.resume(returning: (pageRecords, cursor))
                 case .failure(let error):
                     continuation.resume(throwing: error)
                 }
             }
             publicDB.add(operation)
         }
+        records.append(contentsOf: pageRecords)
+        return cursor
     }
 
     /// One `CKModifyRecordsOperation` against the public database, batched to CloudKit's
