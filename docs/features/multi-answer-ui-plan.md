@@ -91,7 +91,7 @@ The whole point of the wave structure below is that **more than one agent or ses
 
 **Goal:** `SpaceThreadViewModel` stops being keyed one-answer-per-question. **Runs alone. Effort:** ~3 h.
 
-- [ ] TASK-009: **(largest task — must land atomically)** Rewrite `Thread/SpaceThreadViewModel.swift` around answer ids:
+- [x] TASK-009: **(largest task — must land atomically)** Rewrite `Thread/SpaceThreadViewModel.swift` around answer ids:
   - **State:** replace `activeQuestionId: String?` with a non-optional `selectedQuestionId: String` (seeded to the first question — the segmented control always has a selection); add `editingAnswerID: String?`. Delete `isEditingExistingAnswer` in favor of `editingAnswerID != nil`.
   - **Computed:** replace `myAnswer(for:)` with `myAnswers(for questionId:) -> [SpaceAnswer]` sorted by `modifiedAt ?? createdAt` ascending; keep `answers(for:)` but sort it the same way; delete `answeredQuestionIds`'s binary use and expose `myAnswerCount(for questionId:) -> Int` for the segment dot; `canPost` drops the `activeQuestionId != nil` clause.
   - **Actions:** `select(questionId:)` only changes selection and no longer prefills the composer; add `beginEditing(_ answer: SpaceAnswer)` (sets `editingAnswerID`, prefills `draft`/`draftImage`) and `cancelEditing()`; `submit()` routes to `update` when `editingAnswerID != nil` else `create`, replacing-or-appending in `answers` as it does today, then clears draft, photo, and `editingAnswerID` — **and no longer auto-advances**; `deleteOwnAnswer(for questionId:)` becomes `deleteOwnAnswer(_ answer: SpaceAnswer)`, clearing the composer only when that answer was being edited.
