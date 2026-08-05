@@ -6,12 +6,12 @@ import SwiftUI
 struct SpaceAllResponsesView: View {
     @Bindable var viewModel: SpaceThreadViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedQuestionId: String?
+    @State private var selectedQuestionId: String
     @State private var showShareSheet = false
 
     init(viewModel: SpaceThreadViewModel) {
         self.viewModel = viewModel
-        _selectedQuestionId = State(initialValue: viewModel.reflection.questions.first?.id)
+        _selectedQuestionId = State(initialValue: viewModel.reflection.questions.first?.id ?? "")
     }
 
     private var selectedQuestion: SpaceQuestion? {
@@ -19,8 +19,7 @@ struct SpaceAllResponsesView: View {
     }
 
     private var filteredAnswers: [SpaceAnswer] {
-        guard let selectedQuestionId else { return [] }
-        return viewModel.answers(for: selectedQuestionId)
+        viewModel.answers(for: selectedQuestionId)
     }
 
     @ViewBuilder
@@ -29,7 +28,7 @@ struct SpaceAllResponsesView: View {
         if questions.count > 1 {
             Picker("Question", selection: $selectedQuestionId) {
                 ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
-                    Text("Q\(index + 1)").tag(question.id as String?)
+                    Text("Q\(index + 1)").tag(question.id)
                 }
             }
             .pickerStyle(.segmented)
@@ -65,7 +64,7 @@ struct SpaceAllResponsesView: View {
                             answer: answer,
                             spaceName: viewModel.space.name,
                             onEdit: { answer in
-                                viewModel.select(questionId: answer.questionId)
+                                viewModel.beginEditing(answer)
                                 dismiss()
                             },
                             onDelete: { answer in Task { await viewModel.deleteOwnAnswer(answer) } }
@@ -83,7 +82,7 @@ struct SpaceAllResponsesView: View {
         // it; without this the segmented picker holds a dead tag and the list reads empty.
         .onChange(of: viewModel.reflection.questions) { _, questions in
             if !questions.contains(where: { $0.id == selectedQuestionId }) {
-                selectedQuestionId = questions.first?.id
+                selectedQuestionId = questions.first?.id ?? ""
             }
         }
         .toolbar {
