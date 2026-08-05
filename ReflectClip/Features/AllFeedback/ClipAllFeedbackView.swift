@@ -38,7 +38,7 @@ struct ClipAllFeedbackView: View {
             .navigationTitle("All feedback")
             .navigationBarTitleDisplayMode(.inline)
             .task { await viewModel.load() }
-            .onChange(of: viewModel.questions) { _, questions in
+            .onChange(of: viewModel.questions, initial: true) { _, questions in
                 if !questions.contains(where: { $0.id == selectedQuestionId }) {
                     selectedQuestionId = questions.first?.id ?? ""
                 }
@@ -61,7 +61,7 @@ struct ClipAllFeedbackView: View {
                         .padding(.vertical, Constants.Spacing.xl)
                 } else {
                     ForEach(items) { item in
-                        ClipAnswerBubble(item: item, requestTitle: viewModel.request?.title ?? "")
+                        ClipAnswerBubble(item: item, requestTitle: viewModel.request?.title ?? "", session: session)
                     }
                 }
 
@@ -87,7 +87,9 @@ struct ClipAllFeedbackView: View {
         if questions.count > 1 {
             Picker("Question", selection: $selectedQuestionId) {
                 ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
-                    Text("Q\(index + 1)").tag(question.id)
+                    Text("Q\(index + 1)")
+                        .tag(question.id)
+                        .accessibilityLabel(question.text)
                 }
             }
             .pickerStyle(.segmented)

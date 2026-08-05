@@ -19,6 +19,17 @@ final class ClipDIContainer {
 
     private init() {}
 
+    // MARK: - Shared Instances
+
+    /// Shared like `session` — the composer screen (`ClipYourFeedbackViewModel`) and the All
+    /// Feedback screen (`ClipAllFeedbackViewModel`) must observe the same actor instance's
+    /// in-memory state. Before this was a `lazy var`, `makePendingAnswerStore()` minted a fresh
+    /// `LivePendingAnswerStore()` per call, so the two screens held independent instances
+    /// coordinated only through the shared App Group file — and since `persist()` swallows write
+    /// failures, an unresolved container could let a guest submit and immediately see "No
+    /// feedback yet," defeating the pending-answer echo this store exists to provide.
+    private(set) lazy var sharedPendingAnswerStore: PendingAnswerStoring = LivePendingAnswerStore()
+
     // MARK: - Factories
 
     func makeGuestIdentityStore() -> GuestIdentityStoring {

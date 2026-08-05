@@ -138,6 +138,15 @@ final class ClipSession {
         phase = .allFeedback
     }
 
+    /// Reverse of `advanceToAllFeedback()`: the retry affordance on a `.queued` answer bubble
+    /// (`ClipAnswerBubble`) routes back here since there's no in-place retry mechanism yet — the
+    /// guest re-submits from the composer, which reuses the same `.queued` `PendingAnswerStore`
+    /// entry via `enqueueIfAbsent` rather than double-enqueueing. A no-op from any other phase.
+    func returnToCompose() {
+        guard phase == .allFeedback else { return }
+        phase = .compose
+    }
+
     /// Routes to the existing "this link isn't working" phase from anywhere the guest discovers
     /// the request is dead: a `.invalidLink` load failure (`ClipYourFeedbackViewModel.load()`) or
     /// a `.linkRevoked` submit failure (same view model's `submit()`). Reusing `.invalidLink`

@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// One answer bubble in `ClipAllFeedbackView`. Mirrors
 /// `Reflect/Presentation/Features/Space/Thread/AnswerBubble.swift` conceptually (reference only,
@@ -15,11 +14,13 @@ import UIKit
 struct ClipAnswerBubble: View {
     let item: ClipFeedbackItem
     let requestTitle: String
+    let session: ClipSession
 
     /// Destination for reports, matching `ReportContentButton`'s address.
     private let reportEmail = "nanda.mocha@gmail.com"
 
     @State private var showNoMailAlert = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         switch item {
@@ -34,16 +35,9 @@ struct ClipAnswerBubble: View {
 
     private func confirmedBubble(_ answer: SpaceAnswer) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Text(byline(for: answer))
-                    .font(.caption.weight(.semibold))
-                if let createdAt = answer.createdAt {
-                    Text("·")
-                    Text(createdAt, format: .relative(presentation: .named))
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(answer.isMine ? .primary : .secondary)
+            bylineRow(for: answer)
+                .font(.caption)
+                .foregroundStyle(answer.isMine ? .primary : .secondary)
 
             Text(answer.text)
                 .font(.body)
@@ -62,6 +56,37 @@ struct ClipAnswerBubble: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Email \(reportEmail) to report this feedback.")
+        }
+        // Without this, Report is reachable only via direct touch + long-press on the
+        // `.contextMenu` above — VoiceOver/Voice Control/Switch Control users have no way to
+        // reach it. Matches `pendingBubble`'s `.accessibilityElement(children: .combine)` pattern.
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Report") {
+            openReportMail(contentID: answer.id)
+        }
+    }
+
+    /// Guest name (up to 50 chars) + "·" + relative date. A plain non-wrapping `HStack` truncates
+    /// at large Dynamic Type sizes, so `ViewThatFits` falls back to a two-line `VStack` when the
+    /// single-line layout doesn't fit instead of clipping the byline.
+    private func bylineRow(for answer: SpaceAnswer) -> some View {
+        ViewThatFits {
+            HStack(spacing: 4) {
+                Text(byline(for: answer))
+                    .font(.caption.weight(.semibold))
+                if let createdAt = answer.createdAt {
+                    Text("·")
+                    Text(createdAt, format: .relative(presentation: .named))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(byline(for: answer))
+                    .font(.caption.weight(.semibold))
+                if let createdAt = answer.createdAt {
+                    Text(createdAt, format: .relative(presentation: .named))
+                }
+            }
         }
     }
 
@@ -87,6 +112,13 @@ struct ClipAnswerBubble: View {
             Text(pending.body)
                 .font(.body)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            if pending.state == .queued {
+                Button("Go back and retry") {
+                    session.returnToCompose()
+                }
+                .font(.caption.weight(.semibold))
+            }
         }
         .padding(Constants.Spacing.sm)
         .background(bubbleBackground(highlighted: true))
@@ -100,7 +132,7 @@ struct ClipAnswerBubble: View {
     private func pendingStatusLabel(for state: PendingAnswer.State) -> String {
         switch state {
         case .queued:
-            return "Sending…"
+            return "Saved on this device — not sent yet"
         case .sent:
             return "Waiting for the owner to sync"
         case .failed:
@@ -108,10 +140,15 @@ struct ClipAnswerBubble: View {
         }
     }
 
+    /// `.queued` (never delivered, needs the guest to retry) reads as more urgent than `.sent`
+    /// (delivered, just waiting on the owner's next sync) — both stay plain system semantic
+    /// colors since `Color.error`/`Color.primaryDefault` aren't shared into this target.
     private func pendingStatusColor(for state: PendingAnswer.State) -> Color {
         switch state {
-        case .queued, .sent:
+        case .queued:
             return .orange
+        case .sent:
+            return .secondary
         case .failed:
             return .red
         }
@@ -121,7 +158,7 @@ struct ClipAnswerBubble: View {
 
     private func bubbleBackground(highlighted: Bool) -> some View {
         RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-            .fill(highlighted ? Color.accentColor.opacity(0.10) : Color.secondary.opacity(0.08))
+            .fill(highlighted ? AnyShapeStyle(.tint.opacity(0.10)) : AnyShapeStyle(Color.secondary.opacity(0.08)))
     }
 
     /// Reimplemented Clip-side rather than importing `ReportContentButton` — that type lives
@@ -150,8 +187,8 @@ struct ClipAnswerBubble: View {
             showNoMailAlert = true
             return
         }
-        UIApplication.shared.open(url) { opened in
-            if !opened { showNoMailAlert = true }
+        openURL(url) { accepted in
+            if !accepted { showNoMailAlert = true }
         }
     }
 }
