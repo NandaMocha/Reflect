@@ -327,6 +327,6 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
 
 extension ClipDIContainer {
     func makePendingAnswerStore() -> PendingAnswerStoring {
-        LivePendingAnswerStore()
+        sharedPendingAnswerStore
     }
 }

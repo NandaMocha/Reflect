@@ -66,6 +66,12 @@ final class ClipAllFeedbackViewModel {
     private let pendingAnswerStore: PendingAnswerStoring
     private let logger = Logger(subsystem: "xyz.nandamochammad.Reflect.Clip", category: "ClipAllFeedbackViewModel")
 
+    /// Guards against `load()` (from `.task`) and `refresh()` (from `.refreshable`) running
+    /// concurrently — without this, two overlapping `fetch(isInitialLoad:)` calls could each
+    /// reset/overwrite state independently and whichever response lands last wins regardless of
+    /// which one started first.
+    private var isFetching = false
+
     // MARK: - Initialization
 
     init(session: ClipSession, repository: ClipSpaceRepositoring, pendingAnswerStore: PendingAnswerStoring) {
@@ -116,6 +122,10 @@ final class ClipAllFeedbackViewModel {
     // MARK: - Private Helpers
 
     private func fetch(isInitialLoad: Bool) async {
+        guard !isFetching else { return }
+        isFetching = true
+        defer { isFetching = false }
+
         guard let token = session.requestToken, let identity = session.guestIdentity else {
             session.markLinkInvalid()
             return
