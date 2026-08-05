@@ -667,6 +667,56 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         return answer
     }
 
+    func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer {
+        let database = database(for: zone.lane)
+        let zoneID = ckZoneID(for: zone)
+        guard let myRecordName = await currentUserRecordName() else {
+            throw SpaceError.syncFailed("Could not resolve the current user's record name")
+        }
+
+        let recordName = SpaceAnswer.newRecordName(reflectionID: reflection.id, questionId: questionId, authorRecordName: myRecordName)
+        let imageAsset = try imageData.map { try Self.makeImageAsset($0) }
+        let record = SpaceRecordMapper.makeAnswerRecord(
+            recordName: recordName,
+            zoneID: zoneID,
+            reflectionID: reflection.id,
+            questionId: questionId,
+            text: text,
+            imageAsset: imageAsset
+        )
+
+        let saved = try await withRetry { try await database.save(record) }
+        guard let answer = SpaceRecordMapper.answer(from: saved, isMine: true) else {
+            throw SpaceError.syncFailed("Could not map the saved answer")
+        }
+        return answer
+    }
+
+    func updateAnswer(id: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer {
+        let database = database(for: zone.lane)
+        let zoneID = ckZoneID(for: zone)
+        let recordID = CKRecord.ID(recordName: id, zoneID: zoneID)
+        let imageAsset = try imageData.map { try Self.makeImageAsset($0) }
+
+        let saved: CKRecord
+        do {
+            saved = try await withRetry { () -> CKRecord in
+                let record = try await database.record(for: recordID)
+                record[SpaceRecordField.text] = text as CKRecordValue
+                // nil imageData clears the asset — CloudKit removes a field when set to nil.
+                record[SpaceRecordField.imageAsset] = imageAsset
+                return try await database.save(record)
+            }
+        } catch let error as CKError where error.code == .unknownItem {
+            throw SpaceError.answerNotFound
+        }
+
+        guard let answer = SpaceRecordMapper.answer(from: saved, isMine: true) else {
+            throw SpaceError.syncFailed("Could not map the updated answer")
+        }
+        return answer
+    }
+
     /// Deletes a record and any children parented to it. The hierarchy uses parent
     /// references with `action: .none` (required for CKShare), which do NOT cascade on the
     /// server — so deleting a reflection here also deletes its response records in the same
