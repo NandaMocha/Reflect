@@ -17,7 +17,8 @@ You are the PLANNER (runs once per batch). Your only output is a task queue.
 5. Finish by running: python3 loop/loop.py status
    Then stop. Do NOT implement anything.
 
-Note: for the multi-question feedback feature, the breakdown already exists
-and is dependency-ordered in docs/features/multi-question-feedback-plan.md —
-prefer loading it directly (one loop.py add per TASK-NNN) over re-deriving a
-breakdown from scratch, the same way MargaSatya loaded its own TASKS.md.
+Note: this project keeps dependency-ordered breakdowns in docs/features/*-plan.md
+(see loop.config's PLAN_DOC for the one currently being executed). If a plan doc
+already covers the goal, prefer loading it directly — one loop.py add per
+TASK-NNN, or a seeder script alongside the existing ones in loop/ — over
+re-deriving a breakdown from scratch.

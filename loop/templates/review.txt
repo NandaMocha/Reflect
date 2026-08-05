@@ -35,11 +35,28 @@ so you can read real files, not just a diff.
      `Input` + `execute` shape, domain-specific `LocalizedError` enums (no
      silent `try?`), no hardcoded colors — whatever's relevant to the files
      touched.
-   - For this feature specifically: no persisted `Response` record reappearing,
-     `Question` stays an embedded `questionsJSON` field (not a new CKRecord
-     type), the deterministic-CKRecord-ID upsert pattern is used correctly
-     for `Answer`, cascading question-deletion actually deletes the CloudKit
+   - Standing Space-feature invariants: no persisted `Response` record
+     reappearing, `Question` stays an embedded `questionsJSON` field (not a new
+     CKRecord type), cascading question-deletion actually deletes the CloudKit
      records (not just the local cache).
+   - Feature-specific rules come from the PLAN_DOC (path given below), NOT from
+     memory of an earlier feature. Read the task's section before judging.
+     Note for the multi-answer plan specifically: it DELIBERATELY reverses the
+     deterministic-CKRecord-ID upsert pattern for `Answer` — record names gain a
+     UUID so a member can post several answers to one question. Do not flag that
+     reversal as a defect; it is the point of the feature.
+
+5b. PARALLEL-SAFETY GATE (applies whenever the plan doc gives tasks an "owns:"
+   file list). Run `git diff <WORK_BRANCH>...HEAD --name-only` and compare it to
+   the owned-file list in this task's plan-doc entry:
+   - A file changed that the task does not own is an automatic request-changes,
+     even if the change is otherwise correct. A concurrent task may own that
+     file, and the conflict surfaces at merge time when it is far more expensive
+     to resolve. Name the offending paths in the feedback.
+   - Exception: `Reflect.xcodeproj/project.pbxproj` may be touched by any task
+     that adds a file to the target.
+   - An owned file left untouched is NOT a defect — tasks may legitimately need
+     fewer files than they reserved.
 
 6. Decide:
    - CLEAN (build green, skills raised nothing blocking, scope matches the
