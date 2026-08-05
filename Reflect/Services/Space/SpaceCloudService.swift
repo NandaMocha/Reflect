@@ -744,21 +744,25 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
     /// Kicks off a detached, best-effort mirror publish for every reflection this sync
     /// pass touched (directly, or via one of its answers) — only for owned (private-DB)
-    /// zones; a joined participant's sync must never write the public mirror. Errors
-    /// (including "not tokenized", which isn't really an error) are swallowed here by
-    /// design — see the call site's comment in `fetchChanges`.
+    /// zones; a joined participant's sync must never write the public mirror. All
+    /// candidates go through a single `publishMirrors` call so the zone snapshot and
+    /// author-name map are fetched once for the whole batch rather than once per
+    /// reflection (AC-011 review fix — see `SpaceMirrorService.publishMirrors`).
+    /// Per-reflection errors (including "not tokenized", which isn't really an error)
+    /// are swallowed inside `publishMirrors` itself; only a batch-level failure (e.g.
+    /// the shared zone fetch failing) reaches the `catch` below.
     private func publishMirrorsIfOwned(zone: SpaceZoneRef, reflections: [SpaceReflection], answers: [SpaceAnswer]) {
         guard zone.lane == .privateDB else { return }
 
         // Every reflection touched by this sync pass — directly, or via one of its
-        // answers — is a publish candidate. `SpaceMirrorService.publishMirror` resolves
-        // tokenization itself with one cheap single-record fetch and throws
-        // `.noRequestToken` (swallowed below, not logged) before doing any full
-        // zone-changes download, so filtering candidates here isn't needed to keep this
-        // cheap — and filtering here previously made the answer-driven publish path
-        // dead: an answer added to an already-tokenized reflection whose own record
-        // isn't part of *this* delta (the common case on an incremental sync) was never
-        // a candidate, so new guest-visible answers never reached the public mirror.
+        // answers — is a publish candidate. `SpaceMirrorService.publishMirrors` resolves
+        // tokenization itself with one cheap single-record fetch per candidate before
+        // doing any full zone-changes download, so filtering candidates here isn't
+        // needed to keep this cheap — and filtering here previously made the
+        // answer-driven publish path dead: an answer added to an already-tokenized
+        // reflection whose own record isn't part of *this* delta (the common case on an
+        // incremental sync) was never a candidate, so new guest-visible answers never
+        // reached the public mirror.
         var candidateReflectionIDs = Set(reflections.map { $0.id })
         for answer in answers {
             candidateReflectionIDs.insert(answer.reflectionID)
@@ -767,16 +771,12 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
         let mirrorService = self.mirrorService
         Task.detached(priority: .utility) {
-            for reflectionID in candidateReflectionIDs {
-                do {
-                    try await mirrorService.publishMirror(reflectionID: reflectionID, zone: zone)
-                } catch SpaceMirrorError.noRequestToken {
-                    // Not shared to a guest — nothing to publish, not worth logging.
-                } catch {
-                    #if DEBUG
-                    print("[SpaceMirrorService] publish failed for \(reflectionID): \(error)")
-                    #endif
-                }
+            do {
+                try await mirrorService.publishMirrors(reflectionIDs: candidateReflectionIDs, zone: zone)
+            } catch {
+                #if DEBUG
+                print("[SpaceMirrorService] publish batch failed for \(candidateReflectionIDs): \(error)")
+                #endif
             }
         }
     }
@@ -786,16 +786,15 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     /// already-tokenized reflection (AC-011 review fix), so the orphaned MirroredAnswer
     /// is diffed out on the next publish rather than lingering forever. Same
     /// fire-and-forget rationale as `publishMirrorsIfOwned`/`revokeMirrorsIfOwned` — the
-    /// private-DB delete has already succeeded by the time this runs.
+    /// private-DB delete has already succeeded by the time this runs. Calls the same
+    /// batched `publishMirrors` entry point with a one-element set.
     private func publishMirrorIfOwned(zone: SpaceZoneRef, reflectionID: String) {
         guard zone.lane == .privateDB else { return }
 
         let mirrorService = self.mirrorService
         Task.detached(priority: .utility) {
             do {
-                try await mirrorService.publishMirror(reflectionID: reflectionID, zone: zone)
-            } catch SpaceMirrorError.noRequestToken {
-                // Not shared to a guest — nothing to publish, not worth logging.
+                try await mirrorService.publishMirrors(reflectionIDs: [reflectionID], zone: zone)
             } catch {
                 #if DEBUG
                 print("[SpaceMirrorService] publish failed for \(reflectionID): \(error)")
