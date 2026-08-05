@@ -11,3 +11,10 @@ loop/lane-*.log
 loop/REPLAN-*.sh
 loop/REPLAN-*.sh.applied
 loop/REPLAN-*.sh.failed
+
+# CloudKit server-to-server keys — never commit private keys
+*.pem
+*.p8
+*.p12
+eckey*
+cloudkit-key*
