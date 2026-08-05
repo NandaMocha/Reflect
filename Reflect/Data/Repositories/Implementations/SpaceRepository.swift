@@ -242,23 +242,16 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return cachedAnswers(reflectionID: reflection.id)
     }
 
-    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer {
-        let answer = try await cloudService.upsertAnswer(to: reflection, questionId: questionId, text: text, imageData: imageData, in: space.zoneID)
-        try upsertAnswer(answer)
-        try modelContext.save()
-        return answer
-    }
-
     func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer {
         let answer = try await cloudService.createAnswer(to: reflection, questionId: questionId, text: text, imageData: imageData, in: space.zoneID)
-        try upsertAnswer(answer)
+        try cacheAnswer(answer)
         try modelContext.save()
         return answer
     }
 
     func updateAnswer(_ answer: SpaceAnswer, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer {
         let updated = try await cloudService.updateAnswer(id: answer.id, text: text, imageData: imageData, in: space.zoneID)
-        try upsertAnswer(updated)
+        try cacheAnswer(updated)
         try modelContext.save()
         return updated
     }
@@ -279,7 +272,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             try upsertReflection(reflection)
         }
         for answer in delta.answers {
-            try upsertAnswer(answer)
+            try cacheAnswer(answer)
         }
         for deletedID in delta.deletedRecordIDs {
             try removeCachedContentRow(id: deletedID)
@@ -380,7 +373,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         }
     }
 
-    private func upsertAnswer(_ answer: SpaceAnswer) throws {
+    private func cacheAnswer(_ answer: SpaceAnswer) throws {
         let id = answer.id
         let descriptor = FetchDescriptor<CachedAnswer>(predicate: #Predicate { $0.id == id })
         if let existing = try modelContext.fetch(descriptor).first {

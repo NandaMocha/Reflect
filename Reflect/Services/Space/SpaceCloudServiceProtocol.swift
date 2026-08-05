@@ -83,15 +83,9 @@ protocol SpaceCloudServiceProtocol {
     /// Caller guards `isMine`.
     func updateReflection(id: String, in zone: SpaceZoneRef, title: String, note: String?, questions: [SpaceQuestion]) async throws -> SpaceReflection
 
-    /// Creates or overwrites the current user's answer to one question of a reflection.
-    /// The record name is deterministic (`SpaceAnswer.recordName`), so re-submitting an
-    /// answer to the same question overwrites the same record rather than creating a
-    /// duplicate. `imageData` nil clears any existing image asset.
-    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer
-
     /// Creates a new answer record with a fresh, uniquely-suffixed record name (via
     /// `SpaceAnswer.newRecordName`), so multiple answers to the same question by the same
-    /// author coexist instead of overwriting each other (unlike `upsertAnswer`).
+    /// author coexist instead of overwriting each other.
     /// `imageData` (already-compressed JPEG bytes) is uploaded as a `CKAsset` when present.
     func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer
 

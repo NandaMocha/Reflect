@@ -32,7 +32,7 @@ final class SpaceThreadViewModel {
     // MARK: - Dependencies
 
     private let fetchUseCase: FetchAnswersUseCaseProtocol
-    private let upsertUseCase: UpsertAnswerUseCaseProtocol
+    private let writeUseCase: AnswerWriteUseCaseProtocol
     private let deleteUseCase: DeleteOwnSpaceContentUseCaseProtocol
     private let repository: SpaceRepositoryProtocol
     private let exportUseCase: ExportFeedbackRequestUseCaseProtocol
@@ -43,7 +43,7 @@ final class SpaceThreadViewModel {
         space: Space,
         reflection: SpaceReflection,
         fetchUseCase: FetchAnswersUseCaseProtocol,
-        upsertUseCase: UpsertAnswerUseCaseProtocol,
+        writeUseCase: AnswerWriteUseCaseProtocol,
         deleteUseCase: DeleteOwnSpaceContentUseCaseProtocol,
         repository: SpaceRepositoryProtocol,
         exportUseCase: ExportFeedbackRequestUseCaseProtocol
@@ -52,7 +52,7 @@ final class SpaceThreadViewModel {
         self.reflection = reflection
         self.selectedQuestionId = reflection.questions.first?.id ?? ""
         self.fetchUseCase = fetchUseCase
-        self.upsertUseCase = upsertUseCase
+        self.writeUseCase = writeUseCase
         self.deleteUseCase = deleteUseCase
         self.repository = repository
         self.exportUseCase = exportUseCase
@@ -143,9 +143,9 @@ final class SpaceThreadViewModel {
         do {
             let answer: SpaceAnswer
             if let editingAnswerID, let existing = answers.first(where: { $0.id == editingAnswerID }) {
-                answer = try await upsertUseCase.update(answer: existing, in: space, text: draft, image: draftImage)
+                answer = try await writeUseCase.update(answer: existing, in: space, text: draft, image: draftImage)
             } else {
-                answer = try await upsertUseCase.create(
+                answer = try await writeUseCase.create(
                     to: reflection,
                     in: space,
                     questionId: selectedQuestionId,

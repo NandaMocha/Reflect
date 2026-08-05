@@ -629,44 +629,6 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         }
     }
 
-    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer {
-        let database = database(for: zone.lane)
-        let zoneID = ckZoneID(for: zone)
-        guard let myRecordName = await currentUserRecordName() else {
-            throw SpaceError.syncFailed("Could not resolve the current user's record name")
-        }
-
-        let recordName = SpaceAnswer.recordName(reflectionID: reflection.id, questionId: questionId, authorRecordName: myRecordName)
-        let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
-        let imageAsset = try imageData.map { try Self.makeImageAsset($0) }
-
-        let saved = try await withRetry { () -> CKRecord in
-            let record: CKRecord
-            do {
-                record = try await database.record(for: recordID)
-            } catch let error as CKError where error.code == .unknownItem {
-                record = SpaceRecordMapper.makeAnswerRecord(
-                    recordName: recordName,
-                    zoneID: zoneID,
-                    reflectionID: reflection.id,
-                    questionId: questionId,
-                    text: text,
-                    imageAsset: imageAsset
-                )
-                return try await database.save(record)
-            }
-            record[SpaceRecordField.text] = text as CKRecordValue
-            // nil imageData clears the asset — CloudKit removes a field when set to nil.
-            record[SpaceRecordField.imageAsset] = imageAsset
-            return try await database.save(record)
-        }
-
-        guard let answer = SpaceRecordMapper.answer(from: saved, isMine: true) else {
-            throw SpaceError.syncFailed("Could not map the saved answer")
-        }
-        return answer
-    }
-
     func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer {
         let database = database(for: zone.lane)
         let zoneID = ckZoneID(for: zone)
