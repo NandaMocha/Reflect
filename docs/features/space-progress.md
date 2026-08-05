@@ -51,7 +51,8 @@ session:
 - Kill and relaunch either account's app and confirm cache-first paint (answers appear before
   the network refresh completes)
 
-Do this once alongside H2/H3 before considering the feedback flow fully shipped.
+**✅ Done 2026-08-05** — walked through on two devices / two accounts alongside H2 and H3, all
+behaviors as specified (including the question-delete cascade across both members).
 
 ### Multi-question feedback cutover (2026-08-04) — schema change, Dev-only, no migration
 
@@ -131,8 +132,14 @@ than necessary just means re-creating test data twice. Status: **not yet done** 
   (row thumbnail + thread header) and survived an airplane-mode reopen from the SwiftData cache;
   R4-F1 authorship check held (B saw no delete affordance on A's content). Run per
   [h2-runbook.md](h2-runbook.md).
-- **H3** two-device P1 UI verification (incl. the R4-F1 `isMine` authorship check on the shared lane,
-  + cold-launch invite).
+- ~~**H3** two-device P1 UI verification~~ — **✅ PASSED 2026-08-05.** Full lifecycle through the
+  real UI on two accounts: create → invite → join → leave → rejoin → remove → delete, plus the
+  cold-launch invite. R4-F1 `isMine` authorship check confirmed on the shared lane.
+- ~~**TASK-014** two-account multi-answer walkthrough~~ — **✅ PASSED 2026-08-05.** Multi-answer
+  post/edit/delete matched by answer id with the other answers untouched after sync; photo on a
+  non-first answer; segment switching; owner question-delete cascading to **all** members' answers
+  for that question; `answerIndex` correct per member per question in both exports; cache-first
+  paint on relaunch.
 - **H4** CloudKit Console: **deploy schema Dev→Production** (record types `Space`/`SpaceReflection`/
   `MemberProfile`/`Answer` + subscriptions, **incl. the new `SpaceReflection.imageAsset` field** —
   post one photo from a dev build first so it exists in Dev) — release footgun; TestFlight talks
@@ -289,13 +296,20 @@ line; entities CloudKit-free; `SpaceStore` isolated from main schema; no `UIWind
   (devicectl id `6920DFDC-D656-5ABD-9AA5-A9BB73DBF989`) — that's **Device A**.
 - **H2 — two-device spike: ✅ PASSED 2026-08-05** (see the H2 entry under "Remaining before ship").
 
-## ▶ NEXT ACTION: H3 + TASK-014 (two-device UI verification)
+## ▶ NEXT ACTION: H4 — deploy the CloudKit schema Dev→Production
 
-**H2 passed 2026-08-05** — the P0 exit criterion is met. The accept round-trip, incremental sync,
-photo delivery and authorship model are all confirmed on hardware. Next is H3 (full UI lifecycle:
-create → invite → join → leave → remove → delete, plus cold-launch invite) and TASK-014 (multi-answer
-edit/delete/cascade across two accounts), both of which want the same two-device setup. After those:
-**H4** — deploy the CloudKit schema Dev→Production, the release footgun.
+**H2, H3 and TASK-014 all passed 2026-08-05.** The P0 exit criterion is met. The accept round-trip, incremental sync,
+photo delivery and authorship model are all confirmed on hardware, as is the full UI lifecycle
+(H3) and the multi-answer walkthrough (TASK-014).
+
+**Next is H4 — the release footgun.** Production schema is effectively append-only: record types and
+fields cannot be removed once deployed. Before deploying, confirm the Development schema contains
+nothing you do not want permanently in Production — in particular the pre-cutover `Response` record
+type and the `promptText`/`responseText` fields on `SpaceReflection`, which TASK-006's manual
+CloudKit reset was supposed to clear and which was never confirmed done. Delete those in Dev first
+if they are still there. What SHOULD deploy: `Space`, `SpaceReflection` (incl. `questionsJSON` and
+`imageAsset`), `MemberProfile`, `Answer`, subscriptions, and the App Clip's public-database
+`PendingClipFeedback`. Then **H5** — TestFlight two-device E2E against the Production schema.
 
 ## (historical) H2 procedure — kept for reference
 
