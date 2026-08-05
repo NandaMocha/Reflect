@@ -156,8 +156,8 @@ final class DIContainer {
     }
 
     @MainActor
-    func makeUpsertAnswerUseCase() -> UpsertAnswerUseCaseProtocol {
-        UpsertAnswerUseCase(
+    func makeAnswerWriteUseCase() -> AnswerWriteUseCaseProtocol {
+        AnswerWriteUseCase(
             repository: makeSpaceRepository(),
             imageService: makeImageProcessingService()
         )
@@ -219,7 +219,7 @@ final class DIContainer {
             space: space,
             reflection: reflection,
             fetchUseCase: makeFetchAnswersUseCase(),
-            upsertUseCase: makeUpsertAnswerUseCase(),
+            writeUseCase: makeAnswerWriteUseCase(),
             deleteUseCase: makeDeleteOwnAnswerUseCase(),
             repository: makeSpaceRepository(),
             exportUseCase: makeExportFeedbackRequestUseCase()

@@ -74,10 +74,6 @@ protocol SpaceRepositoryProtocol {
     /// this reflection). Returns the reconciled cache.
     func fetchAnswers(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceAnswer]
 
-    /// Creates or overwrites the current user's answer to one question, then caches it
-    /// (cloud first, per `SpaceCloudServiceProtocol.upsertAnswer`).
-    func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer
-
     /// Creates a new answer to a question, coexisting with any other answers the user has
     /// already given to it, then caches it (cloud first, per `SpaceCloudServiceProtocol.createAnswer`).
     func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer
