@@ -24,6 +24,9 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
     private lazy var privateDB: CKDatabase = container.privateCloudDatabase
     private lazy var sharedDB: CKDatabase = container.sharedCloudDatabase
+    /// Only used by the Clip mirror (AC-010+): `TokenIndex`/`MirroredRequest`/
+    /// `MirroredAnswer` are public-DB records, unlike the rest of the Space hierarchy.
+    private lazy var publicDB: CKDatabase = container.publicCloudDatabase
 
     /// The current user's record name in this container, resolved once and reused for
     /// `isMine` comparisons. Guarded by `userRecordNameLock` because the service is not
@@ -625,6 +628,60 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 return reflection
             } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
                 conflictRetries += 1
+            }
+        }
+    }
+
+    // MARK: - Clip guest feedback — AC-010
+
+    func ensureRequestToken(for reflectionID: String, in zone: SpaceZoneRef) async throws -> String {
+        // Only the owner mints a link for their own request — a joined participant has
+        // no business creating a public lookup entry for a zone they don't own.
+        guard zone.lane == .privateDB else { throw SpaceError.notOwner }
+
+        let database = database(for: zone.lane)
+        let recordID = CKRecord.ID(recordName: reflectionID, zoneID: ckZoneID(for: zone))
+
+        // Fetch-modify-save, same conflict handling as `updateReflection`.
+        var conflictRetries = 0
+        while true {
+            do {
+                let record = try await withRetry { try await database.record(for: recordID) }
+
+                // Idempotent: an already-tokenized reflection returns the stored token
+                // untouched — no re-save, no duplicate `TokenIndex`.
+                if let existingToken = record[SpaceRecordField.requestToken] as? String,
+                   !existingToken.isEmpty {
+                    return existingToken
+                }
+
+                let token = ClipToken.generate()
+
+                // Create the public TokenIndex BEFORE persisting the token onto the
+                // reflection record. If `fetchShare`/`saveOverwriting` throws (e.g. the
+                // space isn't shared yet), the reflection is left untouched and a later
+                // call retries cleanly instead of short-circuiting on a token that was
+                // never indexed (see AC-010 review).
+                let share = try await fetchShare(for: zone)
+                guard let shareURL = share.url?.absoluteString else {
+                    throw SpaceError.shareFailed("Share has no URL yet")
+                }
+                let tokenIndexRecord = SpaceRecordMapper.makeTokenIndexRecord(
+                    token: token,
+                    shareURL: shareURL,
+                    reflectionID: reflectionID,
+                    zoneOwnerName: zone.ownerName
+                )
+                try await saveOverwriting(tokenIndexRecord, in: publicDB)
+
+                record[SpaceRecordField.requestToken] = token as CKRecordValue
+                _ = try await withRetry { try await database.save(record) }
+
+                return token
+            } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
+                conflictRetries += 1
+            } catch let error as CKError where error.code == .unknownItem {
+                throw SpaceError.notFound
             }
         }
     }
