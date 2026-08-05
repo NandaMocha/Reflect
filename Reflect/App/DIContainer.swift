@@ -78,7 +78,15 @@ final class DIContainer {
     // MARK: - Space
 
     func makeSpaceCloudService() -> SpaceCloudServiceProtocol {
-        SpaceCloudService()
+        SpaceCloudService(mirrorService: makeSpaceMirrorService())
+    }
+
+    /// The Clip guest-feedback public mirror publisher (AC-011). `SpaceCloudService`
+    /// takes this as a constructor dependency and calls it off its sync/delete paths;
+    /// exposed here too for any future caller (e.g. AC-014's share-revocation wiring)
+    /// that needs to call `revokeMirror` directly.
+    func makeSpaceMirrorService() -> SpaceMirrorServiceProtocol {
+        SpaceMirrorService()
     }
 
     @MainActor

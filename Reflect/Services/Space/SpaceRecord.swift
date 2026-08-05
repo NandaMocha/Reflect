@@ -326,4 +326,86 @@ enum SpaceRecordMapper {
         record[ClipMirrorField.zoneOwnerName] = zoneOwnerName as CKRecordValue
         return record
     }
+
+    // MARK: - Clip Mirror: MirroredRequest / MirroredAnswer (public DB, AC-011)
+
+    /// Builds (or rebuilds) the public-DB `MirroredRequest` record for one tokenized
+    /// `SpaceReflection`. `recordName` is deterministic in `token` (via
+    /// `SpaceMirrorRecordName.mirroredRequest`) so re-publishing overwrites the same
+    /// record — `SpaceMirrorService` upserts with `.allKeys`. Lives in the public
+    /// database's default zone, like `TokenIndex`.
+    static func makeMirroredRequestRecord(
+        token: String,
+        title: String,
+        note: String?,
+        questionsJSON: String,
+        thumbnail: CKAsset?
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: SpaceMirrorRecordName.mirroredRequest(for: token))
+        let record = CKRecord(recordType: ClipMirrorRecordType.mirroredRequest, recordID: recordID)
+        record[ClipMirrorField.requestToken] = token as CKRecordValue
+        record[ClipMirrorField.title] = title as CKRecordValue
+        if let note {
+            record[ClipMirrorField.note] = note as CKRecordValue
+        }
+        record[ClipMirrorField.questionsJSON] = questionsJSON as CKRecordValue
+        if let thumbnail {
+            record[ClipMirrorField.thumbnail] = thumbnail
+        }
+        return record
+    }
+
+    /// Builds (or rebuilds) the public-DB `MirroredAnswer` record mirroring one owned
+    /// `Answer`. `recordName` is deterministic in the source Answer's record name (via
+    /// `SpaceMirrorRecordName.mirroredAnswer`), so diffing against a source `Answer` that
+    /// no longer exists is a simple recordName-set comparison (`SpaceMirrorService`).
+    static func makeMirroredAnswerRecord(
+        token: String,
+        sourceAnswerRecordName: String,
+        questionId: String,
+        answerIndex: Int,
+        authorDisplayName: String,
+        text: String,
+        guestId: String?
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: SpaceMirrorRecordName.mirroredAnswer(for: sourceAnswerRecordName))
+        let record = CKRecord(recordType: ClipMirrorRecordType.mirroredAnswer, recordID: recordID)
+        record[ClipMirrorField.requestToken] = token as CKRecordValue
+        record[ClipMirrorField.sourceAnswerRecordName] = sourceAnswerRecordName as CKRecordValue
+        record[ClipMirrorField.questionId] = questionId as CKRecordValue
+        record[ClipMirrorField.answerIndex] = answerIndex as CKRecordValue
+        record[ClipMirrorField.authorDisplayName] = authorDisplayName as CKRecordValue
+        record[ClipMirrorField.text] = text as CKRecordValue
+        if let guestId {
+            record[ClipMirrorField.guestId] = guestId as CKRecordValue
+        }
+        return record
+    }
+}
+
+// MARK: - Mirror recordName conventions (AC-011)
+
+/// `recordName` conventions for the mirror records `SpaceMirrorService` publishes.
+///
+/// Deliberately separate from `ClipMirrorRecordName` (in `ClipShared/ClipMirrorSchema.swift`,
+/// read-only after AC-010): that file only defines the conventions the Clip target itself
+/// depends on byte-for-byte (`TokenIndex`, `PendingClipFeedback`). `MirroredRequest`/
+/// `MirroredAnswer` are looked up by the Clip via a `requestToken` query, never by
+/// recordName, so their naming is a full-app-only implementation detail owned here.
+enum SpaceMirrorRecordName {
+    static let mirroredRequestPrefix = "mreq-"
+    static let mirroredAnswerPrefix = "mans-"
+
+    /// The `MirroredRequest` recordName for a given token — one per token, so
+    /// re-publishing overwrites in place instead of accumulating duplicates.
+    static func mirroredRequest(for token: String) -> String {
+        mirroredRequestPrefix + token
+    }
+
+    /// The `MirroredAnswer` recordName for one source `Answer` record — deterministic in
+    /// the Answer's own recordName so `SpaceMirrorService` can diff "does a mirror for
+    /// this Answer already exist" without a query.
+    static func mirroredAnswer(for sourceAnswerRecordName: String) -> String {
+        mirroredAnswerPrefix + sourceAnswerRecordName
+    }
 }
