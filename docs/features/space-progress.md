@@ -125,10 +125,12 @@ than necessary just means re-creating test data twice. Status: **not yet done** 
   path** — includes "second fetch of a quiet zone transfers ~nothing".
 
 ### Remaining before ship (ALL hardware/human — none are code)
-- **H2** two-device spike accept round-trip (needs **Device B** = 2nd iCloud account; Device A
-  passed avail/create/share/probe-write). Use Settings → 🧪 Space Debug on the installed build.
-  **Add:** verify a photo-carrying request reaches Device B (row thumbnail + thread header;
-  survives airplane-mode reopen via the SwiftData cache).
+- ~~**H2** two-device spike accept round-trip~~ — **✅ PASSED 2026-08-05.** Two devices on two
+  iCloud accounts: create → share → accept on B → B's probe reflection visible on A; incremental
+  re-fetch of the quiet zone transferred ~nothing (T26); photo-carrying request reached Device B
+  (row thumbnail + thread header) and survived an airplane-mode reopen from the SwiftData cache;
+  R4-F1 authorship check held (B saw no delete affordance on A's content). Run per
+  [h2-runbook.md](h2-runbook.md).
 - **H3** two-device P1 UI verification (incl. the R4-F1 `isMine` authorship check on the shared lane,
   + cold-launch invite).
 - **H4** CloudKit Console: **deploy schema Dev→Production** (record types `Space`/`SpaceReflection`/
@@ -285,9 +287,17 @@ line; entities CloudKit-free; `SpaceStore` isolated from main schema; no `UIWind
     Console record types auto-create on first write during the spike.
 - **The current feature/space build (with the spike harness) is INSTALLED on _Nanda iPhone 16_**
   (devicectl id `6920DFDC-D656-5ABD-9AA5-A9BB73DBF989`) — that's **Device A**.
-- **H2 — two-device spike: ⏳ PENDING (next action).**
+- **H2 — two-device spike: ✅ PASSED 2026-08-05** (see the H2 entry under "Remaining before ship").
 
-## ▶ NEXT ACTION: run H2 (two-device spike). P0 exit criterion.
+## ▶ NEXT ACTION: H3 + TASK-014 (two-device UI verification)
+
+**H2 passed 2026-08-05** — the P0 exit criterion is met. The accept round-trip, incremental sync,
+photo delivery and authorship model are all confirmed on hardware. Next is H3 (full UI lifecycle:
+create → invite → join → leave → remove → delete, plus cold-launch invite) and TASK-014 (multi-answer
+edit/delete/cascade across two accounts), both of which want the same two-device setup. After those:
+**H4** — deploy the CloudKit schema Dev→Production, the release footgun.
+
+## (historical) H2 procedure — kept for reference
 
 > **Full step-by-step: [h2-runbook.md](h2-runbook.md)** — prerequisites (incl. signing Device B),
 > the exact button sequence, photo + authorship checks, what each failure implicates, and the H3 /
