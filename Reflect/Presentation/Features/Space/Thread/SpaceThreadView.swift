@@ -12,6 +12,7 @@ struct SpaceThreadView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var answerPendingDeletion: (questionId: String, number: Int)?
     @State private var showEditQuestions = false
+    @State private var noteExpanded = false
 
     init(space: Space, reflection: SpaceReflection) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceThreadViewModel(reflection: reflection, space: space))
@@ -99,34 +100,46 @@ struct SpaceThreadView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
-            Text(viewModel.reflection.title)
-                .font(.title3.weight(.bold))
+            HStack(alignment: .top, spacing: Constants.Spacing.sm) {
+                VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
+                    Text(viewModel.reflection.title)
+                        .font(.title3.weight(.bold))
+                        .lineLimit(3)
 
-            if let note = viewModel.reflection.note, !note.isEmpty {
-                Text(note)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let imageData = viewModel.reflection.imageData,
-               let uiImage = UIImage(data: imageData) {
-                Button {
-                    showImageFullscreen = true
-                } label: {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 180)
-                        .clipShape(.rect(cornerRadius: Constants.CornerRadius.medium))
+                    if let note = viewModel.reflection.note, !note.isEmpty {
+                        Text(note)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(noteExpanded ? nil : 3)
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: Constants.Animation.quickDuration)) {
+                                    noteExpanded.toggle()
+                                }
+                            }
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Attached photo")
-                .fullScreenCover(isPresented: $showImageFullscreen) {
-                    ImageFullscreenViewer(
-                        images: [FullscreenImage(id: UUID(), image: uiImage)],
-                        startingIndex: 0
-                    )
+
+                Spacer(minLength: 0)
+
+                if let imageData = viewModel.reflection.imageData,
+                   let uiImage = UIImage(data: imageData) {
+                    Button {
+                        showImageFullscreen = true
+                    } label: {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 88, height: 88)
+                            .clipShape(.rect(cornerRadius: Constants.CornerRadius.medium))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Attached photo")
+                    .fullScreenCover(isPresented: $showImageFullscreen) {
+                        ImageFullscreenViewer(
+                            images: [FullscreenImage(id: UUID(), image: uiImage)],
+                            startingIndex: 0
+                        )
+                    }
                 }
             }
 
@@ -140,6 +153,7 @@ struct SpaceThreadView: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
