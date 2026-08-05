@@ -26,8 +26,12 @@ struct SpaceQuestionListEditor: View {
 
     var body: some View {
         Section {
-            ForEach($questions) { $question in
-                questionRow(question: $question)
+            // Iterates values (not `ForEach($questions)`) so a row never holds an
+            // index-based binding into the array. A row that deletes itself used to leave
+            // SwiftUI re-evaluating that stale binding, which trapped with "Index out of
+            // range"; `binding(for:)` below resolves by id and no-ops once the row is gone.
+            ForEach(questions) { question in
+                questionRow(question: question)
             }
             .onDelete(perform: delete)
             .onMove(perform: move)
@@ -67,15 +71,15 @@ struct SpaceQuestionListEditor: View {
 
     // MARK: - Row
 
-    private func questionRow(question: Binding<SpaceQuestion>) -> some View {
+    private func questionRow(question: SpaceQuestion) -> some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.xxs) {
             HStack(alignment: .top, spacing: Constants.Spacing.xs) {
-                TextField("Question", text: question.text, axis: .vertical)
+                TextField("Question", text: textBinding(for: question.id), axis: .vertical)
                     .lineLimit(1...4)
 
                 if questions.count > 1 {
                     Button(role: .destructive) {
-                        deleteQuestion(id: question.wrappedValue.id)
+                        deleteQuestion(id: question.id)
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -85,15 +89,15 @@ struct SpaceQuestionListEditor: View {
             }
 
             HStack {
-                Text("\(question.wrappedValue.text.count)/\(Constants.Limits.spaceQuestionTextMaxLength)")
+                Text("\(question.text.count)/\(Constants.Limits.spaceQuestionTextMaxLength)")
                     .foregroundStyle(
-                        question.wrappedValue.text.count > Constants.Limits.spaceQuestionTextMaxLength
+                        question.text.count > Constants.Limits.spaceQuestionTextMaxLength
                             ? Color.error
                             : Color.secondary
                     )
                     .monospacedDigit()
 
-                let rowAnswerCount = answerCount(question.wrappedValue.id)
+                let rowAnswerCount = answerCount(question.id)
                 if rowAnswerCount > 0 {
                     Spacer()
                     Text("\(rowAnswerCount) answer\(rowAnswerCount == 1 ? "" : "s")")
@@ -105,12 +109,24 @@ struct SpaceQuestionListEditor: View {
         .swipeActions(edge: .trailing) {
             if questions.count > 1 {
                 Button(role: .destructive) {
-                    deleteQuestion(id: question.wrappedValue.id)
+                    deleteQuestion(id: question.id)
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
             }
         }
+    }
+
+    /// Id-resolved text binding. Reads fall back to an empty string and writes no-op when the
+    /// row has already been removed, so a delete can never index past the end of the array.
+    private func textBinding(for id: String) -> Binding<String> {
+        Binding(
+            get: { questions.first { $0.id == id }?.text ?? "" },
+            set: { newValue in
+                guard let index = questions.firstIndex(where: { $0.id == id }) else { return }
+                questions[index].text = newValue
+            }
+        )
     }
 
     private var addQuestionButton: some View {
@@ -147,8 +163,11 @@ struct SpaceQuestionListEditor: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        guard questions.count > offsets.count, let index = offsets.first else { return }
-        deleteQuestion(id: questions[index].id)
+        // Resolve to ids before touching the array, and skip offsets that no longer exist —
+        // `onDelete` can fire with an index from a list state that has already changed.
+        let ids = offsets.compactMap { questions.indices.contains($0) ? questions[$0].id : nil }
+        guard questions.count > ids.count, let id = ids.first else { return }
+        deleteQuestion(id: id)
     }
 
     private func move(from source: IndexSet, to destination: Int) {
