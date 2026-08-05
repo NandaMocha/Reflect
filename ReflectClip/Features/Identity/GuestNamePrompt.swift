@@ -47,7 +47,7 @@ struct GuestNamePrompt: View {
     }
 
     private var isOverLimit: Bool {
-        name.count > Self.maxLength
+        trimmedName.count > Self.maxLength
     }
 
     private var canSubmit: Bool {
@@ -55,14 +55,17 @@ struct GuestNamePrompt: View {
     }
 
     var body: some View {
-        VStack(spacing: Constants.Spacing.lg) {
-            header
-            field
-            Button("Continue", action: submit)
-                .buttonStyle(.borderedProminent)
-                .disabled(!canSubmit)
+        ScrollView {
+            VStack(spacing: Constants.Spacing.lg) {
+                header
+                field
+                Button("Continue", action: submit)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSubmit)
+            }
+            .padding(Constants.Spacing.lg)
         }
-        .padding(Constants.Spacing.lg)
+        .scrollBounceBehavior(.basedOnSize)
         .onAppear { nameFieldFocused = true }
     }
 
@@ -91,7 +94,6 @@ struct GuestNamePrompt: View {
                 .onSubmit(submit)
                 .accessibilityLabel("Your name")
                 .accessibilityHint("Shown next to what you write in this feedback thread. Maximum \(Self.maxLength) characters.")
-                .accessibilityValue("\(name.count) of \(Self.maxLength) characters")
 
             Text("\(name.count)/\(Self.maxLength)")
                 .font(.caption)
