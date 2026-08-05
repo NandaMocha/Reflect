@@ -142,6 +142,10 @@ than necessary just means re-creating test data twice. Status: **not yet done** 
   environment schema must be updated (new `Answer` record type + `questionsJSON` field on
   `SpaceReflection`; old `Response`/`promptText` fields can be dropped) before H4's Dev→Production
   deploy, or Production will still reflect the old single-response shape.
+  **Also in this container's PUBLIC database (App Clip work, 2026-08-05):** `PendingClipFeedback`
+  now exists in Dev (String fields `requestToken` Queryable, `questionId`, `guestId`, `guestName`,
+  `body`, plus Queryable `recordName`). It must ride the same Dev→Production deploy. See
+  [app-clip-plan.md](app-clip-plan.md).
 - **H5** TestFlight two-device E2E incl. silent push.
 - **R5** review (triage H5 findings) + **T25** final regression/decoupling audit.
 - Optional: **push `develop`** to origin when ready (agents never push).
