@@ -171,12 +171,11 @@ struct SpaceThreadView: View {
             AnswerBubble(
                 answer: answer,
                 spaceName: viewModel.space.name,
-                questionNumber: (questions.firstIndex(where: { $0.id == answer.questionId }) ?? 0) + 1,
-                onEdit: {
+                onEdit: { answer in
                     viewModel.beginEditing(answer)
                     composerFocused = true
                 },
-                onDelete: { Task { await viewModel.deleteOwnAnswer(answer) } }
+                onDelete: { answer in Task { await viewModel.deleteOwnAnswer(answer) } }
             )
         }
     }
