@@ -190,7 +190,7 @@ final class SpaceClipIngestService: SpaceClipIngestServiceProtocol {
 
         do {
             _ = try await database.save(answerRecord)
-        } catch let error as CKError where error.code == .serverRecordChanged {
+        } catch let error as CKError where Self.ckErrorMatches(error, recordID: answerRecord.recordID, code: .serverRecordChanged) {
             // The deterministic recordName already exists on the server — a previous,
             // interrupted ingest attempt already saved this exact Answer. Idempotent
             // success: fall through to delete the pending record below.
@@ -206,9 +206,24 @@ final class SpaceClipIngestService: SpaceClipIngestServiceProtocol {
     private func deletePendingRecord(_ recordID: CKRecord.ID) async throws {
         do {
             _ = try await publicDB.deleteRecord(withID: recordID)
-        } catch let error as CKError where error.code == .unknownItem {
+        } catch let error as CKError where Self.ckErrorMatches(error, recordID: recordID, code: .unknownItem) {
             // Already gone — fine.
         }
+    }
+
+    /// True when `error` reports `code` for `recordID`, whether it arrives as the
+    /// top-level `CKError.code` (single-record `save`/`deleteRecord` convenience calls
+    /// usually surface it this way) or nested in `partialErrorsByItemID` under
+    /// `CKError.partialFailure` (the shape `CKModifyRecordsOperation`-backed calls can
+    /// use instead). Checking only the top-level code silently stops matching if a future
+    /// CloudKit/SDK change moves these calls onto the batch-operation path — the retry
+    /// loop above would then treat every retry as a genuine failure, saving the pending
+    /// record's `Answer` (or its delete) never completing (AC-012 review).
+    private static func ckErrorMatches(_ error: CKError, recordID: CKRecord.ID, code: CKError.Code) -> Bool {
+        if error.code == code { return true }
+        guard error.code == .partialFailure,
+              let itemErrors = error.partialErrorsByItemID else { return false }
+        return (itemErrors[AnyHashable(recordID)] as? CKError)?.code == code
     }
 
     // MARK: - CloudKit primitives
