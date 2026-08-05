@@ -2,6 +2,116 @@
 
 Status: **Planned, not started.** Written 2026-08-04; **revised 2026-08-05** (flow decided, schema re-based on `Answer`/`questionsJSON`, Phase 0.3 desk-half done, Phase 0.4 decided). Gated on the Space feature shipping (see [space-progress.md](space-progress.md)).
 
+## Plan Review — 2026-08-05 (second pass)
+
+Fresh-eyes review before execution. Task breakdown for Phases 1–5 lives in
+[app-clip-tasks.md](app-clip-tasks.md). Nothing below deletes prior content; where a statement in
+the body of this plan conflicts with this section, **this section wins**.
+
+### Decision 1 — Guest feedback is AUTO-POSTED on ingestion (owner approval is a fast-follow)
+
+The open question in Risk #2 / task 2.6 is now decided: **the owner's app auto-posts ingested guest
+feedback as `Answer` records; there is no approval queue in v1.** Reasoning:
+
+1. **The owner already has full moderation power for free.** Ingestion runs on the *owner's*
+   device, so every guest `Answer` is physically an owner-created record (`creatorUserRecordID` =
+   owner). CloudKit therefore lets the owner delete any guest answer natively — no new permission
+   machinery. We surface this as a delete affordance on guest-authored bubbles for the owner
+   (ticket AC-013), which is a genuine remove-objectionable-content mechanism per UGC 1.2.
+2. **Blocking exists via token revocation.** Un-sharing a request deletes its `TokenIndex` +
+   mirror records; the endpoint rejects unknown tokens. That is the "block abusive users" story.
+3. **Reporting already exists** (`ReportContentButton` on every bubble) and the Clip gets the
+   same affordance on its All-feedback screen.
+4. **An approval queue would NOT reduce scope** — ingestion still needs idempotency, attribution,
+   and sync hooks either way; approval only adds a UI surface and a new pending state machine. It
+   also worsens the submit→see-others gap (guest feedback invisible until the owner manually acts).
+5. App Review posture: unguessable-token, invite-only audience + report + owner-delete + token
+   revocation is a defensible 1.2 answer for a trusted-group product; a real approval queue is
+   documented as fast-follow if review pushes back.
+
+Consequences: task 2.6 (ticket AC-012) auto-posts; ticket AC-013 adds owner-side delete of guest
+answers; App Review notes (AC-051) must spell out the four moderation mechanisms.
+
+### Decision 2 — Guest attribution needs schema fields + full-app rendering (was under-specified)
+
+"Ingestion writes a `MemberProfile`-equivalent attribution" (§ Guest identity) was hand-waved.
+Because guest answers are created by the owner's device, the full app's `isMine`/byline logic
+(`creatorUserRecordID` comparison) would render them as the **owner's own answers**. Concretely:
+
+- Add optional String fields **`guestId`** and **`guestName`** to the existing `Answer` record
+  type (Production is append-only, but *adding* fields via a Dev→Production deploy is supported —
+  ride the same deploy as the mirror types, gate AC-H3).
+- `SpaceAnswer` entity + mapper + cached model gain the two optional fields; when `guestId` is
+  present the byline shows `guestName` with a "guest" marker, `isMine` is forced false for
+  everyone, and the **owner** (record creator) gets the delete affordance per Decision 1.
+- No `MemberProfile` record is written for guests in v1 — attribution rides on the `Answer`
+  itself, which is simpler and avoids fake member rows in member lists.
+
+This is new full-app work the phase tables didn't carry: ticket **AC-013**.
+
+### Stale items corrected (Phase 0 CloudKit deploy already happened)
+
+- **`PendingClipFeedback` no longer "rides H4" — it is LIVE in Production** as of 2026-08-05
+  (+2 indexes, +3 role grants), as is `Answer.imageAsset`. `Space`/`SpaceReflection`
+  (`questionsJSON`, `imageAsset`)/`MemberProfile`/`Answer` were already live before that. Every
+  "must ride the H4 Dev→Production deploy" note in this plan (tasks 2.1, spike bullets) is
+  **done** for `PendingClipFeedback` and **retargeted** for everything new: `MirroredRequest`,
+  `MirroredAnswer`, `TokenIndex`, `SpaceReflection.requestToken`, `Answer.guestId`/`guestName`
+  need Console definition in Development and a **new** Production schema deploy (human gate
+  **AC-H3** in the task breakdown).
+- Legacy `Response` type and `SpaceReflection.promptText` are **permanently stuck in both Dev and
+  Production** (append-only schema). They are verified dead code — ignore them everywhere; no
+  ticket attempts removal.
+- **Phase 0.5 is NOT complete.** The Clip App ID (`xyz.nandamochammad.Reflect.Clip`) does not
+  exist in the portal (the deployed AASA references it but it is non-functional until created).
+  Portal setup is human gate **AC-H1** and runs in parallel with wave 1; it does not block
+  simulator builds (ad-hoc signing), only device work.
+- Phase 0.3's **on-device half** (read-only public-DB entitlement + `CKQuery` perf on hardware)
+  is still outstanding — folded into the first hardware gate (AC-H4) rather than a separate spike.
+
+### Gaps closed in the write-path / data-layer design
+
+- **Duplicate submission on retry:** the Clip mints a client-side `submissionId` (UUID) per
+  answer; the endpoint writes the pending record with deterministic
+  `recordName = "pcf-<submissionId>"` using update-or-create semantics, and ingestion derives the
+  `Answer` recordName deterministically from the same id — so a retried POST or a re-ingested
+  pending record can never double-post. (The plan's "idempotent on guestId+questionId+client id"
+  is now concrete.)
+- **Offline guest:** submissions queue in the App Group and retry on next launch/foreground;
+  the optimistic echo renders from that queue, so offline compose is not lost. (Ticket AC-021.)
+- **Revoked/unknown token:** the endpoint validates `requestToken` against `TokenIndex` *before*
+  writing and returns 404/410; the Clip maps this to a friendly "this link is no longer active"
+  state. Revocation also deletes mirror records (AC-011) so stale reads fail closed.
+- **Owner never opens the app:** unfixable by design (ingestion runs client-side). Mitigated by
+  the mandatory optimistic echo plus honest copy on All-feedback ("Your feedback is delivered
+  when the owner next opens Reflect"). Documented as an accepted v1 limitation.
+- **Endpoint hardening was implied, now explicit:** per-IP + per-token rate limits, body length
+  caps mirroring `Constants.Limits`, max pending records per guest per request, and reject when
+  `questionId` is not in the request's `questionsJSON` (the endpoint gets the question list from
+  `TokenIndex`/`MirroredRequest`). Ticket AC-015.
+- **Clip target transitive-dependency guard:** Domain entity files shared into the Clip must stay
+  free of SwiftData/`DIContainer` imports; the task breakdown adds a grep gate
+  (`grep -rn "SwiftData\|DIContainer\b" <clip sources>` → zero hits) to every Clip ticket, and
+  AC-001 establishes a dedicated shared-files mechanism so membership stays auditable.
+
+### Project-mechanics decisions for execution
+
+- **`project.pbxproj` is edited by exactly one ticket (AC-001)** — adding the `ReflectClip`
+  target, entitlements, `_XCAppClipURL` scheme setting, and a `ClipShared` file-membership
+  mechanism (membership-exception sets on the synchronized root group) in one go. All later
+  tickets add files only into already-membered folders, preserving the "no ticket edits pbxproj"
+  discipline from the Space breakdown for every other ticket.
+- **`ClipDIContainer` factories live in per-feature `extension ClipDIContainer` blocks inside
+  each feature's own file** — this dissolves the DIContainer serial-lock bottleneck the Space
+  breakdown suffered (T11→T13→T14→T18→T20→T21 were forced serial on one file).
+- **Working-tree caution:** the main checkout currently has uncommitted `project.pbxproj` and
+  `SpaceThreadView.swift` changes plus untracked `scripts/` files. Ticket worktrees branch from
+  `develop`, so those diffs are invisible to executors — the human must commit/reconcile them
+  before merging wave 1, or AC-001's pbxproj merge will conflict.
+- The `/f/<token>` web landing page (fallback + Smart App Banner), previously only implied under
+  Hosting, is now a real ticket (AC-016), and uploading endpoint + page to cPanel is a human gate
+  (AC-H2) since agents have no server access.
+
 ## Goal — the decided flow
 
 An App Clip invoked from a **feedback-request** link that lets a visitor, without installing the full app:
