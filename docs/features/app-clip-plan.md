@@ -45,7 +45,14 @@ Mitigation, and it is mandatory rather than polish: the Clip keeps its submitted
 
 The user's existing domain + cPanel hosting covers both hosting needs.
 
-**Run the preflight first:** [`scripts/appclip-hosting-preflight.php`](../../scripts/appclip-hosting-preflight.php) — upload to `public_html/`, open in a browser, read the verdict, then delete it. It proves PHP/openssl can do ECDSA P-256 + SHA-256 signing, that cURL is present, and — the make-or-break check — that the host actually permits **outbound HTTPS to `api.apple-cloudkit.com`**. Budget shared hosts sometimes block outbound PHP connections entirely, which makes a CloudKit proxy impossible there at any price; the fallback is to host the endpoint on Cloudflare Workers/Vercel and keep the domain purely for AASA.
+**Status: hosting VERIFIED on `nandamochammad.xyz` (2026-08-05).** Preflight passed on every check, including outbound HTTPS to `api.apple-cloudkit.com` — so the write endpoint can live on this cPanel; no Cloudflare Worker/Vercel fallback needed. The AASA file is **deployed and serving** (see 4.1 below). Host specifics worth remembering:
+
+- **Web root is `/home/sesirkel/nandamochammad.xyz/nandamochammad`**, NOT `public_html` (addon-domain layout). Uploading to `public_html` silently targets a different domain on the account.
+- **Store the CloudKit `.pem` in `/home/sesirkel/nandamochammad.xyz/`** — writable, above the web root, not web-reachable.
+- Server is **LiteSpeed** (honours `.htaccess`) and assigns content-type **by file extension**, while sending `x-content-type-options: nosniff`. Since the AASA file deliberately has no extension, the `ForceType application/json` rule in `.well-known/.htaccess` is **required**, not optional.
+- `www` → apex 301, and Apple's fetcher does not follow redirects, so the **apex** (`nandamochammad.xyz`) is what belongs in the `appclips:` entitlement. Let's Encrypt cert SAN covers the apex explicitly (the wildcard CN alone would not have).
+
+**Re-run the preflight if the host ever changes:** [`scripts/appclip-hosting-preflight.php`](../../scripts/appclip-hosting-preflight.php) — upload to the web root, open in a browser, read the verdict, then delete it. It proves PHP/openssl can do ECDSA P-256 + SHA-256 signing, that cURL is present, and — the make-or-break check — that the host actually permits **outbound HTTPS to `api.apple-cloudkit.com`**. Budget shared hosts sometimes block outbound PHP connections entirely, which makes a CloudKit proxy impossible there at any price; the fallback is to host the endpoint on Cloudflare Workers/Vercel and keep the domain purely for AASA.
 
 Two further things to verify before wiring the entitlement:
 
@@ -120,7 +127,7 @@ Screen order follows the decided flow: **name alert → Your Feedback → All fe
 
 | # | Task | Effort | Depends on |
 |---|------|--------|-----------|
-| 4.1 | Publish AASA with `appclips` (and `applinks` for the full app) on the cPanel-hosted domain; verify with the AASA validator / device developer settings; confirm `.well-known/` isn't blocked and no forced redirect on that path | 0.5 day | 2.3 |
+| 4.1 | **DONE 2026-08-05 (deploy half).** AASA published at `https://nandamochammad.xyz/.well-known/apple-app-site-association` — verified `200`, `content-type: application/json`, **0 redirects**, body byte-identical to `scripts/appclip-aasa.json`, `.htaccess` itself not publicly readable (403). `.well-known/` confirmed unblocked. **Remaining:** re-validate on-device once the Clip App ID exists (0.5), since the file references an App ID not yet created; iOS caches AASA on a CDN, so use Settings ▸ Developer ▸ *Associated Domains Development* when testing | ~0.1 day left (was 0.5) | 2.3 |
 | 4.2 | App Store Connect: default + advanced App Clip experience for `https://yourdomain.com/s/*`; Clip card metadata (title, subtitle, header image, action verb "View") | 0.5 day | 4.1 |
 | 4.3 | `SKOverlay` upsell: shown after the first successful feedback post; on install, full app picks up keychain guest name + App Group pending state and auto-runs the token→accept-share flow so the user lands in the Space as a real participant | 0.5–1 day | 2.3, 3.2 |
 
