@@ -7,7 +7,6 @@ struct SpaceAllResponsesView: View {
     @Bindable var viewModel: SpaceThreadViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var selectedQuestionId: String?
-    @State private var showExportOptions = false
     @State private var showShareSheet = false
 
     init(viewModel: SpaceThreadViewModel) {
@@ -91,18 +90,14 @@ struct SpaceAllResponsesView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showExportOptions = true
+                Menu {
+                    Button("Export as JSON") { Task { await viewModel.export(format: .json) } }
+                    Button("Export as CSV") { Task { await viewModel.export(format: .csv) } }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .accessibilityLabel("Export feedback")
             }
-        }
-        .confirmationDialog("Export feedback", isPresented: $showExportOptions, titleVisibility: .visible) {
-            Button("Export as JSON") { Task { await viewModel.export(format: .json) } }
-            Button("Export as CSV") { Task { await viewModel.export(format: .csv) } }
-            Button("Cancel", role: .cancel) {}
         }
         .onChange(of: viewModel.exportedFileURL) { _, url in
             showShareSheet = url != nil
