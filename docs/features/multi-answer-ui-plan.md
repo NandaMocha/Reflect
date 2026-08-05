@@ -56,7 +56,7 @@ The whole point of the wave structure below is that **more than one agent or ses
 
 **Goal:** the UI file split lands so later waves don't collide. **Runs alone. Effort:** ~1 h.
 
-- [ ] TASK-001: Split `Presentation/Features/Space/Thread/SpaceThreadView.swift` into three files in the same folder — `SpaceThreadView.swift` (the `SpaceThreadView` struct only), `SpaceAllResponsesView.swift`, and `AnswerBubble.swift`. **Pure move: no renames, no signature changes, no behavior change, doc comments travel with their struct.** Add the three files to the Xcode target. Verify the build is green and the app runs identically. (~1 h; deps: none; owns: `Thread/SpaceThreadView.swift`, `Thread/SpaceAllResponsesView.swift`, `Thread/AnswerBubble.swift`, `Reflect.xcodeproj/project.pbxproj`)
+- [x] TASK-001: Split `Presentation/Features/Space/Thread/SpaceThreadView.swift` into three files in the same folder — `SpaceThreadView.swift` (the `SpaceThreadView` struct only), `SpaceAllResponsesView.swift`, and `AnswerBubble.swift`. **Pure move: no renames, no signature changes, no behavior change, doc comments travel with their struct.** Add the three files to the Xcode target. Verify the build is green and the app runs identically. (~1 h; deps: none; owns: `Thread/SpaceThreadView.swift`, `Thread/SpaceAllResponsesView.swift`, `Thread/AnswerBubble.swift`, `Reflect.xcodeproj/project.pbxproj`)
 
 **Acceptance:** build green; `git diff --stat` shows moves only; thread and all-feedback screens behave exactly as before.
 
