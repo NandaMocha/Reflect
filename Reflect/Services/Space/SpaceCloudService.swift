@@ -39,34 +39,6 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private var cachedUserRecordName: String?
     private let userRecordNameLock = NSLock()
 
-    /// Reflection IDs this service has directly observed to be tokenized (either via a
-    /// successful `ensureRequestToken` call, or a `SpaceReflection` with a non-empty
-    /// token seen in a `fetchChanges` delta), scoped to this service instance's lifetime.
-    /// AC-011 review fix: `publishMirrorsIfOwned`'s fan-out used to treat every reflection
-    /// touched by an answer as a publish candidate, forcing `SpaceMirrorService` to run a
-    /// full tokenless zone-changes download per candidate — nearly all ending in
-    /// `.noRequestToken` on a full-snapshot sync, since `candidateReflectionIDs` is then
-    /// every reflection in the space. This cache lets the fan-out skip candidates already
-    /// known to be untokenized without a network round trip. Best-effort only — a
-    /// reflection tokenized by another device/session simply isn't in this cache yet, so
-    /// its answers won't publish until its own record shows up tokenized in some delta;
-    /// this trades a rare missed opportunistic publish for avoiding the N-download fan-out
-    /// on every sync.
-    private var knownTokenizedReflectionIDs: Set<String> = []
-    private let tokenizedReflectionsLock = NSLock()
-
-    private func markReflectionTokenized(_ reflectionID: String) {
-        tokenizedReflectionsLock.lock()
-        knownTokenizedReflectionIDs.insert(reflectionID)
-        tokenizedReflectionsLock.unlock()
-    }
-
-    private func isKnownTokenized(_ reflectionID: String) -> Bool {
-        tokenizedReflectionsLock.lock()
-        defer { tokenizedReflectionsLock.unlock() }
-        return knownTokenizedReflectionIDs.contains(reflectionID)
-    }
-
     init(mirrorService: SpaceMirrorServiceProtocol = SpaceMirrorService()) {
         self.mirrorService = mirrorService
     }
@@ -215,8 +187,12 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     /// Fetches every record currently in a custom zone via a one-shot zone-changes
     /// operation (nil change token → full zone contents). Index-free; see
     /// `fetchRootSpaceRecord` for why we avoid `CKQuery`.
-    private func fetchAllRecords(in zoneID: CKRecordZone.ID, database: CKDatabase) async throws -> [CKRecord] {
-        try await fetchZoneDelta(in: zoneID, database: database, since: nil).changed
+    private func fetchAllRecords(
+        in zoneID: CKRecordZone.ID,
+        database: CKDatabase,
+        desiredKeys: [CKRecord.FieldKey]? = nil
+    ) async throws -> [CKRecord] {
+        try await fetchZoneDelta(in: zoneID, database: database, since: nil, desiredKeys: desiredKeys).changed
     }
 
     /// Raw result of one `CKFetchRecordZoneChangesOperation` pass over a zone.
@@ -232,12 +208,14 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private func fetchZoneDelta(
         in zoneID: CKRecordZone.ID,
         database: CKDatabase,
-        since previousToken: CKServerChangeToken?
+        since previousToken: CKServerChangeToken?,
+        desiredKeys: [CKRecord.FieldKey]? = nil
     ) async throws -> ZoneFetchResult {
         try await withRetry {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneFetchResult, Error>) in
                 let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
                 config.previousServerChangeToken = previousToken
+                config.desiredKeys = desiredKeys
                 let operation = CKFetchRecordZoneChangesOperation(
                     recordZoneIDs: [zoneID],
                     configurationsByRecordZoneID: [zoneID: config]
@@ -530,9 +508,26 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         let zoneID = CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
 
         // Capture every tokenized reflection's mirror BEFORE the zone (and therefore
-        // these records) is gone — best-effort, a fetch failure here must not block the
-        // actual space deletion.
-        let tokenizedReflections = (try? await fetchAllRecords(in: zoneID, database: privateDB)) ?? []
+        // these records) is gone. Best-effort — a fetch failure here must not block the
+        // actual space deletion — but the failure is logged rather than silently
+        // swallowed (CLAUDE.md: "Don't silently swallow with `try?` in production
+        // paths"), since a lost fetch here means the public mirror is never revoked and
+        // nothing retries once the zone is gone. Restricted to `requestToken` via
+        // `desiredKeys` so this doesn't also download every image CKAsset in the zone
+        // just to read tokens.
+        let tokenizedReflections: [CKRecord]
+        do {
+            tokenizedReflections = try await fetchAllRecords(
+                in: zoneID,
+                database: privateDB,
+                desiredKeys: [SpaceRecordField.requestToken]
+            )
+        } catch {
+            #if DEBUG
+            print("[SpaceCloudService] deleteSpace: failed to fetch tokenized reflections for mirror revoke in zone \(zone.zoneName): \(error)")
+            #endif
+            tokenizedReflections = []
+        }
 
         _ = try await withRetry { try await self.privateDB.deleteRecordZone(withID: zoneID) }
         saveChangeToken(nil, key: Self.zoneTokenKey(zoneName: zone.zoneName, ownerName: zone.ownerName))
@@ -598,9 +593,6 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 ) else { continue }
                 if !reflection.isMine {
                     reflection.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
-                }
-                if let token = reflection.requestToken, !token.isEmpty {
-                    markReflectionTokenized(reflection.id)
                 }
                 reflections.append(reflection)
             case SpaceRecordType.answer:
@@ -714,7 +706,6 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 // untouched — no re-save, no duplicate `TokenIndex`.
                 if let existingToken = record[SpaceRecordField.requestToken] as? String,
                    !existingToken.isEmpty {
-                    markReflectionTokenized(reflectionID)
                     return existingToken
                 }
 
@@ -740,7 +731,6 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 record[SpaceRecordField.requestToken] = token as CKRecordValue
                 _ = try await withRetry { try await database.save(record) }
 
-                markReflectionTokenized(reflectionID)
                 return token
             } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
                 conflictRetries += 1
@@ -760,17 +750,17 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private func publishMirrorsIfOwned(zone: SpaceZoneRef, reflections: [SpaceReflection], answers: [SpaceAnswer]) {
         guard zone.lane == .privateDB else { return }
 
-        // AC-011 review fix: each candidate below costs `SpaceMirrorService` a full,
-        // tokenless zone-changes download (including every image asset). Filtering to
-        // known-tokenized reflections here avoids firing that download for every
-        // reflection in the space on a full-snapshot sync — the delta already tells us
-        // which reflections are tokenized (`SpaceRecordMapper` populates `requestToken`),
-        // and `knownTokenizedReflectionIDs` extends that to reflections tokenized in an
-        // earlier pass whose own record isn't part of *this* delta.
-        var candidateReflectionIDs = Set(
-            reflections.filter { ($0.requestToken ?? "").isEmpty == false }.map { $0.id }
-        )
-        for answer in answers where isKnownTokenized(answer.reflectionID) {
+        // Every reflection touched by this sync pass — directly, or via one of its
+        // answers — is a publish candidate. `SpaceMirrorService.publishMirror` resolves
+        // tokenization itself with one cheap single-record fetch and throws
+        // `.noRequestToken` (swallowed below, not logged) before doing any full
+        // zone-changes download, so filtering candidates here isn't needed to keep this
+        // cheap — and filtering here previously made the answer-driven publish path
+        // dead: an answer added to an already-tokenized reflection whose own record
+        // isn't part of *this* delta (the common case on an incremental sync) was never
+        // a candidate, so new guest-visible answers never reached the public mirror.
+        var candidateReflectionIDs = Set(reflections.map { $0.id })
+        for answer in answers {
             candidateReflectionIDs.insert(answer.reflectionID)
         }
         guard !candidateReflectionIDs.isEmpty else { return }
