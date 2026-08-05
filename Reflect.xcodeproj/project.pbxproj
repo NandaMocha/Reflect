@@ -52,7 +52,7 @@
 		ACC0000000000000000000A9 /* Embed App Clips */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
+			dstPath = "$(CONTENTS_FOLDER_PATH)/AppClips";
 			dstSubfolderSpec = 16;
 			files = (
 				ACC0000000000000000000AA /* ReflectClip.app in Embed App Clips */,
@@ -80,8 +80,16 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				ClipShared/README.md,
 			);
 			target = 042635EF2F288EA100BB939D /* Reflect */;
+		};
+		ACC0000000000000000000C7 /* Exceptions for "ClipShared" folder in "ReflectClip" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				README.md,
+			);
+			target = ACC0000000000000000000A2 /* ReflectClip */;
 		};
 		04F260832F33602C00BF5E99 /* Exceptions for "Quick Actions" folder in "Quick ActionsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -131,6 +139,9 @@
 		};
 		ACC0000000000000000000A8 /* ClipShared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ACC0000000000000000000C7 /* Exceptions for "ClipShared" folder in "ReflectClip" target */,
+			);
 			path = "Reflect/ClipShared";
 			sourceTree = "<group>";
 		};
@@ -662,6 +673,7 @@
 		ACC0000000000000000000A4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ReflectClip/ReflectClip.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -696,6 +708,7 @@
 		ACC0000000000000000000A5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ReflectClip/ReflectClip.entitlements;
 				CODE_SIGN_STYLE = Automatic;

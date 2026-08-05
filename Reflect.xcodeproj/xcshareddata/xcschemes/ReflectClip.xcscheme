@@ -50,9 +50,7 @@
             ReferencedContainer = "container:Reflect.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <AppClipInvocationURLString>
-         https://nandamochammad.xyz/f/TESTTOKEN
-      </AppClipInvocationURLString>
+      <AppClipInvocationURLString>https://nandamochammad.xyz/f/TESTTOKEN</AppClipInvocationURLString>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

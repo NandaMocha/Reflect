@@ -1,9 +1,17 @@
 # Reflect/ClipShared
 
 Cross-target source folder. Everything under this folder compiles into **both** the `Reflect`
-app target and the `ReflectClip` App Clip target, via a nested `PBXFileSystemSynchronizedRootGroup`
-(`path = Reflect/ClipShared`) attached to both targets' `fileSystemSynchronizedGroups` in
-`Reflect.xcodeproj/project.pbxproj`. This is the mechanism ticket AC-001
+app target and the `ReflectClip` App Clip target, but the two targets pick it up through two
+different mechanisms. `ReflectClip` has its own `PBXFileSystemSynchronizedRootGroup`
+(`path = Reflect/ClipShared`) listed directly in its `fileSystemSynchronizedGroups`. `Reflect`
+does **not** list this group directly — `ClipShared` sits physically nested inside the pre-existing
+`Reflect` root sync group (`path = Reflect`), so the app target picks it up incidentally as part
+of that group's normal folder sync, not via an explicit `fileSystemSynchronizedGroups` entry of
+its own. This distinction matters for membership exceptions: excluding a file from the app target
+means adding it to the `Reflect` folder's exception set (target `Reflect`), while excluding it
+from the Clip means adding it to `ClipShared`'s own exception set (target `ReflectClip`) — the two
+exception sets are independent and must both be updated when a file (like this README) should
+ship in neither bundle. This is the mechanism ticket AC-001
 ([docs/features/app-clip-tasks.md](../../docs/features/app-clip-tasks.md)) establishes; later
 tickets add files here (e.g. AC-010's `ClipMirrorSchema.swift`) without touching the pbxproj.
 
