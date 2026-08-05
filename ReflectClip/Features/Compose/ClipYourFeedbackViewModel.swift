@@ -156,31 +156,16 @@ final class ClipYourFeedbackViewModel {
 
         // Reuse any already-queued entry for a question instead of re-enqueuing — this is the
         // fix for the duplicate-enqueue bug: only questions with no `.queued` entry yet mint a
-        // new `submissionId`.
-        let queuedByQuestion = Dictionary(
-            uniqueKeysWithValues: await pendingAnswerStore.allAnswers()
-                .filter { $0.state == .queued }
-                .map { ($0.questionId, $0) }
-        )
-
+        // new `submissionId`. `enqueueIfAbsent` makes the "reuse or create" decision atomically
+        // inside `pendingAnswerStore`'s actor isolation, so there's no check-then-act window
+        // between snapshotting existing entries and acting on them — see that method's doc
+        // comment for why that matters even though `submit()` is reentrancy-guarded today.
         var dtoAnswers: [ClipFeedbackAnswerDTO] = []
         dtoAnswers.reserveCapacity(entries.count)
         for entry in entries {
-            let submissionId: String
-            if let existing = queuedByQuestion[entry.questionId] {
-                submissionId = existing.submissionId
-                if existing.body != entry.body {
-                    // The guest edited the draft after a prior failed attempt — amend the
-                    // existing entry in place rather than leaving the store holding stale text
-                    // under the same submissionId.
-                    await pendingAnswerStore.amend(submissionId: submissionId, body: entry.body)
-                }
-            } else {
-                let pending = await pendingAnswerStore.enqueue(questionId: entry.questionId, body: entry.body)
-                submissionId = pending.submissionId
-            }
+            let pending = await pendingAnswerStore.enqueueIfAbsent(questionId: entry.questionId, body: entry.body)
             dtoAnswers.append(
-                ClipFeedbackAnswerDTO(questionId: entry.questionId, submissionId: submissionId, body: entry.body)
+                ClipFeedbackAnswerDTO(questionId: entry.questionId, submissionId: pending.submissionId, body: entry.body)
             )
         }
 

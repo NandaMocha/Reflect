@@ -107,6 +107,21 @@ protocol PendingAnswerStoring: Sendable {
     /// no entry has this `submissionId`.
     func amend(submissionId: String, body: String) async
 
+    /// Atomically reuses the earliest `.queued` entry for `questionId` (amending its body if it
+    /// differs from `body`) or, if none exists, enqueues a new `.queued` entry — the single
+    /// source of truth for `ClipYourFeedbackViewModel.submit()`'s "reuse existing entry or
+    /// enqueue a new one" decision. Doing this inside one actor-isolated call (rather than the
+    /// caller snapshotting via `allAnswers()` and then separately calling `enqueue`/`amend`)
+    /// closes a check-then-act race across the actor boundary: two overlapping calls for the
+    /// same `questionId` can no longer both see "no queued entry yet" and both enqueue,
+    /// producing the exact duplicate-`.queued`-entries-per-questionId state this store must
+    /// never persist. If more than one `.queued` entry for `questionId` already exists on disk
+    /// (e.g. from data written by a build that had this race), only the earliest is reused —
+    /// every other one is marked `.failed` so it stops being retried instead of lingering as an
+    /// orphan.
+    @discardableResult
+    func enqueueIfAbsent(questionId: String, body: String) async -> PendingAnswer
+
     /// Marks every entry whose `submissionId` is in `submissionIds` as `.sent`, after
     /// `ClipFeedbackSubmitting` confirms the endpoint wrote it. A no-op for any id that isn't
     /// currently `.queued` (e.g. already `.sent`, or unknown).
@@ -181,6 +196,44 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
         guard answers[index].body != body else { return }
         answers[index].body = body
         persist(answers)
+    }
+
+    @discardableResult
+    func enqueueIfAbsent(questionId: String, body: String) -> PendingAnswer {
+        var answers = loadIfNeeded()
+        let queuedIndices = answers.indices.filter {
+            answers[$0].questionId == questionId && answers[$0].state == .queued
+        }
+
+        guard let firstIndex = queuedIndices.first else {
+            let answer = PendingAnswer(
+                submissionId: UUID().uuidString,
+                questionId: questionId,
+                body: body,
+                submittedAt: Date(),
+                state: .queued
+            )
+            answers.append(answer)
+            persist(answers)
+            return answer
+        }
+
+        var changed = false
+        // Any additional `.queued` entries for this questionId are duplicates that must never
+        // have been written together — reuse only the earliest and stop the rest from being
+        // retried forever.
+        for index in queuedIndices.dropFirst() {
+            answers[index].state = .failed
+            changed = true
+        }
+        if answers[firstIndex].body != body {
+            answers[firstIndex].body = body
+            changed = true
+        }
+        if changed {
+            persist(answers)
+        }
+        return answers[firstIndex]
     }
 
     func markSent(submissionIds: [String]) {
