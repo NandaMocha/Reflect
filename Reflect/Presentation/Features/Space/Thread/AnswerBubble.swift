@@ -6,9 +6,8 @@ import SwiftUI
 struct AnswerBubble: View {
     let answer: SpaceAnswer
     let spaceName: String
-    let questionNumber: Int
-    var onEdit: (() -> Void)? = nil
-    var onDelete: (() -> Void)? = nil
+    var onEdit: ((SpaceAnswer) -> Void)? = nil
+    var onDelete: ((SpaceAnswer) -> Void)? = nil
 
     @State private var showImageFullscreen = false
     @State private var showDeleteConfirmation = false
@@ -59,7 +58,7 @@ struct AnswerBubble: View {
         .contextMenu {
             if answer.isMine {
                 if let onEdit {
-                    Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+                    Button { onEdit(answer) } label: { Label("Edit", systemImage: "pencil") }
                 }
                 if onDelete != nil {
                     Button(role: .destructive) { showDeleteConfirmation = true } label: { Label("Delete", systemImage: "trash") }
@@ -68,11 +67,11 @@ struct AnswerBubble: View {
             ReportContentButton(contentKind: "feedback", contentID: answer.id, spaceName: spaceName)
         }
         .confirmationDialog(
-            "Delete your answer to Q\(questionNumber)? This can't be undone.",
+            "Delete this answer? This can't be undone.",
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Delete", role: .destructive) { onDelete?() }
+            Button("Delete", role: .destructive) { onDelete?(answer) }
             Button("Cancel", role: .cancel) {}
         }
     }
