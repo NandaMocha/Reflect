@@ -31,4 +31,15 @@ return [
      * writable by the PHP process user, not web-reachable.
      */
     'rate_limit_dir' => '/home/sesirkel/nandamochammad.xyz/clip-feedback-ratelimit',
+
+    /**
+     * IPs of trusted reverse proxies allowed to set X-Forwarded-For.
+     * This host is direct cPanel/LiteSpeed with nothing in front of it, so
+     * leave this empty — clip-feedback.php then rate-limits on REMOTE_ADDR
+     * only. Only add entries here if a real trusted proxy/load balancer is
+     * ever placed in front of this endpoint; otherwise X-Forwarded-For is
+     * client-spoofable and would let a client mint a fresh rate-limit
+     * bucket per request.
+     */
+    'trusted_proxies' => [],
 ];
