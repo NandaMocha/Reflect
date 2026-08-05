@@ -36,6 +36,15 @@ struct ClipRootView: View {
             }
         }
         .animation(.default, value: session.phase)
+        .task {
+            // Give a pending `NSUserActivityTypeBrowsingWeb` handoff a moment to arrive (the
+            // normal launch path) before treating `.loading` as a dead end — a Clip relaunched
+            // from the App Clip card, app switcher, or scene restoration delivers no such
+            // activity and would otherwise spin forever. `resolveIfIdle()` is a no-op once a
+            // real invocation has already moved the phase machine past `.loading`.
+            try? await Task.sleep(for: .seconds(2))
+            session.resolveIfIdle()
+        }
     }
 
     private var composeGreeting: String {

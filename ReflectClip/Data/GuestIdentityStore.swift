@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import os
 
 /// A guest's stable identity within a single Clip flow: a randomly minted id plus the display
 /// name they typed once on the `.needsName` screen.
@@ -27,12 +28,15 @@ enum GuestIdentityStoreError: Error, LocalizedError {
 /// A guest fills out "what's your name" once, and every later open of the same (or a different)
 /// invite link should recognize them without asking again. Two storage layers back this:
 ///
-/// 1. **Keychain** (primary) — survives app deletion/reinstall, and is the intended bridge to the
-///    full app's install-migration story once `Reflect/Reflect.entitlements` also declares a
-///    matching shared `keychain-access-groups` entry. That entitlement change is **out of scope
-///    for this ticket** (AC-002's file scope is `ReflectClip/` only, and the repo's hard
-///    constraints forbid touching `Reflect/Reflect.entitlements` outside AC-001) — tracked as a
-///    follow-up once a ticket actually needs the full app to read this identity.
+/// 1. **Keychain** (primary) — survives app deletion/reinstall. `ReflectClip.entitlements`
+///    declares no `keychain-access-groups` entry, so writes land in the Clip's own default App ID
+///    keychain group — that's sufficient for this ticket's acceptance criterion, which only needs
+///    the *Clip* to recognize a returning guest across its own relaunches. Sharing this keychain
+///    group with the full app (so install-migration can read it) needs `keychain-access-groups`
+///    added to *both* `ReflectClip.entitlements` and `Reflect/Reflect.entitlements`, plus the
+///    Keychain Sharing capability added to the Clip's App ID — none of that is in AC-002's scope
+///    (`ReflectClip/` only) or on record for AC-H1's capability list, so it's left as a follow-up
+///    for whichever ticket actually implements the migration flow.
 /// 2. **App Group `UserDefaults`** (fallback mirror) — the App Group is already wired on both
 ///    targets today, so this is both a safety net if the keychain write fails (simulator quirks,
 ///    missing entitlement on a given build) and a fast local read path.
@@ -57,6 +61,7 @@ final class LiveGuestIdentityStore: GuestIdentityStoring, Sendable {
     private let keychainAccount = "guestIdentity"
     private let appGroupIdentifier = "group.xyz.nandamochammad.Reflect"
     private let appGroupDefaultsKey = "clip.guestIdentity"
+    private let logger = Logger(subsystem: "xyz.nandamochammad.Reflect.Clip", category: "GuestIdentityStore")
 
     // MARK: - Initialization
 
@@ -77,10 +82,9 @@ final class LiveGuestIdentityStore: GuestIdentityStoring, Sendable {
         let mirrorSaved = saveToAppGroupMirror(data)
 
         if keychainStatus != errSecSuccess {
-            #if DEBUG
-            print("ReflectClip: keychain save failed (status \(keychainStatus)); falling back to App Group mirror")
-            #endif
+            logger.error("Keychain save failed (status \(keychainStatus, privacy: .public)); falling back to App Group mirror")
             guard mirrorSaved else {
+                logger.error("App Group mirror save also failed — guest identity was not persisted")
                 throw GuestIdentityStoreError.keychainWrite(keychainStatus)
             }
         }
@@ -134,10 +138,13 @@ final class LiveGuestIdentityStore: GuestIdentityStoring, Sendable {
         return try? JSONDecoder().decode(GuestIdentity.self, from: data)
     }
 
+    /// Writes to the App Group mirror and reads back to confirm the write actually landed —
+    /// `UserDefaults(suiteName:)` returns a non-nil instance even without the App Group
+    /// entitlement, so a nil check alone can't detect a silently-dropped write.
     @discardableResult
     private func saveToAppGroupMirror(_ data: Data) -> Bool {
         guard let defaults = appGroupDefaults else { return false }
         defaults.set(data, forKey: appGroupDefaultsKey)
-        return true
+        return defaults.data(forKey: appGroupDefaultsKey) == data
     }
 }
