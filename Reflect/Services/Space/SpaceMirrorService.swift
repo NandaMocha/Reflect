@@ -213,15 +213,30 @@ final class SpaceMirrorService: SpaceMirrorServiceProtocol {
         var recordsToSave: [CKRecord] = []
         var recordIDsToDelete: [CKRecord.ID] = []
 
-        let existingRequest = try? await publicDB.record(for: requestRecord.recordID)
+        let existingRequest: CKRecord?
+        do {
+            existingRequest = try await publicDB.record(for: requestRecord.recordID)
+        } catch let error as CKError where error.code == .unknownItem {
+            // Not published yet — first publish for this token.
+            existingRequest = nil
+        }
         if existingRequest == nil || !Self.mirroredRequestUnchanged(existingRequest!, requestRecord) {
             recordsToSave.append(requestRecord)
         }
 
-        let existingAnswers = (try? await queryRecords(
-            type: ClipMirrorRecordType.mirroredAnswer,
-            predicate: NSPredicate(format: "%K == %@", ClipMirrorField.requestToken, token)
-        )) ?? []
+        let existingAnswers: [CKRecord]
+        do {
+            existingAnswers = try await queryRecords(
+                type: ClipMirrorRecordType.mirroredAnswer,
+                predicate: NSPredicate(format: "%K == %@", ClipMirrorField.requestToken, token)
+            )
+        } catch let error as CKError where error.code == .invalidArguments || error.code == .unknownItem {
+            // Query surface not provisioned yet (pre-AC-H1) or nothing indexed — same
+            // "nothing published yet" case `revokeMirror` treats as non-fatal below.
+            // Deliberately skip the orphan-delete step this pass rather than treating
+            // every existing MirroredAnswer as gone.
+            existingAnswers = []
+        }
         let existingByName = Dictionary(uniqueKeysWithValues: existingAnswers.map { ($0.recordID.recordName, $0) })
         let desiredNames = Set(answerRecords.map { $0.recordID.recordName })
 
