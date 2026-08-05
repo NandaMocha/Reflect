@@ -1,0 +1,21 @@
+# AC-016 — /f/<token> web landing page (fallback + Smart App Banner)
+#
+# Rewrites /f/<token> to index.php?t=<token> so the same PHP page serves every
+# token without per-token files. LiteSpeed honours .htaccess (see
+# docs/features/app-clip-plan.md "Hosting: cPanel is sufficient").
+#
+# NOTE: Apple's AASA (scripts/appclip-aasa.json) already registers "/f/*" for
+# both the full app's universal link and the App Clip invocation. Do NOT add a
+# redirect (301/302) on this path — both Apple's AASA fetcher and the App Clip
+# invocation path dislike being redirected and will fail closed.
+
+RewriteEngine On
+
+# /f/<token> -> index.php?t=<token>  (token: letters, digits, - and _ only)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([A-Za-z0-9_-]+)/?$ index.php?t=$1 [L,QSA]
+
+# Bare /f/ (no token) still routes to index.php so it can render the generic
+# explainer state instead of a raw 404.
+RewriteRule ^$ index.php [L]
