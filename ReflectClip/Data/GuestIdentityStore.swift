@@ -143,13 +143,23 @@ final class LiveGuestIdentityStore: GuestIdentityStoring, Sendable {
         return try? JSONDecoder().decode(GuestIdentity.self, from: data)
     }
 
-    /// Writes to the App Group mirror and reads back to confirm the write actually landed —
-    /// `UserDefaults(suiteName:)` returns a non-nil instance even without the App Group
-    /// entitlement, so a nil check alone can't detect a silently-dropped write.
+    /// Writes to the App Group mirror. `UserDefaults(suiteName:)` returns a non-nil instance even
+    /// without the App Group entitlement, so a nil check on the instance alone can't detect a
+    /// silently-dropped write — and reading the key back immediately afterward doesn't prove it
+    /// either, since `UserDefaults` serves reads from an in-memory cache within this process; the
+    /// read-back succeeds even when nothing was actually persisted to the App Group container.
+    ///
+    /// The one signal that actually reflects whether the App Group entitlement/container is
+    /// usable is whether the container directory itself resolves.
     @discardableResult
     private func saveToAppGroupMirror(_ data: Data) -> Bool {
         guard let defaults = appGroupDefaults else { return false }
         defaults.set(data, forKey: appGroupDefaultsKey)
-        return defaults.data(forKey: appGroupDefaultsKey) == data
+
+        guard FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) != nil else {
+            logger.debug("App Group container unresolved for \(self.appGroupIdentifier, privacy: .public) — mirror write not confirmed")
+            return false
+        }
+        return true
     }
 }
