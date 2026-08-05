@@ -47,12 +47,16 @@ enum InsightStore {
 
         let memoryConfiguration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: true
+            isStoredInMemoryOnly: true,
+            // Required. Without an explicit `.none`, this defaults to `.automatic`,
+            // which switches on CloudKit schema validation — and that rejects any model
+            // with non-optional, defaultless attributes, turning this safety net into a
+            // launch crash. The on-disk tiers above set this for the same reason.
+            cloudKitDatabase: .none
         )
-        // In-memory containers only fail if the schema itself is invalid, which would
-        // be a programmer error caught immediately in development, not a runtime
-        // condition — so `try!` here does not reintroduce the crash risk we're
-        // guarding against above.
+        // With CloudKit validation off, an in-memory container has no disk, no migration
+        // and no external validator left to fail on — the remaining failure modes are all
+        // compile-time schema errors.
         return try! ModelContainer(for: schema, configurations: [memoryConfiguration])
     }()
 }

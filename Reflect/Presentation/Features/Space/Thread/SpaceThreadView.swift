@@ -389,6 +389,13 @@ struct SpaceAllResponsesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await viewModel.refresh() }
         .task { await viewModel.refresh() }
+        // The owner can delete a question from the edit sheet while this filter is pointed at
+        // it; without this the segmented picker holds a dead tag and the list reads empty.
+        .onChange(of: viewModel.reflection.questions) { _, questions in
+            if !questions.contains(where: { $0.id == selectedQuestionId }) {
+                selectedQuestionId = questions.first?.id
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

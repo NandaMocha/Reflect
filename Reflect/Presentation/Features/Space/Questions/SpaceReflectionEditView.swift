@@ -84,8 +84,16 @@ struct SpaceReflectionEditView: View {
 
     // MARK: - Actions
 
+    /// Mirrors `SpaceQuestion.validate` so an invalid draft is blocked in the UI instead of
+    /// round-tripping to the use case just to surface a thrown error.
     private var canSave: Bool {
-        !viewModel.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard !viewModel.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        guard (1...Constants.Limits.spaceMaxQuestions).contains(viewModel.questions.count) else { return false }
+        for question in viewModel.questions {
+            let text = question.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty, text.count <= Constants.Limits.spaceQuestionTextMaxLength else { return false }
+        }
+        return true
     }
 
     private var rewordWarningMessage: String {
