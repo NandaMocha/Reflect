@@ -850,22 +850,41 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
     // MARK: - Clip pending-feedback ingestion — AC-012
 
-    /// Kicks off a detached, best-effort ingestion pass for every reflection this sync
-    /// touched — only for owned (private-DB) zones; a joined participant never ingests
-    /// on someone else's behalf. Same candidate set as `publishMirrorsIfOwned` (the
-    /// service resolves tokenization itself via a cheap precheck fetch), and the same
-    /// "per-candidate failures don't abort the batch" contract.
+    /// Kicks off a detached, best-effort ingestion pass — only for owned (private-DB)
+    /// zones; a joined participant never ingests on someone else's behalf.
+    ///
+    /// Unlike `publishMirrorsIfOwned`, the candidate set here can't be limited to this
+    /// sync pass's delta: a guest submission via the Clip only ever writes a public-DB
+    /// `PendingClipFeedback` record — it never touches the owner's private zone, so it
+    /// never appears in `reflections`/`answers`. Relying on the delta alone meant
+    /// ingestion could never fire for the actual guest flow (AC-012 review). Instead this
+    /// always enumerates every currently-tokenized `SpaceReflection` in the zone (cheap:
+    /// restricted to the `requestToken` field, same as `deleteSpace`'s mirror-revoke
+    /// lookup), unioned with the delta-derived IDs so an answer-triggered candidate isn't
+    /// lost if the enumeration itself fails. Runs even when the delta is empty — that's
+    /// the normal case for "owner opens the app after a guest replied".
     private func ingestPendingFeedbackIfOwned(zone: SpaceZoneRef, reflections: [SpaceReflection], answers: [SpaceAnswer]) {
         guard zone.lane == .privateDB else { return }
 
-        var candidateReflectionIDs = Set(reflections.map { $0.id })
+        var deltaCandidateIDs = Set(reflections.map { $0.id })
         for answer in answers {
-            candidateReflectionIDs.insert(answer.reflectionID)
+            deltaCandidateIDs.insert(answer.reflectionID)
         }
-        guard !candidateReflectionIDs.isEmpty else { return }
 
         let ingestService = self.ingestService
+        let database = self.database(for: zone.lane)
+        let zoneID = ckZoneID(for: zone)
         Task.detached(priority: .utility) {
+            var candidateReflectionIDs = deltaCandidateIDs
+            do {
+                let tokenizedIDs = try await Self.fetchTokenizedReflectionIDs(in: zoneID, database: database)
+                candidateReflectionIDs.formUnion(tokenizedIDs)
+            } catch {
+                #if DEBUG
+                print("[SpaceClipIngestService] failed to enumerate tokenized reflections in zone \(zone.zoneName): \(error)")
+                #endif
+            }
+            guard !candidateReflectionIDs.isEmpty else { return }
             do {
                 try await ingestService.ingestPendingFeedback(reflectionIDs: candidateReflectionIDs, zone: zone)
             } catch {
@@ -873,6 +892,55 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 print("[SpaceClipIngestService] ingest batch failed for \(candidateReflectionIDs): \(error)")
                 #endif
             }
+        }
+    }
+
+    /// Enumerates every currently-tokenized `SpaceReflection` record name in `zoneID`,
+    /// restricted to the `requestToken` field via `desiredKeys` so this never downloads
+    /// image `CKAsset`s — same restriction `deleteSpace` uses for its mirror-revoke
+    /// lookup. Deliberately `static` and independent of `self`/`withRetry`/
+    /// `fetchZoneDelta` so it can run inside `Task.detached` without capturing the whole
+    /// service across the boundary, matching the convention `publishMirrorsIfOwned`
+    /// already uses (capturing only `mirrorService`, not `self`).
+    private static func fetchTokenizedReflectionIDs(
+        in zoneID: CKRecordZone.ID,
+        database: CKDatabase
+    ) async throws -> Set<String> {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Set<String>, Error>) in
+            let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
+            config.desiredKeys = [SpaceRecordField.requestToken]
+            let operation = CKFetchRecordZoneChangesOperation(
+                recordZoneIDs: [zoneID],
+                configurationsByRecordZoneID: [zoneID: config]
+            )
+            operation.fetchAllChanges = true
+            operation.qualityOfService = .utility
+
+            var ids: Set<String> = []
+            var zoneError: Error?
+            operation.recordWasChangedBlock = { recordID, recordResult in
+                if case .success(let record) = recordResult,
+                   record.recordType == SpaceRecordType.spaceReflection,
+                   let token = record[SpaceRecordField.requestToken] as? String, !token.isEmpty {
+                    ids.insert(recordID.recordName)
+                }
+            }
+            operation.recordZoneFetchResultBlock = { _, result in
+                if case .failure(let error) = result { zoneError = error }
+            }
+            operation.fetchRecordZoneChangesResultBlock = { result in
+                switch result {
+                case .success:
+                    if let zoneError {
+                        continuation.resume(throwing: zoneError)
+                    } else {
+                        continuation.resume(returning: ids)
+                    }
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            database.add(operation)
         }
     }
 
