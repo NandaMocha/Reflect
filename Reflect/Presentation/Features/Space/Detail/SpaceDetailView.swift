@@ -292,9 +292,12 @@ struct SpaceReflectionRow: View {
 }
 
 /// Shared helper for rendering a content author: "You" for the current user, the resolved
-/// display name otherwise, falling back to "A member".
+/// display name otherwise, falling back to "A member". Guests (App Clip submitters, AC-010/013)
+/// are a distinct case — `isGuest` short-circuits before `isMine` is even consulted, so a guest
+/// answer can never render with "You" styling regardless of what `isMine` happens to be.
 enum SpaceAuthor {
-    static func label(isMine: Bool, name: String?) -> String {
+    static func label(isMine: Bool, name: String?, isGuest: Bool = false) -> String {
+        if isGuest { return "\(name ?? "Guest") · guest" }
         if isMine { return "You" }
         return name ?? "A member"
     }
