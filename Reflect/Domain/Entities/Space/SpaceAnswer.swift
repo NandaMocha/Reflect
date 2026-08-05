@@ -12,7 +12,12 @@ struct SpaceAnswer: Identifiable, Hashable, Sendable {
     var modifiedAt: Date?
     var isMine: Bool
 
+    // LEGACY — removed in TASK-013
     static func recordName(reflectionID: String, questionId: String, authorRecordName: String) -> String {
         "answer-\(reflectionID)-\(questionId)-\(authorRecordName)"
+    }
+
+    static func newRecordName(reflectionID: String, questionId: String, authorRecordName: String) -> String {
+        "answer-\(reflectionID)-\(questionId)-\(authorRecordName)-\(UUID().uuidString)"
     }
 }
