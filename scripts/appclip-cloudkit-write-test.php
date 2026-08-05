@@ -68,6 +68,22 @@ if (KEY_ID === 'PASTE_YOUR_KEY_ID_HERE') {
         'Edit this file and set KEY_ID to the value from CloudKit Console > Tokens & Keys.');
     exit;
 }
+// A Key ID is 64 hex characters. The public key is base64 and contains
+// /, + or = — pasting that instead is an easy and costly mix-up, since
+// CloudKit answers it with a generic AUTHENTICATION_FAILED.
+$looksLikePublicKey = str_starts_with(KEY_ID, 'MF') || strpbrk(KEY_ID, '/+=') !== false;
+$looksLikeKeyID     = (bool) preg_match('/^[0-9a-fA-F]{64}$/', KEY_ID);
+
+if ($looksLikePublicKey) {
+    step('Key ID configured', false, 'KEY_ID = ' . substr(KEY_ID, 0, 40) . '...',
+        'That is your PUBLIC KEY, not the Key ID. The public key is what you paste INTO CloudKit Console; the Key ID is what the Console gives back afterwards. Find it in CloudKit Console > Tokens & Keys > Server-to-Server Keys - it is 64 hex characters with no /, + or =.');
+    exit;
+}
+if (!$looksLikeKeyID) {
+    step('Key ID configured', false, 'KEY_ID = ' . KEY_ID,
+        'This does not look like a Key ID, which is exactly 64 hex characters. Copy it from CloudKit Console > Tokens & Keys > Server-to-Server Keys.');
+    exit;
+}
 step('Key ID configured', true, 'KEY_ID = ' . KEY_ID);
 
 if (!is_readable(KEY_PATH)) {
