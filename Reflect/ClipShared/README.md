@@ -59,3 +59,15 @@ the AC-033 polish pass). Until then, Clip-side placeholder UI uses system semant
 
 Future tickets should prefer creating *new* shared code directly inside this folder over adding
 more dual-membership exceptions on existing app files.
+
+## Swift 6 / strict concurrency
+
+`ReflectClip` builds with `SWIFT_VERSION = 6.0` (both Debug and Release), plus
+`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and `SWIFT_APPROACHABLE_CONCURRENCY = YES`. This is a
+deliberate choice made by AC-001 for the new target, not an oversight — the main `Reflect` app
+target and the `Quick Actions` extension target both remain on `SWIFT_VERSION = 5.0` for now and
+are not affected. Because files in this `ClipShared` folder compile into both `Reflect` (Swift 5
+mode) and `ReflectClip` (Swift 6 strict-concurrency mode), code added here must satisfy the
+stricter Swift 6 checker even though the app target itself hasn't opted in yet. If a future ticket
+migrates the main `Reflect` target to Swift 6, this note (and the version mismatch it documents)
+can be removed.
