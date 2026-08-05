@@ -10,7 +10,7 @@ struct SpaceThreadView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showImageFullscreen = false
     @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var answerPendingDeletion: (questionId: String, number: Int)?
+    @State private var answerPendingDeletion: SpaceAnswer?
     @State private var showEditQuestions = false
     @State private var noteExpanded = false
 
@@ -80,7 +80,7 @@ struct SpaceThreadView: View {
         }
         .errorAlert($viewModel.errorMessage)
         .confirmationDialog(
-            "Delete your answer to Q\(answerPendingDeletion?.number ?? 0)? This can't be undone.",
+            "Delete this answer? This can't be undone.",
             isPresented: Binding(
                 get: { answerPendingDeletion != nil },
                 set: { if !$0 { answerPendingDeletion = nil } }
@@ -89,7 +89,7 @@ struct SpaceThreadView: View {
         ) {
             Button("Delete", role: .destructive) {
                 if let pending = answerPendingDeletion {
-                    Task { await viewModel.deleteOwnAnswer(for: pending.questionId) }
+                    Task { await viewModel.deleteOwnAnswer(pending) }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -165,7 +165,7 @@ struct SpaceThreadView: View {
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
         ForEach(Array(viewModel.reflection.questions.enumerated()), id: \.element.id) { index, question in
-            let mine = viewModel.myAnswer(for: question.id)
+            let mine = viewModel.myAnswers(for: question.id).first
             Button {
                 viewModel.select(questionId: question.id)
                 composerFocused = true
@@ -188,13 +188,13 @@ struct SpaceThreadView: View {
                             .lineLimit(2)
                             .contextMenu {
                                 Button {
-                                    viewModel.select(questionId: question.id)
+                                    viewModel.beginEditing(mine)
                                     composerFocused = true
                                 } label: {
                                     Label("Edit", systemImage: "pencil")
                                 }
                                 Button(role: .destructive) {
-                                    answerPendingDeletion = (question.id, index + 1)
+                                    answerPendingDeletion = mine
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
@@ -205,7 +205,7 @@ struct SpaceThreadView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                        .fill(viewModel.activeQuestionId == question.id ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
+                        .fill(viewModel.selectedQuestionId == question.id ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
                 )
             }
             .buttonStyle(.plain)
@@ -217,8 +217,8 @@ struct SpaceThreadView: View {
     private var composerBar: some View {
         VStack(spacing: Constants.Spacing.xs) {
             Divider()
-            if let activeQuestion = viewModel.activeQuestion {
-                replyingToChip(activeQuestion)
+            if let selectedQuestion = viewModel.selectedQuestion {
+                replyingToChip(selectedQuestion)
             }
             if let draftImage = viewModel.draftImage {
                 draftImageThumbnail(draftImage)
@@ -227,10 +227,9 @@ struct SpaceThreadView: View {
                 PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.title2)
-                        .foregroundStyle(viewModel.activeQuestionId == nil ? Color.secondary : Color.primaryDefault)
+                        .foregroundStyle(Color.primaryDefault)
                         .frame(width: 36, height: 36)
                 }
-                .disabled(viewModel.activeQuestionId == nil)
                 .accessibilityLabel("Attach photo")
 
                 TextField("Share your answer…", text: $viewModel.draft, axis: .vertical)
@@ -277,15 +276,16 @@ struct SpaceThreadView: View {
 
     private func replyingToChip(_ question: SpaceQuestion) -> some View {
         let index = (viewModel.reflection.questions.firstIndex(where: { $0.id == question.id }) ?? 0) + 1
+        let isEditing = viewModel.editingAnswerID != nil
         return HStack(spacing: Constants.Spacing.xs) {
-            Image(systemName: viewModel.isEditingExistingAnswer ? "pencil" : "arrowshape.turn.up.left")
+            Image(systemName: isEditing ? "pencil" : "arrowshape.turn.up.left")
                 .font(.caption)
-            Text(viewModel.isEditingExistingAnswer ? "Editing Q\(index): \(question.text)" : "Replying to Q\(index): \(question.text)")
+            Text(isEditing ? "Editing your answer" : "Posting to Q\(index): \(question.text)")
                 .font(.caption)
                 .lineLimit(1)
             Spacer(minLength: 0)
             Button {
-                viewModel.clearDraftPrefill()
+                viewModel.cancelEditing()
                 selectedPhotoItem = nil
             } label: {
                 Image(systemName: "xmark.circle.fill")
