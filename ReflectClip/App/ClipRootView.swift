@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Root view for the Clip — switches on `ClipSession.phase`. Every case here is a lightweight
-/// placeholder; the phases fill in with real composer/all-feedback screens across later tickets
-/// (AC-030/031/032). Uses only system semantic colors — `Reflect/Core/Extensions/Color+Hex.swift`
-/// isn't shared into this target yet (see `Reflect/ClipShared/README.md`).
+/// Root view for the Clip — switches on `ClipSession.phase`. `.needsName` is real
+/// (`GuestNamePrompt`, `Features/Identity/GuestNamePrompt.swift`); the remaining phases are still
+/// lightweight placeholders that fill in with real composer/all-feedback screens across later
+/// tickets (AC-031/032). Uses only system semantic colors —
+/// `Reflect/Core/Extensions/Color+Hex.swift` isn't shared into this target yet (see
+/// `Reflect/ClipShared/README.md`).
 ///
 /// The `.loading` → `.invocationTimedOut` timeout is owned by `ClipSession`
 /// (`startResolutionTimeout()`, started from `ReflectClipApp`) rather than this view, so it's
@@ -18,7 +20,7 @@ struct ClipRootView: View {
                 ProgressView()
                     .controlSize(.large)
             case .needsName:
-                NeedsNamePlaceholderView(session: session)
+                GuestNamePrompt(session: session)
             case .compose:
                 PhasePlaceholderView(
                     systemImage: "square.and.pencil",
@@ -49,49 +51,6 @@ struct ClipRootView: View {
             return "The composer lands in a later ticket."
         }
         return "Hi \(name) — the composer lands in a later ticket."
-    }
-}
-
-/// Collects the guest's display name once; `ClipSession.submitDisplayName` persists it and
-/// advances the phase machine.
-private struct NeedsNamePlaceholderView: View {
-    let session: ClipSession
-    @State private var name = ""
-    @FocusState private var nameFieldFocused: Bool
-    @ScaledMetric(relativeTo: .title) private var iconSize: CGFloat = 40
-
-    var body: some View {
-        VStack(spacing: Constants.Spacing.lg) {
-            VStack(spacing: Constants.Spacing.xs) {
-                Image(systemName: "person.crop.circle.badge.questionmark")
-                    .font(.system(size: iconSize))
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
-                Text("What should we call you?")
-                    .font(.title2.bold())
-                Text("Your name is shown next to what you write.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            TextField("Your name", text: $name)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.words)
-                .focused($nameFieldFocused)
-                .submitLabel(.done)
-                .onSubmit(submit)
-
-            Button("Continue", action: submit)
-                .buttonStyle(.borderedProminent)
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-        .padding(Constants.Spacing.lg)
-        .onAppear { nameFieldFocused = true }
-    }
-
-    private func submit() {
-        session.submitDisplayName(name)
     }
 }
 
