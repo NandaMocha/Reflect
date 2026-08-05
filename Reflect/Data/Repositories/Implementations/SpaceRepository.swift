@@ -249,6 +249,20 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         return answer
     }
 
+    func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer {
+        let answer = try await cloudService.createAnswer(to: reflection, questionId: questionId, text: text, imageData: imageData, in: space.zoneID)
+        try upsertAnswer(answer)
+        try modelContext.save()
+        return answer
+    }
+
+    func updateAnswer(_ answer: SpaceAnswer, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer {
+        let updated = try await cloudService.updateAnswer(id: answer.id, text: text, imageData: imageData, in: space.zoneID)
+        try upsertAnswer(updated)
+        try modelContext.save()
+        return updated
+    }
+
     func deleteOwnAnswer(_ answer: SpaceAnswer, in space: Space) async throws {
         try await cloudService.deleteRecord(id: answer.id, in: space.zoneID)
         try removeCachedContent(id: answer.id)

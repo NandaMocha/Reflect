@@ -78,6 +78,14 @@ protocol SpaceRepositoryProtocol {
     /// (cloud first, per `SpaceCloudServiceProtocol.upsertAnswer`).
     func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer
 
+    /// Creates a new answer to a question, coexisting with any other answers the user has
+    /// already given to it, then caches it (cloud first, per `SpaceCloudServiceProtocol.createAnswer`).
+    func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer
+
+    /// Rewrites an existing answer's text and image in place, then caches it (cloud first,
+    /// per `SpaceCloudServiceProtocol.updateAnswer`).
+    func updateAnswer(_ answer: SpaceAnswer, text: String, imageData: Data?, in space: Space) async throws -> SpaceAnswer
+
     /// Deletes the user's own answer (cloud first, then cache row removal). Caller guards `isMine`.
     func deleteOwnAnswer(_ answer: SpaceAnswer, in space: Space) async throws
 }
