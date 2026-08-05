@@ -97,29 +97,66 @@ final class ClipSpaceRepository: ClipSpaceRepositoring, Sendable {
     func fetchAnswers(token: String, ownGuestId: String) async throws -> [SpaceAnswer] {
         let predicate = NSPredicate(format: "%K == %@", ClipMirrorField.requestToken, token)
         let query = CKQuery(recordType: ClipMirrorRecordType.mirroredAnswer, predicate: predicate)
-        // "group by questionId, answerIndex order" (AC-020 scope) — a stable two-key sort
-        // gives callers a ready-to-render order without a separate grouping pass; grouping by
-        // `questionId` (e.g. `Dictionary(grouping:by:)`) is left to the caller since the
-        // return type stays a flat `[SpaceAnswer]`.
-        query.sortDescriptors = [
-            NSSortDescriptor(key: ClipMirrorField.questionId, ascending: true),
-            NSSortDescriptor(key: ClipMirrorField.answerIndex, ascending: true)
-        ]
-
-        let matches: [(CKRecord.ID, Result<CKRecord, Error>)]
+        // No server-side `sortDescriptors` here deliberately: AC-H1's Console spec only
+        // provisions a SORTABLE index on `requestToken` (+ recordName), not on `questionId`/
+        // `answerIndex`. Sorting server-side on those would throw `CKError.invalidArguments`
+        // ("Field 'questionId' is not marked sortable") on every call. Instead we fetch
+        // unsorted and sort in memory below — free, since every record is already fully
+        // materialized by the time we get here.
+        let records: [CKRecord]
         do {
-            (matches, _) = try await database.records(matching: query)
+            records = try await fetchAllRecords(matching: query)
         } catch {
             throw Self.mapCKError(error)
         }
 
-        return matches.compactMap { _, result in
-            guard case .success(let record) = result else { return nil }
-            return Self.mapAnswer(record, ownGuestId: ownGuestId)
+        // "group by questionId, answerIndex order" (AC-020 scope) — a stable two-key sort
+        // gives callers a ready-to-render order without a separate grouping pass; grouping by
+        // `questionId` (e.g. `Dictionary(grouping:by:)`) is left to the caller since the
+        // return type stays a flat `[SpaceAnswer]`.
+        let indexed: [(answer: SpaceAnswer, answerIndex: Int)] = records.compactMap { record in
+            guard let answer = Self.mapAnswer(record, ownGuestId: ownGuestId) else { return nil }
+            let answerIndex = record[ClipMirrorField.answerIndex] as? Int ?? 0
+            return (answer, answerIndex)
         }
+
+        return indexed
+            .sorted { lhs, rhs in
+                if lhs.answer.questionId != rhs.answer.questionId {
+                    return lhs.answer.questionId < rhs.answer.questionId
+                }
+                return lhs.answerIndex < rhs.answerIndex
+            }
+            .map(\.answer)
     }
 
     // MARK: - Private Helpers
+
+    /// Walks every page of `query`'s results, following the CloudKit query cursor until
+    /// exhausted. `database.records(matching:)` alone only returns one server-chosen batch
+    /// (in practice ~100 records) — without this loop, any request with more matches than
+    /// one page would silently truncate.
+    private func fetchAllRecords(matching query: CKQuery) async throws -> [CKRecord] {
+        var records: [CKRecord] = []
+
+        let firstPage = try await database.records(matching: query)
+        records.append(contentsOf: firstPage.matchResults.compactMap { _, result in
+            if case .success(let record) = result { return record }
+            return nil
+        })
+
+        var cursor = firstPage.queryCursor
+        while let currentCursor = cursor {
+            let page = try await database.records(continuingMatchFrom: currentCursor)
+            records.append(contentsOf: page.matchResults.compactMap { _, result in
+                if case .success(let record) = result { return record }
+                return nil
+            })
+            cursor = page.queryCursor
+        }
+
+        return records
+    }
 
     private func fetchSingleRecord(recordType: String, token: String) async throws -> CKRecord {
         let predicate = NSPredicate(format: "%K == %@", ClipMirrorField.requestToken, token)
@@ -148,10 +185,22 @@ final class ClipSpaceRepository: ClipSpaceRepositoring, Sendable {
             throw ClipSpaceError.malformedData
         }
 
-        // `SpaceQuestion.decodeJSON` already ignores unknown keys (plain `Decodable`
-        // synthesis), which satisfies AC-020's "decoding tolerates unknown JSON keys".
-        let questionsJSON = record[ClipMirrorField.questionsJSON] as? String ?? "[]"
+        // `questionsJSON` is a required field of `MirroredRequest` per AC-H1 — a missing
+        // field is a schema/publish bug, not "no questions", so it must throw rather than
+        // silently degrade to an empty composer. `SpaceQuestion.decodeJSON` already ignores
+        // unknown keys (plain `Decodable` synthesis, satisfying AC-020's "decoding tolerates
+        // unknown JSON keys") but also swallows decode failures into `[]` on its own, so a
+        // malformed (non-empty, non-"[]") payload that decodes to zero questions must be
+        // treated the same way — otherwise the guest lands on an empty composer with no
+        // error instead of the typed `.malformedData` this enum exists for.
+        guard let questionsJSON = record[ClipMirrorField.questionsJSON] as? String else {
+            throw ClipSpaceError.malformedData
+        }
         let questions = SpaceQuestion.decodeJSON(questionsJSON)
+        let isEmptyJSONArray = questionsJSON.trimmingCharacters(in: .whitespacesAndNewlines) == "[]"
+        if questions.isEmpty && !isEmptyJSONArray {
+            throw ClipSpaceError.malformedData
+        }
 
         // Tolerant asset read — same rationale as `SpaceRecordMapper.spaceReflection(from:)`
         // in the full app: a missing/expired staging file degrades to text-only rather than
@@ -220,6 +269,11 @@ final class ClipSpaceRepository: ClipSpaceRepositoring, Sendable {
             return .network
         case .unknownItem:
             return .invalidLink
+        case .invalidArguments:
+            // A schema/index misconfiguration (e.g. a query field missing its Console
+            // SORTABLE/QUERYABLE index) is not a connectivity problem — don't tell the
+            // guest "couldn't reach iCloud" for what's actually a server-side setup bug.
+            return .malformedData
         default:
             return .network
         }
