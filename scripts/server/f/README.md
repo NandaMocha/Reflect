@@ -50,14 +50,23 @@ This page (`index.php`) only actually renders for:
    `docs/features/app-clip-tasks.md`).
 2. **Before shipping to the App Store**, fill in `APPLE_ITUNES_APP_ID` in
    `index.php` (currently empty — the full app has no App Store numeric ID
-   yet). Until then the Smart App Banner still deep-links correctly via
-   `app-clip-bundle-id` alone, which is sufficient for Local Experiences /
-   TestFlight-invocation testing (AC-H4/AC-H5).
+   yet). Until then the Smart App Banner is **non-functional**: `app-id` is a
+   required attribute of the `apple-itunes-app` meta tag, and Safari renders
+   no banner at all when it's absent — so `app-clip-bundle-id`,
+   `app-clip-display=card`, and `app-argument` are inert until the numeric ID
+   is filled in. Local Experiences and TestFlight Clip invocation (AC-H4/
+   AC-H5) are driven by AASA/universal links, not the Smart App Banner, so
+   passing those tests proves nothing about the banner.
 3. Sanity checks after upload:
    - `curl -I https://nandamochammad.xyz/f/sometoken123` → `200`.
    - `curl -s https://nandamochammad.xyz/f/sometoken123 | grep apple-itunes-app`
-     → confirms the meta tag renders with `app-clip-bundle-id=xyz.nandamochammad.Reflect.Clip`
-     and `app-argument=https://nandamochammad.xyz/f/sometoken123`.
+     → **markup-only check, NOT banner verification.** With
+     `APPLE_ITUNES_APP_ID` empty this only confirms the meta tag string is
+     emitted with `app-clip-bundle-id=xyz.nandamochammad.Reflect.Clip` and
+     `app-argument=https://nandamochammad.xyz/f/sometoken123` — it does not
+     confirm any banner renders. Real banner verification (on-device Safari,
+     banner actually appears and deep-links) is deferred until the App Store
+     numeric ID exists.
    - `curl -I https://nandamochammad.xyz/f/` (no token) → `404` (intentional
      — bare `/f/` has nothing to explain).
    - Confirm no redirect is introduced anywhere on `/f/*` — Apple's AASA
