@@ -71,6 +71,13 @@ while true; do
   case "$NEXT" in
     EMPTY)
       echo "== queue empty =="; python3 loop/loop.py status; break ;;
+    WAIT)
+      # Nothing dispatchable right now, but another lane is mid-task and will
+      # unblock something when it lands. Idle instead of exiting — treating this
+      # as "queue finished" is what silently killed lanes 2 and 3 on the first
+      # multi-lane run, leaving one lane to do everything.
+      echo "[$LANE_ID] == nothing ready; waiting on another lane =="
+      sleep 60 ;;
     REPLAN)
       # A replanner session runs under --permission-mode acceptEdits, which lets
       # it edit files but can deny it Bash (python3/sqlite3) entirely — in that

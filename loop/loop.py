@@ -133,7 +133,17 @@ def cmd_next(_):
         if deps_done(con, row):
             print(json.dumps({"id": row["id"], "tier": row["tier"], "title": row["title"], "branch": row["branch"]}))
             return
-    print("EMPTY")
+
+    # Nothing dispatchable. Distinguish "done" from "waiting on another lane":
+    # with several lanes, the common case is that every ready task is already
+    # claimed and this lane should idle, not exit. Only work that is actually
+    # moving (in_progress / pr_open / approved) can unblock us — a queued task
+    # whose deps sit in `blocked` will never clear on its own, so that is EMPTY
+    # and the blocked-threshold/replan path handles it rather than a lane
+    # spinning forever.
+    in_flight = con.execute(
+        "SELECT COUNT(*) FROM tasks WHERE status IN ('in_progress','pr_open','approved')").fetchone()[0]
+    print("WAIT" if in_flight else "EMPTY")
 
 def cmd_context(a):
     con = db()
