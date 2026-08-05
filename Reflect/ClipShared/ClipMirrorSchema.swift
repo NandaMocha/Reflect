@@ -74,12 +74,15 @@ nonisolated enum ClipMirrorRecordName {
         tokenIndexPrefix + token
     }
 
-    /// A fresh `PendingClipFeedback` recordName for one guest submission. Unlike the
-    /// request token itself, this doesn't need to resist guessing — it's a write target,
-    /// not a public lookup key — so it rides on the same random generator for simplicity
-    /// rather than needing its own scheme.
-    static func newPendingClipFeedback() -> String {
-        pendingClipFeedbackPrefix + ClipToken.generate()
+    /// The `PendingClipFeedback` recordName for one guest submission — exactly
+    /// `"pcf-" + submissionId`. Must be deterministic in the client's `submissionId`
+    /// (app-clip-plan.md's "deterministic submissionId idempotency" decision): a retry
+    /// with the same `submissionId` has to land on the same record, not create a
+    /// duplicate. AC-012 derives its ingested Answer's recordName as
+    /// `"guest-" + submissionId` by stripping this same prefix, so the suffix must be
+    /// exactly the client's `submissionId`, never a fresh random token.
+    static func pendingClipFeedback(for submissionId: String) -> String {
+        pendingClipFeedbackPrefix + submissionId
     }
 }
 
@@ -115,10 +118,12 @@ nonisolated extension Data {
 /// One guest's answer to one question, as posted to the server-side write endpoint.
 nonisolated struct ClipFeedbackAnswerDTO: Codable, Sendable, Equatable {
     var questionId: String
+    var submissionId: String
     var body: String
 
-    init(questionId: String, body: String) {
+    init(questionId: String, submissionId: String, body: String) {
         self.questionId = questionId
+        self.submissionId = submissionId
         self.body = body
     }
 }
@@ -140,15 +145,21 @@ nonisolated struct ClipFeedbackSubmissionRequest: Codable, Sendable, Equatable {
     }
 }
 
-/// Response from the write endpoint. `errorMessage` is only populated when `success`
-/// is `false` — the Clip surfaces it as-is rather than mapping it to a local enum,
-/// since the endpoint is the source of truth for what went wrong server-side.
+/// Response from the write endpoint. Mirrors `clip-feedback.php`'s actual JSON shape:
+/// `{"ok": true, "submitted": [...]}` on success, `{"ok": false, "error": "<code>",
+/// "message": "<text>"}` on failure. AC-021 maps `error` codes (e.g. `"not_found"` /
+/// `"gone"` -> `.linkRevoked`, `"rate_limited"` -> `.rateLimited) itself, so this DTO
+/// surfaces the raw code rather than a pre-mapped local enum.
 nonisolated struct ClipFeedbackSubmissionResponse: Codable, Sendable, Equatable {
-    var success: Bool
-    var errorMessage: String?
+    var ok: Bool
+    var submitted: [String]?
+    var error: String?
+    var message: String?
 
-    init(success: Bool, errorMessage: String? = nil) {
-        self.success = success
-        self.errorMessage = errorMessage
+    init(ok: Bool, submitted: [String]? = nil, error: String? = nil, message: String? = nil) {
+        self.ok = ok
+        self.submitted = submitted
+        self.error = error
+        self.message = message
     }
 }

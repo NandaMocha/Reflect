@@ -656,9 +656,12 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 }
 
                 let token = ClipToken.generate()
-                record[SpaceRecordField.requestToken] = token as CKRecordValue
-                _ = try await withRetry { try await database.save(record) }
 
+                // Create the public TokenIndex BEFORE persisting the token onto the
+                // reflection record. If `fetchShare`/`saveOverwriting` throws (e.g. the
+                // space isn't shared yet), the reflection is left untouched and a later
+                // call retries cleanly instead of short-circuiting on a token that was
+                // never indexed (see AC-010 review).
                 let share = try await fetchShare(for: zone)
                 guard let shareURL = share.url?.absoluteString else {
                     throw SpaceError.shareFailed("Share has no URL yet")
@@ -670,6 +673,9 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                     zoneOwnerName: zone.ownerName
                 )
                 try await saveOverwriting(tokenIndexRecord, in: publicDB)
+
+                record[SpaceRecordField.requestToken] = token as CKRecordValue
+                _ = try await withRetry { try await database.save(record) }
 
                 return token
             } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {

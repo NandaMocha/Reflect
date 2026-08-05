@@ -361,6 +361,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             }
             existing.createdAt = reflection.createdAt
             existing.modifiedAt = reflection.modifiedAt
+            existing.requestToken = reflection.requestToken
             // Sticky true: `isMine` is fail-closed to false in SpaceCloudService.isMine(_:lane:myUserRecordName:)
             // whenever the current user's record name hasn't resolved yet (e.g. a
             // transient CKContainer.userRecordID() lookup on this pass), so a genuinely
@@ -389,6 +390,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             }
             existing.createdAt = answer.createdAt
             existing.modifiedAt = answer.modifiedAt
+            existing.guestId = answer.guestId
+            existing.guestName = answer.guestName
             // Sticky true: see the matching comment in upsertReflection — never let a
             // resync downgrade a row already known to be mine, only let it flip false → true.
             existing.isMine = existing.isMine || answer.isMine
