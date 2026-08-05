@@ -289,6 +289,10 @@ line; entities CloudKit-free; `SpaceStore` isolated from main schema; no `UIWind
 
 ## ▶ NEXT ACTION: run H2 (two-device spike). P0 exit criterion.
 
+> **Full step-by-step: [h2-runbook.md](h2-runbook.md)** — prerequisites (incl. signing Device B),
+> the exact button sequence, photo + authorship checks, what each failure implicates, and the H3 /
+> TASK-014 work to batch into the same session. The summary below is the short form.
+
 On **both** devices: Settings → **🧪 Space Debug (spike)**:
 1. Device A: Check availability → Create test space → Share invite → send link via Messages.
 2. Device B: tap link → app opens & accepts → List joined spaces shows it → Write probe reflection.
