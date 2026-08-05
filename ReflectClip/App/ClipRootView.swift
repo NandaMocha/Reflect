@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// Root view for the Clip — switches on `ClipSession.phase`. `.needsName` is real
-/// (`GuestNamePrompt`, `Features/Identity/GuestNamePrompt.swift`); the remaining phases are still
-/// lightweight placeholders that fill in with real composer/all-feedback screens across later
-/// tickets (AC-031/032). Uses only system semantic colors —
-/// `Reflect/Core/Extensions/Color+Hex.swift` isn't shared into this target yet (see
+/// (`GuestNamePrompt`, `Features/Identity/GuestNamePrompt.swift`), as is `.compose`
+/// (`ClipYourFeedbackView`, `Features/Compose/ClipYourFeedbackView.swift`, AC-031);
+/// `.allFeedback` remains a lightweight placeholder until AC-032. Uses only system semantic
+/// colors — `Reflect/Core/Extensions/Color+Hex.swift` isn't shared into this target yet (see
 /// `Reflect/ClipShared/README.md`).
 ///
 /// The `.loading` → `.invocationTimedOut` timeout is owned by `ClipSession`
@@ -22,11 +22,7 @@ struct ClipRootView: View {
             case .needsName:
                 GuestNamePrompt(session: session)
             case .compose:
-                PhasePlaceholderView(
-                    systemImage: "square.and.pencil",
-                    title: "Ready to respond",
-                    message: composeGreeting
-                )
+                ClipYourFeedbackView(session: session)
             case .allFeedback:
                 PhasePlaceholderView(
                     systemImage: "bubble.left.and.bubble.right",
@@ -46,12 +42,6 @@ struct ClipRootView: View {
         .animation(.default, value: session.phase)
     }
 
-    private var composeGreeting: String {
-        guard let name = session.guestIdentity?.displayName, !name.isEmpty else {
-            return "The composer lands in a later ticket."
-        }
-        return "Hi \(name) — the composer lands in a later ticket."
-    }
 }
 
 /// Shown when `.loading` timed out with no invocation delivered by either path (see

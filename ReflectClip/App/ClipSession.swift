@@ -130,6 +130,43 @@ final class ClipSession {
         startResolutionTimeout()
     }
 
+    /// Advances `.compose` -> `.allFeedback` after a confirmed-or-queued submit
+    /// (`ClipYourFeedbackViewModel.submit()`). A no-op from any other phase — this is a forward
+    /// transition only, never a way to jump into `.allFeedback` from elsewhere.
+    func advanceToAllFeedback() {
+        guard phase == .compose else { return }
+        phase = .allFeedback
+    }
+
+    /// Routes to the existing "this link isn't working" phase from anywhere the guest discovers
+    /// the request is dead: a `.invalidLink` load failure (`ClipYourFeedbackViewModel.load()`) or
+    /// a `.linkRevoked` submit failure (same view model's `submit()`). Reusing `.invalidLink`
+    /// rather than adding a separate "revoked mid-session" phase keeps `ClipRootView` a single
+    /// switch with one guest-facing copy for "this link no longer works," which is true in both
+    /// cases from the guest's point of view.
+    func markLinkInvalid() {
+        phase = .invalidLink
+    }
+
+    /// Renames the current guest **without** minting a new `guestId` — the composer's "Edit name"
+    /// affordance (AC-031) uses this instead of `submitDisplayName(_:)` specifically so a rename
+    /// mid-session can't orphan answers already submitted under the old `guestId`
+    /// (`PendingAnswerStore`/AC-032's dedup key is `guestId`+`questionId`, not display name).
+    /// A no-op if no identity exists yet or the trimmed name is empty.
+    func updateDisplayName(_ rawName: String) {
+        let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, var identity = guestIdentity else { return }
+        guard trimmed != identity.displayName else { return }
+
+        identity.displayName = trimmed
+        do {
+            try guestIdentityStore.save(identity)
+        } catch {
+            logger.error("Failed to persist renamed guest identity — \(String(describing: error), privacy: .public)")
+        }
+        guestIdentity = identity
+    }
+
     // MARK: - Private Helpers
 
     private func refreshPhaseFromStoredIdentity() {
