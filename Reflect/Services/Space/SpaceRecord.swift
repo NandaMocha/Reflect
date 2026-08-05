@@ -30,6 +30,11 @@ enum SpaceRecordField {
     static let imageAsset = "imageAsset"
     static let note = "note"
     static let questionsJSON = "questionsJSON"
+    /// The Clip guest-feedback share token (AC-010), when this reflection has one.
+    /// Same string as `ClipMirrorField.requestToken` — kept as a separate constant here
+    /// because `ClipShared` (which `ClipMirrorField` lives in) is a cross-target folder
+    /// and this file is app-only.
+    static let requestToken = "requestToken"
 
     // SpaceReflection child records (Answer)
     static let reflectionID = "reflectionID"
@@ -41,6 +46,10 @@ enum SpaceRecordField {
     // Answer (child of SpaceReflection)
     static let questionId = "questionId"
     static let text = "text"
+    /// Set only on answers authored by an unauthenticated Clip guest (AC-010); nil for
+    /// answers from a signed-in member.
+    static let guestId = "guestId"
+    static let guestName = "guestName"
 }
 
 // MARK: - CKRecord <-> Entity Mapping
@@ -164,7 +173,8 @@ enum SpaceRecordMapper {
         title: String,
         note: String?,
         questions: [SpaceQuestion],
-        imageAsset: CKAsset? = nil
+        imageAsset: CKAsset? = nil,
+        requestToken: String? = nil
     ) -> CKRecord {
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: SpaceRecordType.spaceReflection, recordID: recordID)
@@ -176,6 +186,9 @@ enum SpaceRecordMapper {
         }
         if let imageAsset {
             record[SpaceRecordField.imageAsset] = imageAsset
+        }
+        if let requestToken {
+            record[SpaceRecordField.requestToken] = requestToken as CKRecordValue
         }
         let parentID = CKRecord.ID(recordName: spaceID, zoneID: zoneID)
         record.parent = CKRecord.Reference(recordID: parentID, action: .none)
@@ -216,7 +229,8 @@ enum SpaceRecordMapper {
             authorDisplayName: nil, // resolved from CKShare.participants by the caller
             createdAt: record.creationDate,
             modifiedAt: record.modificationDate,
-            isMine: isMine
+            isMine: isMine,
+            requestToken: record[SpaceRecordField.requestToken] as? String
         )
     }
 
@@ -232,7 +246,9 @@ enum SpaceRecordMapper {
         reflectionID: String,
         questionId: String,
         text: String,
-        imageAsset: CKAsset? = nil
+        imageAsset: CKAsset? = nil,
+        guestId: String? = nil,
+        guestName: String? = nil
     ) -> CKRecord {
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: SpaceRecordType.answer, recordID: recordID)
@@ -241,6 +257,12 @@ enum SpaceRecordMapper {
         record[SpaceRecordField.reflectionID] = reflectionID as CKRecordValue
         if let imageAsset {
             record[SpaceRecordField.imageAsset] = imageAsset
+        }
+        if let guestId {
+            record[SpaceRecordField.guestId] = guestId as CKRecordValue
+        }
+        if let guestName {
+            record[SpaceRecordField.guestName] = guestName as CKRecordValue
         }
         let parentID = CKRecord.ID(recordName: reflectionID, zoneID: zoneID)
         record.parent = CKRecord.Reference(recordID: parentID, action: .none)
@@ -278,7 +300,30 @@ enum SpaceRecordMapper {
             authorDisplayName: nil, // resolved from CKShare.participants by the caller
             createdAt: record.creationDate,
             modifiedAt: record.modificationDate,
-            isMine: isMine
+            isMine: isMine,
+            guestId: record[SpaceRecordField.guestId] as? String,
+            guestName: record[SpaceRecordField.guestName] as? String
         )
+    }
+
+    // MARK: - Clip Mirror: TokenIndex (public DB, AC-010)
+
+    /// Builds the public-DB `TokenIndex` record for a freshly-minted request token.
+    /// `recordName` is exactly `"tok-" + token` (via `ClipMirrorRecordName.tokenIndex`) —
+    /// AC-015's Clip-side `records/lookup` depends on that being byte-for-byte stable.
+    /// Lives in the public database's default zone (no `zoneID`), unlike the Space
+    /// hierarchy above.
+    static func makeTokenIndexRecord(
+        token: String,
+        shareURL: String,
+        reflectionID: String,
+        zoneOwnerName: String
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: ClipMirrorRecordName.tokenIndex(for: token))
+        let record = CKRecord(recordType: ClipMirrorRecordType.tokenIndex, recordID: recordID)
+        record[ClipMirrorField.shareURL] = shareURL as CKRecordValue
+        record[ClipMirrorField.reflectionID] = reflectionID as CKRecordValue
+        record[ClipMirrorField.zoneOwnerName] = zoneOwnerName as CKRecordValue
+        return record
     }
 }

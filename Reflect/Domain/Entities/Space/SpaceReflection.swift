@@ -13,4 +13,8 @@ struct SpaceReflection: Identifiable, Hashable, Sendable {
     var createdAt: Date?
     var modifiedAt: Date?
     var isMine: Bool
+    /// The Clip guest-feedback share token, if one has been minted for this request
+    /// (AC-010's `ensureRequestToken`). Nil for reflections nobody has ever shared to a
+    /// guest.
+    var requestToken: String? = nil
 }

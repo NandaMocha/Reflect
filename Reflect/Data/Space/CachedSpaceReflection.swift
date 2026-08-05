@@ -21,6 +21,9 @@ final class CachedSpaceReflection {
     var modifiedAt: Date?
     var isMine: Bool
     var lastFetchedAt: Date
+    /// Cached copy of the Clip guest-feedback share token (AC-010). Nil for
+    /// reflections nobody has shared to a guest yet.
+    var requestToken: String?
 
     init(
         id: String,
@@ -34,7 +37,8 @@ final class CachedSpaceReflection {
         createdAt: Date? = nil,
         modifiedAt: Date? = nil,
         isMine: Bool,
-        lastFetchedAt: Date = Date()
+        lastFetchedAt: Date = Date(),
+        requestToken: String? = nil
     ) {
         self.id = id
         self.spaceID = spaceID
@@ -48,6 +52,7 @@ final class CachedSpaceReflection {
         self.modifiedAt = modifiedAt
         self.isMine = isMine
         self.lastFetchedAt = lastFetchedAt
+        self.requestToken = requestToken
     }
 
     /// Initialize from a domain SpaceReflection.
@@ -64,6 +69,7 @@ final class CachedSpaceReflection {
         self.modifiedAt = domain.modifiedAt
         self.isMine = domain.isMine
         self.lastFetchedAt = Date()
+        self.requestToken = domain.requestToken
     }
 
     /// Convert back to a domain SpaceReflection.
@@ -80,7 +86,8 @@ final class CachedSpaceReflection {
             authorDisplayName: authorDisplayName,
             createdAt: createdAt,
             modifiedAt: modifiedAt,
-            isMine: isMine
+            isMine: isMine,
+            requestToken: requestToken
         )
     }
 }

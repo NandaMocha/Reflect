@@ -98,6 +98,16 @@ protocol SpaceCloudServiceProtocol {
     /// trust: the caller guards `isMine` (no server enforcement, plan §11.2).
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws
 
+    // MARK: - Clip guest feedback — AC-010
+
+    /// Mints and persists the Clip guest-feedback share token for a reflection, if it
+    /// doesn't already have one, and creates the public `TokenIndex` lookup record
+    /// (`"tok-" + token`) that resolves it back to this zone/reflection. Idempotent: a
+    /// second call for an already-tokenized reflection returns the stored token as-is —
+    /// no re-save, no duplicate `TokenIndex`. Owner-only (`zone.lane == .privateDB`);
+    /// a joined participant can't mint a link for someone else's request.
+    func ensureRequestToken(for reflectionID: String, in zone: SpaceZoneRef) async throws -> String
+
     // MARK: - Subscriptions / background sync — T22
 
     /// Registers idempotent `CKDatabaseSubscription`s (silent, content-available) on both
