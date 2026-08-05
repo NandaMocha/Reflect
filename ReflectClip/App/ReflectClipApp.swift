@@ -3,90 +3,39 @@ import SwiftUI
 /// Entry point for the `ReflectClip` App Clip target.
 ///
 /// Parses the `requestToken` out of the invocation URL
-/// (`https://nandamochammad.xyz/f/<token>`) via `NSUserActivityTypeBrowsingWeb` and logs it.
-/// `ClipSession` here is a deliberately small stub — AC-002 replaces it with the full
-/// `App/ClipSession.swift` (guest identity, phase machine) per the task breakdown's file lock
-/// (`ReflectClip/App/ReflectClipApp.swift`: AC-001 → AC-002).
+/// (`https://nandamochammad.xyz/f/<token>`), routes through `ClipSession`'s phase machine, and
+/// renders `ClipRootView`. `ClipDIContainer.shared` wires the single `ClipSession` instance and
+/// its `GuestIdentityStoring` dependency.
+///
+/// Two delivery paths feed the same token parser, because `.onContinueUserActivity` alone isn't
+/// reliable for App Clip invocations on every simulator/iOS combination (confirmed via
+/// `launchctl procinfo`: `_XCAppClipURL` was present in the process environment while zero
+/// `NSUserActivityTypeBrowsingWeb` continuation ever reached the app):
+/// 1. `session.consumeAppClipURLFromEnvironment()` — read directly from `ProcessInfo` at launch.
+/// 2. `.onContinueUserActivity(NSUserActivityTypeBrowsingWeb)` — the normal handoff, when it fires.
+/// `ClipSession.startResolutionTimeout()` gives path 2 a window to arrive before the phase
+/// machine gives up on `.loading`.
+///
+/// **Convention (binding for all later Clip tickets):** feature factories are added via
+/// `extension ClipDIContainer` inside the feature's own file — never by editing
+/// `ClipDIContainer.swift` again.
 @main
 struct ReflectClipApp: App {
-    @State private var session = ClipSession()
+    @State private var session: ClipSession
+
+    init() {
+        let session = ClipDIContainer.shared.session
+        session.consumeAppClipURLFromEnvironment()
+        session.startResolutionTimeout()
+        _session = State(initialValue: session)
+    }
 
     var body: some Scene {
         WindowGroup {
-            ClipScaffoldPlaceholderView(session: session)
+            ClipRootView(session: session)
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     session.handle(userActivity: activity)
                 }
         }
-    }
-}
-
-/// Minimal `@Observable` stub for the parsed invocation state. Intentionally thin — full guest
-/// identity + phase gating lands in AC-002.
-@Observable
-@MainActor
-final class ClipSession {
-
-    // MARK: - State
-
-    enum Phase {
-        case loading
-        case needsName
-        case compose
-        case allFeedback
-        case invalidLink
-    }
-
-    private(set) var phase: Phase = .loading
-    private(set) var requestToken: String?
-
-    // MARK: - Actions
-
-    func handle(userActivity: NSUserActivity) {
-        guard let url = userActivity.webpageURL,
-              let token = Self.parseToken(from: url) else {
-            phase = .invalidLink
-            return
-        }
-        requestToken = token
-        phase = .needsName
-        #if DEBUG
-        print("ReflectClip: parsed requestToken = \(token)")
-        #endif
-    }
-
-    // MARK: - Private Helpers
-
-    /// Expects `https://nandamochammad.xyz/f/<token>`.
-    private static func parseToken(from url: URL) -> String? {
-        let components = url.pathComponents.filter { $0 != "/" }
-        guard components.count == 2, components[0] == "f", !components[1].isEmpty else {
-            return nil
-        }
-        return components[1]
-    }
-}
-
-/// Scaffolding-only placeholder screen. Replaced by `ClipRootView` (AC-002) once the phase
-/// machine and guest identity flow exist.
-private struct ClipScaffoldPlaceholderView: View {
-    let session: ClipSession
-
-    var body: some View {
-        VStack(spacing: Constants.Spacing.md) {
-            Text("Reflect Clip")
-                .font(.title2.bold())
-                .foregroundStyle(.tint)
-            Text("Scaffolding placeholder — the real composer lands in later tickets.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            if let token = session.requestToken {
-                Text("Token: \(token)")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding()
     }
 }

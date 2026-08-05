@@ -8,11 +8,20 @@ import Foundation
 /// `extension ClipDIContainer` inside the feature's own file — never by editing this file again.
 /// This dissolves the serial-lock bottleneck the full app's equivalent file has.
 ///
-/// Intentionally factory-less at this stage; AC-002 fills in `makeGuestIdentityStore()` and
-/// session wiring.
 @MainActor
 final class ClipDIContainer {
     static let shared = ClipDIContainer()
 
+    /// The single `ClipSession` instance for the process. `ReflectClipApp` seeds its `@State`
+    /// from this, mirroring how the full app wires ViewModels through its own dependency
+    /// container's shared instance.
+    private(set) lazy var session = ClipSession(guestIdentityStore: makeGuestIdentityStore())
+
     private init() {}
+
+    // MARK: - Factories
+
+    func makeGuestIdentityStore() -> GuestIdentityStoring {
+        LiveGuestIdentityStore()
+    }
 }
