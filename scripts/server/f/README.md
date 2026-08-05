@@ -44,10 +44,15 @@ This page (`index.php`) only actually renders for:
 
 ## Deploy notes (for AC-H2)
 
-1. Upload the `f/` directory as-is to the web root:
-   `/home/sesirkel/nandamochammad.xyz/nandamochammad/f/` (NOT `public_html`
-   — this account uses an addon-domain layout; see Ground truth #4 in
-   `docs/features/app-clip-tasks.md`).
+1. Upload only `index.php` and `.htaccess` to the web root's `f/` directory
+   (NOT `public_html` — this account uses an addon-domain layout; see Ground
+   truth #4 in `docs/features/app-clip-tasks.md`). Do **not** upload this
+   README or any other file from this source directory — the `.htaccess`
+   rewrite pattern only matches token-shaped paths and bare `/f/`, so any
+   other filename (including `README.md`) is served raw by the web server if
+   it's present, disclosing whatever it contains on a public URL. The
+   `.htaccess` below also explicitly denies `README.md` as defense in depth,
+   but the deploy step should not rely on that.
 2. **Before shipping to the App Store**, fill in `APPLE_ITUNES_APP_ID` in
    `index.php` (currently empty — the full app has no App Store numeric ID
    yet). Until then the Smart App Banner is **non-functional**: `app-id` is a

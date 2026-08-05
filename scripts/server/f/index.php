@@ -25,8 +25,8 @@ declare(strict_types=1);
 // Token comes from the .htaccess rewrite (?t=<token>) or the query string
 // directly. Treat as opaque and untrusted: allow only the same charset the
 // app mints (see AC-010/AC-015 — url-safe token), strip everything else.
-$rawToken = $_GET['t'] ?? '';
-$token = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $rawToken);
+$rawToken = isset($_GET['t']) && is_string($_GET['t']) ? $_GET['t'] : '';
+$token = preg_replace('/[^A-Za-z0-9_-]/', '', $rawToken);
 
 $hasToken = $token !== '';
 

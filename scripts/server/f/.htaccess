@@ -11,6 +11,14 @@
 
 RewriteEngine On
 
+# Deny direct access to README.md even if it's ever uploaded/copied alongside
+# index.php — it documents the absolute web-root path and cPanel account
+# name and must never be served raw. Defense in depth: deploy step 1 says
+# not to upload it at all.
+<Files "README.md">
+    Require all denied
+</Files>
+
 # /f/<token> -> index.php?t=<token>  (token: letters, digits, - and _ only)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
