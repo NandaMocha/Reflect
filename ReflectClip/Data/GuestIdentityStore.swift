@@ -87,6 +87,11 @@ final class LiveGuestIdentityStore: GuestIdentityStoring, Sendable {
                 logger.error("App Group mirror save also failed — guest identity was not persisted")
                 throw GuestIdentityStoreError.keychainWrite(keychainStatus)
             }
+        } else if !mirrorSaved {
+            // Keychain succeeded, so the guest isn't stranded, but the mirror is the layer most
+            // likely to be silently broken during simulator testing (see the type doc comment) —
+            // log it independently so that failure mode is never silent.
+            logger.error("App Group mirror save failed even though the keychain write succeeded")
         }
     }
 

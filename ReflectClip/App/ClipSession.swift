@@ -45,7 +45,9 @@ final class ClipSession {
         }
         requestToken = token
         refreshPhaseFromStoredIdentity()
-        logger.debug("Parsed requestToken = \(token, privacy: .public)")
+        #if DEBUG
+        logger.debug("Parsed requestToken = \(token, privacy: .private)")
+        #endif
     }
 
     /// Called by the `.needsName` screen once the guest submits a display name. Mints a new
