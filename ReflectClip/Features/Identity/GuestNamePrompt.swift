@@ -90,13 +90,22 @@ struct GuestNamePrompt: View {
                 .submitLabel(.done)
                 .onSubmit(submit)
                 .accessibilityLabel("Your name")
-                .accessibilityHint("Shown next to what you write in this feedback thread.")
+                .accessibilityHint("Shown next to what you write in this feedback thread. Maximum \(Self.maxLength) characters.")
+                .accessibilityValue("\(name.count) of \(Self.maxLength) characters")
 
             Text("\(name.count)/\(Self.maxLength)")
                 .font(.caption)
+                .fontWeight(isOverLimit ? .bold : .regular)
                 .foregroundStyle(isOverLimit ? .red : .secondary)
                 .monospacedDigit()
                 .accessibilityHidden(true)
+
+            if isOverLimit {
+                Text("Names can be at most \(Self.maxLength) characters.")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.red)
+            }
         }
     }
 
