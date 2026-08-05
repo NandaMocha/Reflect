@@ -89,6 +89,17 @@ protocol SpaceCloudServiceProtocol {
     /// duplicate. `imageData` nil clears any existing image asset.
     func upsertAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer
 
+    /// Creates a new answer record with a fresh, uniquely-suffixed record name (via
+    /// `SpaceAnswer.newRecordName`), so multiple answers to the same question by the same
+    /// author coexist instead of overwriting each other (unlike `upsertAnswer`).
+    /// `imageData` (already-compressed JPEG bytes) is uploaded as a `CKAsset` when present.
+    func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer
+
+    /// Rewrites an existing answer's text and image asset in place, identified by its
+    /// record name. `imageData` nil clears any existing image asset. Throws
+    /// `SpaceError.answerNotFound` if the record no longer exists.
+    func updateAnswer(id: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer
+
     /// Deletes a single child record (reflection or answer) by record name. UI-level
     /// trust: the caller guards `isMine` (no server enforcement, plan §11.2).
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws
