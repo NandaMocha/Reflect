@@ -1,7 +1,13 @@
 # Agent loop run state — project-run artifacts, not portable kit content.
 loop/tasks.db
+loop/tasks.db-wal
+loop/tasks.db-shm
 loop/LOOP_STATUS.md
 loop/.runner.lock
+# Multi-lane run state (loop/lane.sh)
+loop/.lane-pids
+loop/.merge.lock/
+loop/lane-*.log
 loop/REPLAN-*.sh
 loop/REPLAN-*.sh.applied
 loop/REPLAN-*.sh.failed
