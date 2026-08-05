@@ -61,16 +61,14 @@ struct SpaceAllResponsesView: View {
                     ForEach(filteredAnswers) { answer in
                         // Edit/Delete only render for own answers (guarded by `answer.isMine`
                         // inside `AnswerBubble`), so passing them for every row is safe.
-                        let questionNumber = (viewModel.reflection.questions.firstIndex(where: { $0.id == answer.questionId }) ?? 0) + 1
                         AnswerBubble(
                             answer: answer,
                             spaceName: viewModel.space.name,
-                            questionNumber: questionNumber,
-                            onEdit: {
+                            onEdit: { answer in
                                 viewModel.select(questionId: answer.questionId)
                                 dismiss()
                             },
-                            onDelete: { Task { await viewModel.deleteOwnAnswer(answer) } }
+                            onDelete: { answer in Task { await viewModel.deleteOwnAnswer(answer) } }
                         )
                     }
                 }
