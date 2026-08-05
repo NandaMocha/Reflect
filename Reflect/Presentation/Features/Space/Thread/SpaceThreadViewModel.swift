@@ -63,10 +63,13 @@ final class SpaceThreadViewModel {
     var responseLimit: Int { Constants.Limits.spaceResponseMaxLength }
     var draftCount: Int { draft.count }
 
-    /// My answers to a given question, oldest first.
+    /// My answers to a given question, oldest first. Guest answers are excluded even if one
+    /// were ever mis-flagged `isMine` — the owner's ingested-from-Clip answers must never show
+    /// up in "your answers" (AC-013). See `AnswerBubble.showsAsMine` for the display-side twin
+    /// of this guard.
     func myAnswers(for questionId: String) -> [SpaceAnswer] {
         answers
-            .filter { $0.isMine && $0.questionId == questionId }
+            .filter { $0.isMine && !$0.isGuest && $0.questionId == questionId }
             .sorted { ($0.modifiedAt ?? $0.createdAt ?? .distantPast) < ($1.modifiedAt ?? $1.createdAt ?? .distantPast) }
     }
 
@@ -179,6 +182,19 @@ final class SpaceThreadViewModel {
     }
 
     func deleteOwnAnswer(_ answer: SpaceAnswer) async {
+        await deleteAnswer(answer)
+    }
+
+    /// Owner-only moderation path for a guest's answer (AC-013 Decision 1). Reuses the same
+    /// use case as `deleteOwnAnswer` — the actual permission check is the
+    /// `isMine || (isGuest && isSpaceOwner)` guard inside `DeleteOwnSpaceContentUseCase`, not
+    /// anything here. Kept as a distinctly named entry point so call sites read intent, but it
+    /// carries no additional trust of its own.
+    func deleteGuestAnswer(_ answer: SpaceAnswer) async {
+        await deleteAnswer(answer)
+    }
+
+    private func deleteAnswer(_ answer: SpaceAnswer) async {
         do {
             try await deleteUseCase.execute(answer: answer, in: space)
             answers.removeAll { $0.id == answer.id }

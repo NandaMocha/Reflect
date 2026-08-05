@@ -58,16 +58,26 @@ struct SpaceAllResponsesView: View {
                         .padding(.vertical, Constants.Spacing.xl)
                 } else {
                     ForEach(filteredAnswers) { answer in
-                        // Edit/Delete only render for own answers (guarded by `answer.isMine`
-                        // inside `AnswerBubble`), so passing them for every row is safe.
+                        // Edit only renders for own answers, and Delete only for own answers or
+                        // (moderation, AC-013) a guest's answer when we own the space — both
+                        // guarded inside `AnswerBubble`, so passing them for every row is safe.
                         AnswerBubble(
                             answer: answer,
                             spaceName: viewModel.space.name,
+                            isSpaceOwner: viewModel.space.isOwner,
                             onEdit: { answer in
                                 viewModel.beginEditing(answer)
                                 dismiss()
                             },
-                            onDelete: { answer in Task { await viewModel.deleteOwnAnswer(answer) } }
+                            onDelete: { answer in
+                                Task {
+                                    if answer.isGuest {
+                                        await viewModel.deleteGuestAnswer(answer)
+                                    } else {
+                                        await viewModel.deleteOwnAnswer(answer)
+                                    }
+                                }
+                            }
                         )
                     }
                 }
