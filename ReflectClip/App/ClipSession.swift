@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 
 /// The Clip's phase machine: parses the invocation token, resolves (or collects) the guest's
 /// identity, and exposes a single `phase` the root view switches on.
@@ -24,6 +25,7 @@ final class ClipSession {
     // MARK: - Dependencies
 
     private let guestIdentityStore: GuestIdentityStoring
+    private let logger = Logger(subsystem: "xyz.nandamochammad.Reflect.Clip", category: "ClipSession")
 
     // MARK: - Initialization
 
@@ -43,9 +45,7 @@ final class ClipSession {
         }
         requestToken = token
         refreshPhaseFromStoredIdentity()
-        #if DEBUG
-        print("ReflectClip: parsed requestToken = \(token)")
-        #endif
+        logger.debug("Parsed requestToken = \(token, privacy: .public)")
     }
 
     /// Called by the `.needsName` screen once the guest submits a display name. Mints a new
@@ -59,12 +59,20 @@ final class ClipSession {
         do {
             try guestIdentityStore.save(identity)
         } catch {
-            #if DEBUG
-            print("ReflectClip: failed to persist guest identity — \(error)")
-            #endif
+            logger.error("Failed to persist guest identity — \(String(describing: error), privacy: .public)")
         }
         guestIdentity = identity
         phase = .compose
+    }
+
+    /// Called when the root view appears without a resolvable invocation having arrived yet
+    /// (e.g. the Clip was relaunched from the App Clip card or app switcher rather than a fresh
+    /// `NSUserActivityTypeBrowsingWeb` handoff, or scene restoration). Without this, `.loading`
+    /// is a terminal dead end with no route to `.invalidLink` and the root view spins forever.
+    /// A no-op once a real invocation has already moved the phase machine past `.loading`.
+    func resolveIfIdle() {
+        guard phase == .loading else { return }
+        phase = .invalidLink
     }
 
     // MARK: - Private Helpers
