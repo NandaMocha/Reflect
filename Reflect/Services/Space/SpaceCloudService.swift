@@ -39,6 +39,34 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private var cachedUserRecordName: String?
     private let userRecordNameLock = NSLock()
 
+    /// Reflection IDs this service has directly observed to be tokenized (either via a
+    /// successful `ensureRequestToken` call, or a `SpaceReflection` with a non-empty
+    /// token seen in a `fetchChanges` delta), scoped to this service instance's lifetime.
+    /// AC-011 review fix: `publishMirrorsIfOwned`'s fan-out used to treat every reflection
+    /// touched by an answer as a publish candidate, forcing `SpaceMirrorService` to run a
+    /// full tokenless zone-changes download per candidate — nearly all ending in
+    /// `.noRequestToken` on a full-snapshot sync, since `candidateReflectionIDs` is then
+    /// every reflection in the space. This cache lets the fan-out skip candidates already
+    /// known to be untokenized without a network round trip. Best-effort only — a
+    /// reflection tokenized by another device/session simply isn't in this cache yet, so
+    /// its answers won't publish until its own record shows up tokenized in some delta;
+    /// this trades a rare missed opportunistic publish for avoiding the N-download fan-out
+    /// on every sync.
+    private var knownTokenizedReflectionIDs: Set<String> = []
+    private let tokenizedReflectionsLock = NSLock()
+
+    private func markReflectionTokenized(_ reflectionID: String) {
+        tokenizedReflectionsLock.lock()
+        knownTokenizedReflectionIDs.insert(reflectionID)
+        tokenizedReflectionsLock.unlock()
+    }
+
+    private func isKnownTokenized(_ reflectionID: String) -> Bool {
+        tokenizedReflectionsLock.lock()
+        defer { tokenizedReflectionsLock.unlock() }
+        return knownTokenizedReflectionIDs.contains(reflectionID)
+    }
+
     init(mirrorService: SpaceMirrorServiceProtocol = SpaceMirrorService()) {
         self.mirrorService = mirrorService
     }
@@ -571,6 +599,9 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 if !reflection.isMine {
                     reflection.authorDisplayName = authors[record.creatorUserRecordID?.recordName ?? ""]
                 }
+                if let token = reflection.requestToken, !token.isEmpty {
+                    markReflectionTokenized(reflection.id)
+                }
                 reflections.append(reflection)
             case SpaceRecordType.answer:
                 guard var answer = SpaceRecordMapper.answer(
@@ -683,6 +714,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 // untouched — no re-save, no duplicate `TokenIndex`.
                 if let existingToken = record[SpaceRecordField.requestToken] as? String,
                    !existingToken.isEmpty {
+                    markReflectionTokenized(reflectionID)
                     return existingToken
                 }
 
@@ -708,6 +740,7 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 record[SpaceRecordField.requestToken] = token as CKRecordValue
                 _ = try await withRetry { try await database.save(record) }
 
+                markReflectionTokenized(reflectionID)
                 return token
             } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
                 conflictRetries += 1
@@ -727,8 +760,19 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private func publishMirrorsIfOwned(zone: SpaceZoneRef, reflections: [SpaceReflection], answers: [SpaceAnswer]) {
         guard zone.lane == .privateDB else { return }
 
-        var candidateReflectionIDs = Set(reflections.map { $0.id })
-        for answer in answers { candidateReflectionIDs.insert(answer.reflectionID) }
+        // AC-011 review fix: each candidate below costs `SpaceMirrorService` a full,
+        // tokenless zone-changes download (including every image asset). Filtering to
+        // known-tokenized reflections here avoids firing that download for every
+        // reflection in the space on a full-snapshot sync — the delta already tells us
+        // which reflections are tokenized (`SpaceRecordMapper` populates `requestToken`),
+        // and `knownTokenizedReflectionIDs` extends that to reflections tokenized in an
+        // earlier pass whose own record isn't part of *this* delta.
+        var candidateReflectionIDs = Set(
+            reflections.filter { ($0.requestToken ?? "").isEmpty == false }.map { $0.id }
+        )
+        for answer in answers where isKnownTokenized(answer.reflectionID) {
+            candidateReflectionIDs.insert(answer.reflectionID)
+        }
         guard !candidateReflectionIDs.isEmpty else { return }
 
         let mirrorService = self.mirrorService
@@ -743,6 +787,29 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                     print("[SpaceMirrorService] publish failed for \(reflectionID): \(error)")
                     #endif
                 }
+            }
+        }
+    }
+
+    /// Kicks off a detached, best-effort mirror re-publish for a single reflection —
+    /// used by `deleteRecord` when the deleted record was an Answer belonging to an
+    /// already-tokenized reflection (AC-011 review fix), so the orphaned MirroredAnswer
+    /// is diffed out on the next publish rather than lingering forever. Same
+    /// fire-and-forget rationale as `publishMirrorsIfOwned`/`revokeMirrorsIfOwned` — the
+    /// private-DB delete has already succeeded by the time this runs.
+    private func publishMirrorIfOwned(zone: SpaceZoneRef, reflectionID: String) {
+        guard zone.lane == .privateDB else { return }
+
+        let mirrorService = self.mirrorService
+        Task.detached(priority: .utility) {
+            do {
+                try await mirrorService.publishMirror(reflectionID: reflectionID, zone: zone)
+            } catch SpaceMirrorError.noRequestToken {
+                // Not shared to a guest — nothing to publish, not worth logging.
+            } catch {
+                #if DEBUG
+                print("[SpaceMirrorService] publish failed for \(reflectionID): \(error)")
+                #endif
             }
         }
     }
@@ -843,6 +910,25 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             $0.recordID.recordName == id && $0.recordType == SpaceRecordType.spaceReflection
         }
 
+        // AC-011 review fix: deleting an Answer (e.g. owner moderation of a guest answer,
+        // or the cascade below) must also re-publish the parent reflection's mirror so the
+        // orphaned MirroredAnswer is diffed out — a deletion never surfaces in
+        // SpaceMirrorService.diffAndSave's orphan cleanup on its own (deleted IDs land in
+        // `deletedRecordIDs`, not `answers`, on the next fetchChanges delta), so without
+        // this hook the guest's answer stays publicly readable indefinitely. Only relevant
+        // when the parent reflection is already tokenized — otherwise nothing is published.
+        let deletedAnswerParentReflection: CKRecord? = records.first(where: {
+            $0.recordID.recordName == id && $0.recordType == SpaceRecordType.answer
+        }).flatMap { deletedAnswer -> CKRecord? in
+            guard let parentRecordName = deletedAnswer.parent?.recordID.recordName else { return nil }
+            return records.first {
+                $0.recordID.recordName == parentRecordName && $0.recordType == SpaceRecordType.spaceReflection
+            }
+        }.flatMap { reflection -> CKRecord? in
+            let token = reflection[SpaceRecordField.requestToken] as? String
+            return (token?.isEmpty == false) ? reflection : nil
+        }
+
         var idsToDelete = [CKRecord.ID(recordName: id, zoneID: zoneID)]
         for record in records where record.parent?.recordID.recordName == id {
             idsToDelete.append(record.recordID)
@@ -864,6 +950,9 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
         if let deletedReflection {
             revokeMirrorsIfOwned(zone: zone, records: [deletedReflection])
+        }
+        if let deletedAnswerParentReflection {
+            publishMirrorIfOwned(zone: zone, reflectionID: deletedAnswerParentReflection.recordID.recordName)
         }
     }
 
