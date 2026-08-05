@@ -8,5 +8,5 @@ You are the ARCHITECT (top model, rare). A task needs a design decision.
 3. Mark this task resolved:
    python3 loop/loop.py done <TASK_ID> --handover "decision: ... (children: ids)"
 4. Implement yourself ONLY if splitting is genuinely impossible.
-Record the decision in docs/features/multi-question-feedback-plan.md (or the
-relevant project doc) if the project keeps them.
+Record the decision in the plan doc (PLAN_DOC, path given below) or the
+relevant project doc if the project keeps them.

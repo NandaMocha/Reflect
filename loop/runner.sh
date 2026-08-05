@@ -102,6 +102,7 @@ while true; do
 
 TASK_ID=$ID
 WORK_BRANCH=$WORK_BRANCH
+PLAN_DOC: ${PLAN_DOC:-none}
 TEST_CMD: ${TEST_CMD}
 BUILD_CMD: ${BUILD_CMD:-none}
 PROJECT_RULES: read ${PROJECT_RULES} and obey it." \

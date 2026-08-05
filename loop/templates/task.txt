@@ -33,7 +33,7 @@ gives you everything you need. Follow this contract exactly.
 
 6. Push and open (or update) the PR:
    - FRESH: `git push -u origin <branch>`, then
-     `gh pr create --base <WORK_BRANCH> --head <branch> --title "<task title>" --body "Implements TASK_ID from docs/features/multi-question-feedback-plan.md.\n\n<1-3 sentence summary of what changed and why>"`.
+     `gh pr create --base <WORK_BRANCH> --head <branch> --title "<task title>" --body "Implements TASK_ID from <PLAN_DOC, path given below>.\n\n<1-3 sentence summary of what changed and why>"`.
      Capture the PR URL from the command output.
    - REVISION: `git push` (same branch, updates the existing PR automatically).
      The PR URL is unchanged — reuse the one from context's "## Existing
