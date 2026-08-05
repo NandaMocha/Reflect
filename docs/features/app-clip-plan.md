@@ -102,9 +102,21 @@ Clip side:
 | # | Task | Effort | Depends on |
 |---|------|--------|-----------|
 | 2.4 | `ClipSpaceRepository` (Clip target): fetch `MirroredRequest` + `MirroredAnswer` from the public DB by token, decode `questionsJSON`, group answers by `questionId` in `answerIndex` order, map to Domain entities, in-memory cache, `ClipSpaceError: Error, LocalizedError` (revoked/expired token, network, iCloud-unavailable) | 1.5–2 days (was 1–1.5) | 1.4, 2.2 schema |
-| 2.5 | **Write path (now mandatory per 0.4):** PHP endpoint on cPanel hosting, signs + calls CloudKit Web Services with a server-to-server key to create one `PendingClipFeedback` public record per answered question; `ClipFeedbackSubmitter` in the Clip (plain URLSession) posting `requestToken`/`questionId`/`guestId`/`guestName`/body; token validation + rate limiting server-side | 1.5–2 days | 0.5, 2.2 |
+| 2.5 | **Write path (now mandatory per 0.4). MECHANISM PROVEN 2026-08-05** — see spike note below; what remains is the production endpoint (token validation, rate limiting, error handling) plus `ClipFeedbackSubmitter` in the Clip (plain URLSession) posting `requestToken`/`questionId`/`guestId`/`guestName`/body | 1–1.5 days (was 1.5–2; signing/auth de-risked) | 0.5, 2.2 |
 | 2.6 | Full-app ingestion: during Space sync, the owner's app reads `PendingClipFeedback`, re-posts each as an `Answer` record (correct `questionId`, next `answerIndex` for that guest+question) into the shared zone with guest attribution, then deletes the pending record. Idempotent on `guestId`+`questionId`+client id so a retried submission can't double-post | 1–1.5 days (was 0.5–1; multi-question + idempotency) | 2.5 |
 | 2.7 | **Guest identity plumbing:** `guestId` UUID minted + keychain-stored in the Clip, name captured by the first-open alert, both persisted to the App Group; ingestion writes the guest's display name so `MirroredAnswer` bylines resolve | 0.5 day | 1.2, 2.5 |
+
+### Write-path spike — PROVEN 2026-08-05
+
+The CloudKit write mechanism is no longer an unknown. [`scripts/appclip-cloudkit-write-test.php`](../../scripts/appclip-cloudkit-write-test.php) ran green against the live API from the production host: signed a request with the server-to-server key, created a `PendingClipFeedback` record in the **public** database, and deleted it again (both HTTP 200). Task 2.5 is therefore ordinary engineering, not a research question.
+
+Established by the spike, and reusable directly in the real endpoint:
+
+- **Signing scheme:** sign `"<ISO8601 date>:<base64(sha256(body))>:<subpath>"` with ECDSA/SHA-256, send as `X-Apple-CloudKit-Request-KeyID` / `-ISO8601Date` / `-SignatureV1`. See `cloudkit_request()` in the spike script.
+- **Endpoint shape:** `POST https://api.apple-cloudkit.com/database/1/<container>/<environment>/public/records/modify`.
+- **Server-to-server keys CANNOT create schema.** Unlike a first write from the app, no record type is auto-created — every public record type must be defined in CloudKit Console by hand before the server can write it. This applies to `MirroredRequest`/`MirroredAnswer`/`TokenIndex` too, so budget for it in 2.2.
+- **Key custody as deployed:** private key at `/home/sesirkel/nandamochammad.xyz/cloudkit-key.pem`, `0600`, above the web root and verified unreachable by URL. PHP runs as the account user, so `0600` is still readable by it.
+- **`PendingClipFeedback` now exists in the Development schema** with String fields `requestToken` (Queryable), `questionId`, `guestId`, `guestName`, `body`, plus a Queryable `recordName` index — **must ride the H4 Dev→Production deploy.**
 
 **Acceptance:** owner device publishes/updates the mirror automatically; Clip (simulator, no full app) renders a real request's questions and every member's answers for a token; feedback submitted from the Clip appears in the full app's thread on another device within one owner sync cycle, attributed to the guest name, with no duplicates on retry; revoked token yields a friendly error, not a crash; all record types and the new `SpaceReflection` token field exist in the CloudKit Dev schema and are queued for the H4 production deploy.
 
@@ -157,7 +169,7 @@ Screen order follows the decided flow: **name alert → Your Feedback → All fe
 
 8. **Multi-question inflation.** The plan was originally sized against a single `promptText` + flat `Response` thread. The shipped schema is `questionsJSON` (1–5 questions) + `Answer` records keyed by `questionId` with a per-member `answerIndex`. Every read/write/mirror task carries that fan-out, which is where the re-estimate below comes from.
 
-**Total estimate:** ~15–20 working days of Clip work (revised up from 11–16), excluding the Space H2–H5 stabilization. The write path is no longer a descoping lever. The increase comes from the multi-question schema (2.2, 2.4, 2.6, Phase 3), guest identity (2.7), and the mandatory optimistic echo.
+**Total estimate:** ~14.5–19.5 working days of Clip work (originally 11–16), excluding the Space H2–H5 stabilization. The write path is no longer a descoping lever. The increase came from the multi-question schema (2.2, 2.4, 2.6, Phase 3), guest identity (2.7), and the mandatory optimistic echo; the 2026-08-05 write-path spike then took ~0.5 day back off 2.5 and, more importantly, removed the risk that the endpoint would prove unworkable on this host.
 
 ### Critical files for implementation
 - `Reflect/Services/Space/SpaceCloudService.swift` — sync hooks for mirror publishing and pending-feedback ingestion
