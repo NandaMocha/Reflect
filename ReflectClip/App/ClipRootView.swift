@@ -61,13 +61,15 @@ private struct NeedsNamePlaceholderView: View {
     let session: ClipSession
     @State private var name = ""
     @FocusState private var nameFieldFocused: Bool
+    @ScaledMetric(relativeTo: .title) private var iconSize: CGFloat = 40
 
     var body: some View {
         VStack(spacing: Constants.Spacing.lg) {
             VStack(spacing: Constants.Spacing.xs) {
                 Image(systemName: "person.crop.circle.badge.questionmark")
-                    .font(.system(size: 40))
+                    .font(.system(size: iconSize))
                     .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
                 Text("What should we call you?")
                     .font(.title2.bold())
                 Text("Your name is shown next to what you write.")
@@ -100,12 +102,14 @@ private struct PhasePlaceholderView: View {
     let systemImage: String
     let title: String
     let message: String
+    @ScaledMetric(relativeTo: .title) private var iconSize: CGFloat = 40
 
     var body: some View {
         VStack(spacing: Constants.Spacing.sm) {
             Image(systemName: systemImage)
-                .font(.system(size: 40))
+                .font(.system(size: iconSize))
                 .foregroundStyle(.tint)
+                .accessibilityHidden(true)
             Text(title)
                 .font(.title2.bold())
             Text(message)
