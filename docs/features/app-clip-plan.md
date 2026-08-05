@@ -43,7 +43,11 @@ Mitigation, and it is mandatory rather than polish: the Clip keeps its submitted
 
 ## Hosting: cPanel is sufficient
 
-The user's existing domain + cPanel shared hosting covers both hosting needs. Two things to verify before wiring the entitlement:
+The user's existing domain + cPanel hosting covers both hosting needs.
+
+**Run the preflight first:** [`scripts/appclip-hosting-preflight.php`](../../scripts/appclip-hosting-preflight.php) — upload to `public_html/`, open in a browser, read the verdict, then delete it. It proves PHP/openssl can do ECDSA P-256 + SHA-256 signing, that cURL is present, and — the make-or-break check — that the host actually permits **outbound HTTPS to `api.apple-cloudkit.com`**. Budget shared hosts sometimes block outbound PHP connections entirely, which makes a CloudKit proxy impossible there at any price; the fallback is to host the endpoint on Cloudflare Workers/Vercel and keep the domain purely for AASA.
+
+Two further things to verify before wiring the entitlement:
 
 1. **AASA file at `public_html/.well-known/apple-app-site-association`** (no extension, valid JSON, served as `application/json`/`text/plain`).
    - Check `.well-known/` isn't blocked by security plugins/ModSecurity: `curl -I https://yourdomain.com/.well-known/apple-app-site-association` must return `200`.
