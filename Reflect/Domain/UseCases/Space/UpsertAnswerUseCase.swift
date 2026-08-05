@@ -3,6 +3,8 @@ import UIKit
 
 protocol UpsertAnswerUseCaseProtocol {
     func execute(to reflection: SpaceReflection, in space: Space, questionId: String, text: String, image: UIImage?) async throws -> SpaceAnswer
+    func create(to reflection: SpaceReflection, in space: Space, questionId: String, text: String, image: UIImage?) async throws -> SpaceAnswer
+    func update(answer: SpaceAnswer, in space: Space, text: String, image: UIImage?) async throws -> SpaceAnswer
 }
 
 /// Validates answer text (1...max) before creating or replacing the caller's answer to a
@@ -31,6 +33,43 @@ final class UpsertAnswerUseCase: UpsertAnswerUseCaseProtocol {
         return try await repository.upsertAnswer(
             to: reflection,
             questionId: questionId,
+            text: trimmed,
+            imageData: imageData,
+            in: space
+        )
+    }
+
+    func create(to reflection: SpaceReflection, in space: Space, questionId: String, text: String, image: UIImage?) async throws -> SpaceAnswer {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw SpaceError.bodyRequired }
+        guard trimmed.count <= Constants.Limits.spaceResponseMaxLength else { throw SpaceError.bodyTooLong }
+
+        var imageData: Data?
+        if let image {
+            imageData = await imageService.compressImage(image, quality: .low)
+        }
+
+        return try await repository.createAnswer(
+            to: reflection,
+            questionId: questionId,
+            text: trimmed,
+            imageData: imageData,
+            in: space
+        )
+    }
+
+    func update(answer: SpaceAnswer, in space: Space, text: String, image: UIImage?) async throws -> SpaceAnswer {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw SpaceError.bodyRequired }
+        guard trimmed.count <= Constants.Limits.spaceResponseMaxLength else { throw SpaceError.bodyTooLong }
+
+        var imageData: Data?
+        if let image {
+            imageData = await imageService.compressImage(image, quality: .low)
+        }
+
+        return try await repository.updateAnswer(
+            answer,
             text: trimmed,
             imageData: imageData,
             in: space
