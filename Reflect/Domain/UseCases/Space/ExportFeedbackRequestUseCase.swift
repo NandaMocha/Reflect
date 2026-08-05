@@ -35,17 +35,17 @@ final class ExportFeedbackRequestUseCase: ExportFeedbackRequestUseCaseProtocol {
 
         for question in questions {
             lines.append(csvField("Question \(question.order + 1): \(question.text)"))
-            lines.append(["member", "answer", "photo", "timestamp"].map(csvField).joined(separator: ","))
+            lines.append(["member", "answer", "photo", "timestamp", "answerIndex"].map(csvField).joined(separator: ","))
 
-            let answers = input.answers
-                .filter { $0.questionId == question.id }
-                .map(FeedbackAnswerExport.init)
+            let questionAnswers = input.answers.filter { $0.questionId == question.id }
+            let answers = answerIndices(for: questionAnswers).map { FeedbackAnswerExport(from: $0.0, answerIndex: $0.1) }
             for answer in answers {
                 let row = [
                     answer.displayName,
                     answer.text,
                     answer.hasPhoto ? (answer.photoFileName ?? "") : "",
-                    answer.timestamp.map { ISO8601DateFormatter().string(from: $0) } ?? ""
+                    answer.timestamp.map { ISO8601DateFormatter().string(from: $0) } ?? "",
+                    String(answer.answerIndex)
                 ]
                 lines.append(row.map(csvField).joined(separator: ","))
             }
@@ -60,6 +60,23 @@ final class ExportFeedbackRequestUseCase: ExportFeedbackRequestUseCaseProtocol {
         return tempURL
     }
 
+    /// Pairs each answer with its 0-based index among that member's answers to
+    /// the same question, ordered by `modifiedAt ?? createdAt`.
+    private func answerIndices(for answers: [SpaceAnswer]) -> [(SpaceAnswer, Int)] {
+        let sorted = answers.sorted {
+            ($0.modifiedAt ?? $0.createdAt ?? .distantPast) < ($1.modifiedAt ?? $1.createdAt ?? .distantPast)
+        }
+        var nextIndexByMember: [String: Int] = [:]
+        var indexByAnswerId: [String: Int] = [:]
+        for answer in sorted {
+            let member = answer.authorRecordName ?? ""
+            let index = nextIndexByMember[member, default: 0]
+            indexByAnswerId[answer.id] = index
+            nextIndexByMember[member] = index + 1
+        }
+        return answers.map { ($0, indexByAnswerId[$0.id] ?? 0) }
+    }
+
     private func csvField(_ value: String) -> String {
         guard value.contains(",") || value.contains("\"") || value.contains("\n") else {
             return value
@@ -72,13 +89,12 @@ final class ExportFeedbackRequestUseCase: ExportFeedbackRequestUseCaseProtocol {
     private func exportJSON(_ input: Input) throws -> URL {
         let questions = input.reflection.questions.sorted { $0.order < $1.order }
         let questionExports = questions.map { question in
-            FeedbackQuestionExport(
+            let questionAnswers = input.answers.filter { $0.questionId == question.id }
+            return FeedbackQuestionExport(
                 id: question.id,
                 text: question.text,
                 order: question.order,
-                answers: input.answers
-                    .filter { $0.questionId == question.id }
-                    .map(FeedbackAnswerExport.init)
+                answers: answerIndices(for: questionAnswers).map { FeedbackAnswerExport(from: $0.0, answerIndex: $0.1) }
             )
         }
 
@@ -126,14 +142,16 @@ struct FeedbackAnswerExport: Codable {
     let hasPhoto: Bool
     let photoFileName: String?
     let timestamp: Date?
+    let answerIndex: Int
 
-    init(from answer: SpaceAnswer) {
+    init(from answer: SpaceAnswer, answerIndex: Int) {
         self.memberRecordName = answer.authorRecordName ?? ""
         self.displayName = answer.authorDisplayName ?? ""
         self.text = answer.text
         self.hasPhoto = answer.imageData != nil
         self.photoFileName = answer.imageData != nil ? "\(answer.id).jpg" : nil
         self.timestamp = answer.modifiedAt ?? answer.createdAt
+        self.answerIndex = answerIndex
     }
 }
 
