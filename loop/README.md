@@ -49,18 +49,60 @@ they're this project's run state, not portable kit content.
 ## How to run
 
 ```bash
-chmod +x loop/runner.sh                      # once
+chmod +x loop/runner.sh loop/lane.sh         # once
 python3 loop/loop.py init                    # create the db
-# load the 40 tasks from docs/features/multi-question-feedback-plan.md —
-# see loop/seed_multi_question_feedback.py, or use runner.sh plan for a
-# fresh goal instead of an existing plan doc
-python3 loop/seed_multi_question_feedback.py
+# load a plan doc's tasks — one seeder per plan; see loop.config's PLAN_DOC
+# for which plan is currently active, or use `runner.sh plan` for a fresh
+# goal instead of an existing plan doc
+python3 loop/seed_multi_answer_ui.py
 python3 loop/loop.py status                  # inspect the queue
 ./loop/runner.sh run                         # executes until queue empty
 ```
 
 Or just tell Claude Code: **"Read loop/README.md and run the loop"** —
 Claude runs the setup + `runner.sh run`.
+
+## Running lanes in parallel
+
+`runner.sh run` is one lane: one session at a time, start to finish. To work
+several independent tasks at once, use `lane.sh`, which runs one runner per git
+worktree against **one shared queue**:
+
+```bash
+./loop/lane.sh start 2     # 2 lanes in background, logs at loop/lane-*.log
+./loop/lane.sh status      # queue + which lanes are alive + merge-mutex holder
+./loop/lane.sh stop        # kill all lanes
+./loop/lane.sh clean       # remove the lane worktrees
+```
+
+Four things make concurrent lanes safe; all four are inert in a single-lane run:
+
+- **`LOOP_DB`** — lanes share one `tasks.db` instead of each worktree keeping a
+  private one. Without it, lanes silently do the same work twice.
+- **`loop.py claim`** — `next` and `start` are separate processes, so two lanes
+  can read the same ready row. `claim` flips the row to `in_progress` in one
+  atomic statement and reports whether *this* caller won. The loser re-polls.
+- **Detached base checkout** — git allows a branch in only one worktree, so
+  `git checkout develop` would fail in every lane but the first. Fresh tasks
+  detach at `origin/<WORK_BRANCH>` instead; executors cut their own branch
+  anyway. Lanes also detach after each task so they don't hold a `feat/` branch
+  another lane needs for review or merge.
+- **Merge mutex** — `gh pr merge` is server-side and safe, but the local work
+  after it (pull, build, plan-doc checkoff, push `WORK_BRANCH`) races: one push
+  gets rejected non-fast-forward and one build verifies a tree that never
+  existed on the remote. An mkdir-based lock beside the db serializes the merge
+  tier across lanes.
+
+**How many lanes:** bounded by the plan's dependency graph, not by the kit. A
+plan whose critical path is most of its total effort gains little. For the
+multi-answer plan (max 4 independent tasks, two exclusive gates where every
+other lane idles) 2–3 is the useful range; beyond that lanes mostly queue on
+the merge mutex.
+
+Known rough edge: the git stash stack is shared across a repo's worktrees, so
+lanes see each other's auto-stash entries in `git stash list`. The runner only
+pushes and never pops, so nothing is lost or mixed — the entries carry the task
+id in their message.
 
 ## How it works
 
