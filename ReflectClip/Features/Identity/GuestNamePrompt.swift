@@ -16,9 +16,17 @@ import SwiftUI
 /// constraint noted in `ClipRootView`.
 ///
 /// **Edit-name stub:** initializing with an already-saved identity (`session.guestIdentity` is
-/// non-nil) prefills the field with the current name instead of starting blank, so this same view
-/// doubles as an "edit name" prompt. No call site presents it that way yet — the composer
-/// toolbar affordance that does is AC-031's job — but the prompt itself is ready for it.
+/// non-nil) prefills the field with the current name instead of starting blank. That prefill is
+/// cosmetic only — it does **not** make this view ready to double as an "edit name" prompt.
+/// `submit()` below always calls `ClipSession.submitDisplayName(_:)`, which unconditionally
+/// constructs a fresh `GuestIdentity(guestId: UUID(), displayName: trimmed)`; re-submitting
+/// through this view issues a *new* `guestId` on every call, silently re-identifying the guest and
+/// orphaning any answers already submitted under the old id. Wiring an edit-name affordance (the
+/// composer toolbar entry point that is AC-031's job) to this view as-is would break AC-032's
+/// `guestId`+`questionId` dedup contract. A real edit-name path additionally needs a
+/// guestId-preserving rename on `ClipSession` (e.g. `updateDisplayName(_:)` that mutates
+/// `guestIdentity.displayName` in place and re-saves) — that API does not exist yet and is out of
+/// this ticket's lock on `ClipSession.swift`; AC-031 must add it before reusing this view for edits.
 struct GuestNamePrompt: View {
     let session: ClipSession
 
