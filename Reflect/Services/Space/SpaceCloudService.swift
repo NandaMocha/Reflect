@@ -28,11 +28,20 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     /// `MirroredAnswer` are public-DB records, unlike the rest of the Space hierarchy.
     private lazy var publicDB: CKDatabase = container.publicCloudDatabase
 
+    /// Publishes/revokes the public Clip mirror (AC-011). Injectable for testing;
+    /// defaults to the real CloudKit-backed implementation so `SpaceCloudService()`
+    /// (DIContainer, `SpaceDebugView`) keeps working unchanged.
+    private let mirrorService: SpaceMirrorServiceProtocol
+
     /// The current user's record name in this container, resolved once and reused for
     /// `isMine` comparisons. Guarded by `userRecordNameLock` because the service is not
     /// actor-isolated and fetches can run concurrently.
     private var cachedUserRecordName: String?
     private let userRecordNameLock = NSLock()
+
+    init(mirrorService: SpaceMirrorServiceProtocol = SpaceMirrorService()) {
+        self.mirrorService = mirrorService
+    }
 
     // MARK: - Availability
 
@@ -178,8 +187,12 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     /// Fetches every record currently in a custom zone via a one-shot zone-changes
     /// operation (nil change token → full zone contents). Index-free; see
     /// `fetchRootSpaceRecord` for why we avoid `CKQuery`.
-    private func fetchAllRecords(in zoneID: CKRecordZone.ID, database: CKDatabase) async throws -> [CKRecord] {
-        try await fetchZoneDelta(in: zoneID, database: database, since: nil).changed
+    private func fetchAllRecords(
+        in zoneID: CKRecordZone.ID,
+        database: CKDatabase,
+        desiredKeys: [CKRecord.FieldKey]? = nil
+    ) async throws -> [CKRecord] {
+        try await fetchZoneDelta(in: zoneID, database: database, since: nil, desiredKeys: desiredKeys).changed
     }
 
     /// Raw result of one `CKFetchRecordZoneChangesOperation` pass over a zone.
@@ -195,12 +208,14 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
     private func fetchZoneDelta(
         in zoneID: CKRecordZone.ID,
         database: CKDatabase,
-        since previousToken: CKServerChangeToken?
+        since previousToken: CKServerChangeToken?,
+        desiredKeys: [CKRecord.FieldKey]? = nil
     ) async throws -> ZoneFetchResult {
         try await withRetry {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneFetchResult, Error>) in
                 let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
                 config.previousServerChangeToken = previousToken
+                config.desiredKeys = desiredKeys
                 let operation = CKFetchRecordZoneChangesOperation(
                     recordZoneIDs: [zoneID],
                     configurationsByRecordZoneID: [zoneID: config]
@@ -479,13 +494,45 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
 
     // MARK: - Delete (owner) / Leave (participant)
 
+    /// Deletes the space's zone. This is also this app's only complete "share
+    /// revocation" mechanism (AC-011): deleting the zone destroys its `CKShare` along
+    /// with every participant's access, so it stands in for the "share revocation"
+    /// mirror-revoke trigger the ticket calls out — there is no separate
+    /// stop-sharing-only-this-space entry point in `SpaceCloudService` today (the system
+    /// `UICloudSharingController`'s own stop-sharing action bypasses this service
+    /// entirely and is out of this ticket's file scope; see AC-014).
     func deleteSpace(_ zone: SpaceZoneRef) async throws {
         assert(zone.lane == .privateDB, "deleteSpace must only be called for owned (private DB) spaces")
         guard zone.lane == .privateDB else { throw SpaceError.notOwner }
 
         let zoneID = CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
+
+        // Capture every tokenized reflection's mirror BEFORE the zone (and therefore
+        // these records) is gone. Best-effort — a fetch failure here must not block the
+        // actual space deletion — but the failure is logged rather than silently
+        // swallowed (CLAUDE.md: "Don't silently swallow with `try?` in production
+        // paths"), since a lost fetch here means the public mirror is never revoked and
+        // nothing retries once the zone is gone. Restricted to `requestToken` via
+        // `desiredKeys` so this doesn't also download every image CKAsset in the zone
+        // just to read tokens.
+        let tokenizedReflections: [CKRecord]
+        do {
+            tokenizedReflections = try await fetchAllRecords(
+                in: zoneID,
+                database: privateDB,
+                desiredKeys: [SpaceRecordField.requestToken]
+            )
+        } catch {
+            #if DEBUG
+            print("[SpaceCloudService] deleteSpace: failed to fetch tokenized reflections for mirror revoke in zone \(zone.zoneName): \(error)")
+            #endif
+            tokenizedReflections = []
+        }
+
         _ = try await withRetry { try await self.privateDB.deleteRecordZone(withID: zoneID) }
         saveChangeToken(nil, key: Self.zoneTokenKey(zoneName: zone.zoneName, ownerName: zone.ownerName))
+
+        revokeMirrorsIfOwned(zone: zone, records: tokenizedReflections)
     }
 
     func leaveSpace(_ zone: SpaceZoneRef) async throws {
@@ -574,6 +621,13 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             forKey: "spaceDebugLastZoneFetch"
         )
         #endif
+
+        // AC-011 hook: refresh the public Clip mirror for every tokenized reflection
+        // touched by this pass (its own fields changed, or one of its answers did).
+        // Fire-and-forget, off this method's return path — a mirror-publish failure
+        // must never fail the owner's sync; it just retries on the next sync pass since
+        // nothing here persists a "mirror published" flag.
+        publishMirrorsIfOwned(zone: zone, reflections: reflections, answers: answers)
 
         return SpaceZoneDelta(
             reflections: reflections,
@@ -686,6 +740,98 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         }
     }
 
+    // MARK: - Clip mirror publish/revoke — AC-011
+
+    /// Kicks off a detached, best-effort mirror publish for every reflection this sync
+    /// pass touched (directly, or via one of its answers) — only for owned (private-DB)
+    /// zones; a joined participant's sync must never write the public mirror. All
+    /// candidates go through a single `publishMirrors` call so the zone snapshot and
+    /// author-name map are fetched once for the whole batch rather than once per
+    /// reflection (AC-011 review fix — see `SpaceMirrorService.publishMirrors`).
+    /// Per-reflection errors (including "not tokenized", which isn't really an error)
+    /// are swallowed inside `publishMirrors` itself; only a batch-level failure (e.g.
+    /// the shared zone fetch failing) reaches the `catch` below.
+    private func publishMirrorsIfOwned(zone: SpaceZoneRef, reflections: [SpaceReflection], answers: [SpaceAnswer]) {
+        guard zone.lane == .privateDB else { return }
+
+        // Every reflection touched by this sync pass — directly, or via one of its
+        // answers — is a publish candidate. `SpaceMirrorService.publishMirrors` resolves
+        // tokenization itself with one cheap single-record fetch per candidate before
+        // doing any full zone-changes download, so filtering candidates here isn't
+        // needed to keep this cheap — and filtering here previously made the
+        // answer-driven publish path dead: an answer added to an already-tokenized
+        // reflection whose own record isn't part of *this* delta (the common case on an
+        // incremental sync) was never a candidate, so new guest-visible answers never
+        // reached the public mirror.
+        var candidateReflectionIDs = Set(reflections.map { $0.id })
+        for answer in answers {
+            candidateReflectionIDs.insert(answer.reflectionID)
+        }
+        guard !candidateReflectionIDs.isEmpty else { return }
+
+        let mirrorService = self.mirrorService
+        Task.detached(priority: .utility) {
+            do {
+                try await mirrorService.publishMirrors(reflectionIDs: candidateReflectionIDs, zone: zone)
+            } catch {
+                #if DEBUG
+                print("[SpaceMirrorService] publish batch failed for \(candidateReflectionIDs): \(error)")
+                #endif
+            }
+        }
+    }
+
+    /// Kicks off a detached, best-effort mirror re-publish for a single reflection —
+    /// used by `deleteRecord` when the deleted record was an Answer belonging to an
+    /// already-tokenized reflection (AC-011 review fix), so the orphaned MirroredAnswer
+    /// is diffed out on the next publish rather than lingering forever. Same
+    /// fire-and-forget rationale as `publishMirrorsIfOwned`/`revokeMirrorsIfOwned` — the
+    /// private-DB delete has already succeeded by the time this runs. Calls the same
+    /// batched `publishMirrors` entry point with a one-element set.
+    private func publishMirrorIfOwned(zone: SpaceZoneRef, reflectionID: String) {
+        guard zone.lane == .privateDB else { return }
+
+        let mirrorService = self.mirrorService
+        Task.detached(priority: .utility) {
+            do {
+                try await mirrorService.publishMirrors(reflectionIDs: [reflectionID], zone: zone)
+            } catch {
+                #if DEBUG
+                print("[SpaceMirrorService] publish failed for \(reflectionID): \(error)")
+                #endif
+            }
+        }
+    }
+
+    /// Revokes the Clip mirror for every currently-tokenized reflection found in
+    /// `records`. Fire-and-forget, same rationale as `publishMirrorsIfOwned` — a revoke
+    /// failure must not surface as a delete failure to the caller (the private-DB delete
+    /// already succeeded by the time this runs); worst case a stale mirror lingers until
+    /// the token is looked up and found orphaned server-side, or a future revoke retries.
+    private func revokeMirrorsIfOwned(zone: SpaceZoneRef, records: [CKRecord]) {
+        guard zone.lane == .privateDB else { return }
+
+        let tokens = records.compactMap { record -> String? in
+            guard record.recordType == SpaceRecordType.spaceReflection else { return nil }
+            guard let token = record[SpaceRecordField.requestToken] as? String, !token.isEmpty else { return nil }
+            return token
+        }
+        guard !tokens.isEmpty else { return }
+
+        let mirrorService = self.mirrorService
+        Task.detached(priority: .utility) {
+            for token in tokens {
+                do {
+                    try await mirrorService.revokeMirror(for: token)
+                } catch {
+                    #if DEBUG
+                    print("[SpaceMirrorService] revoke failed for token \(token): \(error)")
+                    #endif
+                }
+            }
+        }
+    }
+
     func createAnswer(to reflection: SpaceReflection, questionId: String, text: String, imageData: Data?, in zone: SpaceZoneRef) async throws -> SpaceAnswer {
         let database = database(for: zone.lane)
         let zoneID = ckZoneID(for: zone)
@@ -746,6 +892,32 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
         let zoneID = ckZoneID(for: zone)
         let records = try await fetchAllRecords(in: zoneID, database: database)
 
+        // AC-011: this is the "request deletion" mirror-revoke trigger — capture the
+        // deleted record if it's a tokenized reflection *before* the delete operation
+        // runs below (it and its children are about to stop existing here either way).
+        let deletedReflection = records.first {
+            $0.recordID.recordName == id && $0.recordType == SpaceRecordType.spaceReflection
+        }
+
+        // AC-011 review fix: deleting an Answer (e.g. owner moderation of a guest answer,
+        // or the cascade below) must also re-publish the parent reflection's mirror so the
+        // orphaned MirroredAnswer is diffed out — a deletion never surfaces in
+        // SpaceMirrorService.diffAndSave's orphan cleanup on its own (deleted IDs land in
+        // `deletedRecordIDs`, not `answers`, on the next fetchChanges delta), so without
+        // this hook the guest's answer stays publicly readable indefinitely. Only relevant
+        // when the parent reflection is already tokenized — otherwise nothing is published.
+        let deletedAnswerParentReflection: CKRecord? = records.first(where: {
+            $0.recordID.recordName == id && $0.recordType == SpaceRecordType.answer
+        }).flatMap { deletedAnswer -> CKRecord? in
+            guard let parentRecordName = deletedAnswer.parent?.recordID.recordName else { return nil }
+            return records.first {
+                $0.recordID.recordName == parentRecordName && $0.recordType == SpaceRecordType.spaceReflection
+            }
+        }.flatMap { reflection -> CKRecord? in
+            let token = reflection[SpaceRecordField.requestToken] as? String
+            return (token?.isEmpty == false) ? reflection : nil
+        }
+
         var idsToDelete = [CKRecord.ID(recordName: id, zoneID: zoneID)]
         for record in records where record.parent?.recordID.recordName == id {
             idsToDelete.append(record.recordID)
@@ -763,6 +935,13 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
                 }
                 database.add(operation)
             }
+        }
+
+        if let deletedReflection {
+            revokeMirrorsIfOwned(zone: zone, records: [deletedReflection])
+        }
+        if let deletedAnswerParentReflection {
+            publishMirrorIfOwned(zone: zone, reflectionID: deletedAnswerParentReflection.recordID.recordName)
         }
     }
 
