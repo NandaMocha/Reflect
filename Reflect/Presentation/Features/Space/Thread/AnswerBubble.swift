@@ -93,3 +93,77 @@ struct AnswerBubble: View {
         }
     }
 }
+
+private let previewOwnAnswer = SpaceAnswer(
+    id: "answer-1",
+    reflectionID: "reflection-1",
+    questionId: "question-1",
+    text: "I finally got the retry logic working after three tries.",
+    authorRecordName: "me",
+    authorDisplayName: "Me",
+    createdAt: .now.addingTimeInterval(-3600),
+    isMine: true
+)
+
+private let previewMemberAnswer = SpaceAnswer(
+    id: "answer-2",
+    reflectionID: "reflection-1",
+    questionId: "question-1",
+    text: "Same here — the flaky test was hiding a race condition.",
+    authorRecordName: "rina",
+    authorDisplayName: "Rina",
+    createdAt: .now.addingTimeInterval(-7200),
+    isMine: false
+)
+
+private let previewGuestAnswer = SpaceAnswer(
+    id: "answer-3",
+    reflectionID: "reflection-1",
+    questionId: "question-1",
+    text: "Joined from the App Clip — this was my first reflection!",
+    authorRecordName: nil,
+    authorDisplayName: nil,
+    createdAt: .now.addingTimeInterval(-1800),
+    isMine: true,
+    guestId: "g-1",
+    guestName: "Alex"
+)
+
+/// Renders own / member / guest answers under both non-owner and owner viewpoints, per
+/// AC-013's acceptance criterion: guest answers show a guest byline, never an Edit action,
+/// and Delete only when the viewer owns the space; non-owner members only ever see Report.
+#Preview("Non-owner viewer") {
+    VStack(alignment: .leading, spacing: 8) {
+        AnswerBubble(
+            answer: previewOwnAnswer, spaceName: "Study Group", isSpaceOwner: false,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewMemberAnswer, spaceName: "Study Group", isSpaceOwner: false,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewGuestAnswer, spaceName: "Study Group", isSpaceOwner: false,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+    }
+    .padding()
+}
+
+#Preview("Space owner viewer") {
+    VStack(alignment: .leading, spacing: 8) {
+        AnswerBubble(
+            answer: previewOwnAnswer, spaceName: "Study Group", isSpaceOwner: true,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewMemberAnswer, spaceName: "Study Group", isSpaceOwner: true,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewGuestAnswer, spaceName: "Study Group", isSpaceOwner: true,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+    }
+    .padding()
+}
