@@ -1,5 +1,18 @@
 import SwiftUI
 
+/// Enables `$viewModel.drafts[question.id, default: ""]` — SwiftUI's `Binding` only ships a
+/// subscript for `Optional` dictionary values (`Binding<Value?>`), not one with a default, so
+/// this fills that gap for the composer's per-question draft bindings.
+fileprivate extension Binding {
+    subscript<Key: Hashable, Element>(key: Key, default defaultValue: Element) -> Binding<Element> where Value == [Key: Element] {
+        Binding<Element> {
+            wrappedValue[key, default: defaultValue]
+        } set: { newValue in
+            wrappedValue[key] = newValue
+        }
+    }
+}
+
 /// The Clip's landing screen once a guest identity exists (`ClipSession.phase == .compose`).
 /// Mirrors `Reflect/Presentation/Features/Space/Thread/SpaceThreadView.swift` conceptually
 /// (reference only, never imported): a request header up top, one composer per question, and a
@@ -22,6 +35,8 @@ struct ClipYourFeedbackView: View {
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+
         NavigationStack {
             Group {
                 switch viewModel.loadState {
@@ -34,7 +49,7 @@ struct ClipYourFeedbackView: View {
                 case .loaded where !viewModel.hasQuestions:
                     emptyQuestionsView
                 case .loaded:
-                    composerContent
+                    composerContent(viewModel: viewModel)
                 }
             }
             .navigationTitle("Your feedback")
@@ -45,7 +60,7 @@ struct ClipYourFeedbackView: View {
                         showEditName = true
                     }
                     .accessibilityLabel("Edit your name")
-                    .accessibilityHint("Currently \(viewModel.displayName)")
+                    .accessibilityValue(viewModel.displayName)
                 }
             }
             .sheet(isPresented: $showEditName) {
@@ -57,14 +72,18 @@ struct ClipYourFeedbackView: View {
 
     // MARK: - Loaded content
 
-    private var composerContent: some View {
+    private func composerContent(@Bindable viewModel: ClipYourFeedbackViewModel) -> some View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Constants.Spacing.lg) {
                     header
                     Divider()
                     ForEach(Array((viewModel.request?.questions ?? []).enumerated()), id: \.element.id) { index, question in
-                        questionComposer(index: index, question: question)
+                        questionComposer(
+                            index: index,
+                            question: question,
+                            text: $viewModel.drafts[question.id, default: ""]
+                        )
                     }
                 }
                 .padding(Constants.Spacing.md)
@@ -91,7 +110,7 @@ struct ClipYourFeedbackView: View {
 
                 Spacer(minLength: 0)
 
-                if let data = viewModel.request?.thumbnailData, let uiImage = UIImage(data: data) {
+                if let uiImage = viewModel.thumbnailImage {
                     Image(uiImage: uiImage)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -109,7 +128,7 @@ struct ClipYourFeedbackView: View {
         }
     }
 
-    private func questionComposer(index: Int, question: SpaceQuestion) -> some View {
+    private func questionComposer(index: Int, question: SpaceQuestion, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
             Text("Q\(index + 1). \(question.text)")
                 .font(.subheadline.weight(.semibold))
@@ -117,10 +136,7 @@ struct ClipYourFeedbackView: View {
 
             TextField(
                 "Share your answer…",
-                text: Binding(
-                    get: { viewModel.drafts[question.id] ?? "" },
-                    set: { viewModel.drafts[question.id] = $0 }
-                ),
+                text: text,
                 axis: .vertical
             )
             .lineLimit(3...10)
@@ -131,6 +147,9 @@ struct ClipYourFeedbackView: View {
                     .fill(Color.secondary.opacity(0.12))
             )
             .accessibilityLabel("Your answer to question \(index + 1): \(question.text)")
+            .accessibilityValue(
+                "\(text.wrappedValue), \(viewModel.draftLength(for: question.id)) of \(ClipYourFeedbackViewModel.answerMaxLength) characters"
+            )
 
             HStack {
                 Spacer()
