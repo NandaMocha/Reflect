@@ -20,6 +20,10 @@ final class CachedAnswer {
     var modifiedAt: Date?
     var isMine: Bool
     var lastFetchedAt: Date
+    /// Cached copy of the guest-attribution fields (AC-010). Both nil for answers from
+    /// a signed-in member.
+    var guestId: String?
+    var guestName: String?
 
     init(
         id: String,
@@ -32,7 +36,9 @@ final class CachedAnswer {
         createdAt: Date? = nil,
         modifiedAt: Date? = nil,
         isMine: Bool,
-        lastFetchedAt: Date = Date()
+        lastFetchedAt: Date = Date(),
+        guestId: String? = nil,
+        guestName: String? = nil
     ) {
         self.id = id
         self.reflectionID = reflectionID
@@ -45,6 +51,8 @@ final class CachedAnswer {
         self.modifiedAt = modifiedAt
         self.isMine = isMine
         self.lastFetchedAt = lastFetchedAt
+        self.guestId = guestId
+        self.guestName = guestName
     }
 
     /// Initialize from a domain SpaceAnswer.
@@ -60,6 +68,8 @@ final class CachedAnswer {
         self.modifiedAt = domain.modifiedAt
         self.isMine = domain.isMine
         self.lastFetchedAt = Date()
+        self.guestId = domain.guestId
+        self.guestName = domain.guestName
     }
 
     /// Convert back to a domain SpaceAnswer.
@@ -74,7 +84,9 @@ final class CachedAnswer {
             authorDisplayName: authorDisplayName,
             createdAt: createdAt,
             modifiedAt: modifiedAt,
-            isMine: isMine
+            isMine: isMine,
+            guestId: guestId,
+            guestName: guestName
         )
     }
 }
