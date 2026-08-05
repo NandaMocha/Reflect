@@ -32,9 +32,12 @@ $hasToken = $token !== '';
 
 // --- Config -----------------------------------------------------------
 // App Store numeric id is not yet known (app not published) — AC-H2/human
-// fills this in once App Store Connect assigns one. Until then the banner
-// still deep-links via app-clip-bundle-id, which works pre-App-Store-review
-// for App Clip testing (Local Experiences / TestFlight invocation).
+// fills this in once App Store Connect assigns one. `app-id` is a required
+// attribute of the apple-itunes-app meta tag: with it empty, Safari renders
+// no Smart App Banner at all, so app-clip-bundle-id / app-clip-display=card /
+// app-argument below are inert until the ID is filled in. (Local Experiences
+// and TestFlight Clip invocation are driven by AASA/universal links, not the
+// Smart App Banner, so they don't exercise this path either.)
 const APPLE_ITUNES_APP_ID = ''; // TODO(AC-H2): set once published, e.g. "id1234567890"
 const APP_CLIP_BUNDLE_ID = 'xyz.nandamochammad.Reflect.Clip';
 const CANONICAL_HOST = 'https://nandamochammad.xyz';

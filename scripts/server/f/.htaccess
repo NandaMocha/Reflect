@@ -14,7 +14,7 @@ RewriteEngine On
 # /f/<token> -> index.php?t=<token>  (token: letters, digits, - and _ only)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^([A-Za-z0-9_-]+)/?$ index.php?t=$1 [L,QSA]
+RewriteRule ^([A-Za-z0-9_-]+)/?$ index.php?t=$1 [L]
 
 # Bare /f/ (no token) still routes to index.php so it can render the generic
 # explainer state instead of a raw 404.
