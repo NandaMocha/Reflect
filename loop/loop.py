@@ -30,14 +30,23 @@ Every command is a cheap one-liner for a Claude session:
 import argparse, glob, json, os, sqlite3, subprocess, sys, datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(HERE, "tasks.db")
+# LOOP_DB lets several lanes (each in its own git worktree, each with its own
+# copy of loop/) share ONE queue. Without it every worktree gets a private
+# tasks.db and the lanes silently do the same work twice. See loop/lane.sh.
+DB = os.environ.get("LOOP_DB") or os.path.join(HERE, "tasks.db")
 HANDOVER_MAX = 400          # hard cap: chars
 REPLAN_THRESHOLD = int(os.environ.get("BLOCKED_REPLAN_THRESHOLD", "2"))
 ESCALATE = {"trivial": "standard", "standard": "complex", "complex": "architect"}
 
 def db():
-    con = sqlite3.connect(DB)
+    # timeout + busy_timeout: with several lanes on one db, a writer can hold
+    # the lock while another lane commits. WAL lets readers proceed during a
+    # write instead of erroring with "database is locked". All three are no-ops
+    # for a single-lane run.
+    con = sqlite3.connect(DB, timeout=60)
     con.row_factory = sqlite3.Row
+    con.execute("PRAGMA busy_timeout=60000")
+    con.execute("PRAGMA journal_mode=WAL")
     return con
 
 def now():
@@ -163,6 +172,28 @@ def cmd_start(a):
     set_status(a.id, "in_progress")
     print(f"OK task {a.id} in_progress")
 
+def cmd_claim(a):
+    """Atomic multi-lane replacement for `start`.
+
+    `next` and `start` are two separate processes, so two lanes polling at the
+    same moment both see the same ready row and both would dispatch it. This
+    flips the row to in_progress in ONE statement and reports whether this
+    caller was the one that flipped it: exactly one lane can win. The loser
+    prints LOST and re-polls.
+
+    Guarded on `status != 'in_progress'` rather than a specific prior status so
+    one command covers all three dispatch paths (queued work, pr_open review,
+    approved merge) without the runner having to thread the expected state
+    through. Always exits 0 — runner.sh runs under `set -e` and captures this
+    in a command substitution, where a non-zero exit would kill the lane.
+    """
+    con = db()
+    cur = con.execute(
+        "UPDATE tasks SET status='in_progress', updated_at=? WHERE id=? AND status!='in_progress'",
+        (now(), a.id))
+    con.commit()
+    print("CLAIMED" if cur.rowcount == 1 else "LOST")
+
 def cmd_pr(a):
     set_status(a.id, "pr_open", branch=a.branch, pr_url=a.url)
     print(f"OK task {a.id} pr_open branch={a.branch} url={a.url}")
@@ -242,6 +273,7 @@ def main():
     sub.add_parser("next")
     c = sub.add_parser("context"); c.add_argument("id", type=int)
     s = sub.add_parser("start"); s.add_argument("id", type=int)
+    cl = sub.add_parser("claim"); cl.add_argument("id", type=int)
     pr = sub.add_parser("pr"); pr.add_argument("id", type=int); pr.add_argument("--branch", required=True); pr.add_argument("--url", required=True)
     ap = sub.add_parser("approve"); ap.add_argument("id", type=int); ap.add_argument("--notes", default="")
     rv = sub.add_parser("revise"); rv.add_argument("id", type=int); rv.add_argument("--reason", required=True)

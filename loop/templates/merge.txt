@@ -27,7 +27,10 @@ approved branch is already checked out in your working tree.
    feature branch both locally and on the remote once merged.)
 
 4. Update your local WORK_BRANCH and verify it still builds clean:
-   `git checkout <WORK_BRANCH> && git pull`
+   `git checkout <WORK_BRANCH> && git pull --rebase`
+   (--rebase, not a plain pull: your local WORK_BRANCH may carry a checkoff
+   commit from an earlier merge in this same lane, and a merge-pull would
+   create a pointless merge commit on top of it.)
    then run TEST_CMD (given below). If this fails, something merged badly —
    call `python3 loop/loop.py block <TASK_ID> --reason "post-merge build
    broke WORK_BRANCH: <what failed>"` and stop; do NOT attempt to fix it
@@ -43,6 +46,14 @@ approved branch is already checked out in your working tree.
    left unpushed here (this one, or any other local-only WORK_BRANCH commit)
    gets silently orphaned the moment the next merge cycle's pull runs. Push
    before moving on, every time, no exceptions.
+   If that push is REJECTED (non-fast-forward), the remote moved under you:
+   run `git pull --rebase && git push origin <WORK_BRANCH>` and, if it is
+   rejected a second time, block the task rather than force-pushing. NEVER use
+   --force or --force-with-lease on WORK_BRANCH.
+
+   TIMING: in a multi-lane run the runner holds a mutex for this whole session
+   so no two lanes merge at once, and every other lane needing to merge is
+   blocked until you exit. Do the steps and finish — do not go exploring.
 
 6. Get the merge commit SHA: `git log -1 --format=%H` on WORK_BRANCH.
    Call: `python3 loop/loop.py done <TASK_ID> --handover "<max 5 short

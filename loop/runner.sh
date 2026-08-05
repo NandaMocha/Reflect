@@ -14,7 +14,40 @@ cd "$(dirname "$0")/.."                 # repo root
 source loop/loop.config
 LOCK=loop/.runner.lock
 [ -f "$LOCK" ] && { echo "runner already active ($LOCK exists)"; exit 1; }
-trap 'rm -f "$LOCK"' EXIT; touch "$LOCK"
+
+# --- Lane identity -----------------------------------------------------------
+# One lane == one git worktree == one runner process. LANE_ID is cosmetic (log
+# prefix); LOOP_DB is what actually makes lanes cooperate — several lanes point
+# at one queue db instead of each keeping a private one. loop/lane.sh sets both.
+# Unset (the normal single-lane run) => this whole block is inert.
+LANE_ID="${LANE_ID:-solo}"
+QUEUE_DIR="$(cd "$(dirname "${LOOP_DB:-loop/tasks.db}")" && pwd)"
+MERGE_LOCK="$QUEUE_DIR/.merge.lock"
+HOLDING_MERGE=""
+
+# Merges are the one step lanes must NOT overlap on: `gh pr merge` is safe
+# (server-side, GitHub serializes it), but the local work after it — pull,
+# build, commit the plan-doc checkoff, push WORK_BRANCH — races. Two lanes there
+# means one push is rejected non-fast-forward and one build verifies a tree that
+# never existed on the remote. mkdir is the portable atomic mutex (macOS has no
+# flock(1)).
+acquire_merge_lock() {
+  local waited=0
+  until mkdir "$MERGE_LOCK" 2>/dev/null; do
+    if [ "$waited" -ge 2400 ]; then
+      echo "[$LANE_ID] == merge lock held >40m — assuming a dead lane, taking it =="
+      rm -rf "$MERGE_LOCK"; continue
+    fi
+    [ "$waited" -eq 0 ] && echo "[$LANE_ID] == waiting for merge lock =="
+    sleep 15; waited=$((waited + 15))
+  done
+  HOLDING_MERGE=1
+  echo "$$" > "$MERGE_LOCK/pid"
+}
+release_merge_lock() { [ -n "$HOLDING_MERGE" ] && rm -rf "$MERGE_LOCK"; HOLDING_MERGE=""; }
+
+trap 'rm -f "$LOCK"; [ -n "$HOLDING_MERGE" ] && rm -rf "$MERGE_LOCK"; exit' EXIT
+touch "$LOCK"
 
 # Modified (staged or not) + untracked-but-not-gitignored paths, one per line, sorted.
 # Used to detect exactly what a task session touched but didn't commit.
@@ -76,21 +109,44 @@ while true; do
         review)    MODEL=$MODEL_REVIEW;   TURNS=$TURNS_REVIEW;   TPL=review.txt ;;
         merge)     MODEL=$MODEL_TRIVIAL;  TURNS=$TURNS_MERGE;    TPL=merge.txt ;;
       esac
-      echo "== task $ID [$TIER] on $MODEL =="
-
-      # Branch selection: a fresh task (no branch yet) starts from WORK_BRANCH and
-      # creates its own feat/<ID>-slug branch inside the session. A task that
-      # already has a branch — mid-review (review/merge tiers) or sent back for
-      # revision (queued again with branch/PR kept) — reuses that exact branch
-      # instead of starting over, so review/merge see the real PR and a revision
-      # pushes updates to the SAME PR instead of opening a second one.
+      # Branch selection happens BEFORE claiming, so a lane that cannot get the
+      # working tree it needs simply re-polls, leaving the task's status
+      # untouched for a lane that can. (Claiming first would strand the row at
+      # in_progress with no way to restore whether it had been queued, pr_open
+      # or approved.)
+      #
+      # A fresh task (no branch yet) has its feat/<ID>-slug branch created inside
+      # the session. A task that already has one — mid-review, mid-merge, or sent
+      # back for revision — reuses that exact branch so review/merge see the real
+      # PR and a revision updates the same PR instead of opening a second one.
+      #
+      # Fresh tasks DETACH at origin/WORK_BRANCH rather than checking out the
+      # local branch: git allows a branch to be checked out in only ONE worktree,
+      # so `git checkout develop` would fail in every lane but the first. Detached
+      # is also fresher — it cannot serve a stale local WORK_BRANCH — and costs
+      # nothing, since the executor cuts its own branch immediately.
+      git fetch origin "$WORK_BRANCH" --quiet || true
       if [ -n "$BRANCH" ]; then
-        git checkout "$BRANCH"
+        if ! git checkout "$BRANCH" 2>/dev/null; then
+          echo "[$LANE_ID] == branch $BRANCH busy in another lane, re-polling =="
+          sleep 10
+          continue
+        fi
       else
-        git checkout "$WORK_BRANCH"
+        git checkout --detach "origin/$WORK_BRANCH" --quiet
       fi
 
-      python3 loop/loop.py start "$ID"
+      # Claim last, and atomically. `next` and this are separate processes, so
+      # two lanes can read the same ready row; the atomic flip to in_progress
+      # decides which one owns it. The loser drops its checkout and re-polls.
+      if [ "$(python3 loop/loop.py claim "$ID")" != "CLAIMED" ]; then
+        echo "[$LANE_ID] == task $ID taken by another lane, re-polling =="
+        git checkout --detach --quiet
+        continue
+      fi
+      echo "[$LANE_ID] == task $ID [$TIER] on $MODEL =="
+
+      if [ "$TIER" = "merge" ]; then acquire_merge_lock; fi
 
       # Snapshot the dirty set before the session runs, so any files it leaves
       # uncommitted afterward (rather than committed to its own branch, per project
@@ -109,6 +165,11 @@ PROJECT_RULES: read ${PROJECT_RULES} and obey it." \
         --model "$MODEL" --max-turns "$TURNS" --permission-mode acceptEdits --allowedTools "Bash"
       EXEC_EXIT=$?
       set -e
+
+      # Free the merge mutex the moment the merge session is done — before the
+      # reap/stash bookkeeping below, which can take a while and holds up every
+      # other lane waiting to merge.
+      release_merge_lock
 
       # A session is contracted to end by calling one of loop.py pr/approve/revise/
       # done/block itself. If it didn't — silent completion (exit 0, ran out of
@@ -130,9 +191,18 @@ PROJECT_RULES: read ${PROJECT_RULES} and obey it." \
       NEW_DIRTY="$(comm -13 <(echo "$DIRTY_BEFORE") <(echo "$DIRTY_NOW"))"
       if [ -n "$NEW_DIRTY" ]; then
         echo "== task $ID left uncommitted changes — stashing before continuing =="
+        # NOTE: the stash stack is shared by every worktree of a repo, so with
+        # several lanes these entries interleave. The runner only ever pushes,
+        # never pops, so nothing is lost or mixed — but expect to see other
+        # lanes' entries in `git stash list`; the message carries the task id.
         echo "$NEW_DIRTY" | tr '\n' '\0' | xargs -0 git stash push -u \
           --message "loop-task-$ID-uncommitted (auto-stashed by runner.sh — task ended without a clean commit)" --
       fi
+
+      # Release the branch: git lets only one worktree hold a given branch, so a
+      # lane that stayed on feat/<ID> would lock every other lane out of that
+      # task's review and merge stages.
+      git checkout --detach --quiet 2>/dev/null || true
 
       python3 loop/loop.py export >/dev/null ;;
   esac
