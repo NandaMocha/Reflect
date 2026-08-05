@@ -2,10 +2,10 @@ import SwiftUI
 
 /// Root view for the Clip — switches on `ClipSession.phase`. `.needsName` is real
 /// (`GuestNamePrompt`, `Features/Identity/GuestNamePrompt.swift`), as is `.compose`
-/// (`ClipYourFeedbackView`, `Features/Compose/ClipYourFeedbackView.swift`, AC-031);
-/// `.allFeedback` remains a lightweight placeholder until AC-032. Uses only system semantic
-/// colors — `Reflect/Core/Extensions/Color+Hex.swift` isn't shared into this target yet (see
-/// `Reflect/ClipShared/README.md`).
+/// (`ClipYourFeedbackView`, `Features/Compose/ClipYourFeedbackView.swift`, AC-031) and
+/// `.allFeedback` (`ClipAllFeedbackView`, `Features/AllFeedback/ClipAllFeedbackView.swift`,
+/// AC-032). Uses only system semantic colors — `Reflect/Core/Extensions/Color+Hex.swift` isn't
+/// shared into this target yet (see `Reflect/ClipShared/README.md`).
 ///
 /// The `.loading` → `.invocationTimedOut` timeout is owned by `ClipSession`
 /// (`startResolutionTimeout()`, started from `ReflectClipApp`) rather than this view, so it's
@@ -24,11 +24,7 @@ struct ClipRootView: View {
             case .compose:
                 ClipYourFeedbackView(session: session)
             case .allFeedback:
-                PhasePlaceholderView(
-                    systemImage: "bubble.left.and.bubble.right",
-                    title: "Everyone's answers",
-                    message: "The shared feed lands in a later ticket."
-                )
+                ClipAllFeedbackView(session: session)
             case .invocationTimedOut:
                 InvocationTimedOutPlaceholderView(session: session)
             case .invalidLink:
