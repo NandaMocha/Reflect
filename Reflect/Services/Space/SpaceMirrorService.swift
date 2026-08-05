@@ -9,7 +9,7 @@ import Foundation
 /// Writes go through the *public* database under the current (owner) user's account —
 /// AC-H1 grants the security role that lets an authenticated user create these record
 /// types. Never call this for a zone the user doesn't own; `publishMirror` guards that.
-protocol SpaceMirrorServiceProtocol {
+protocol SpaceMirrorServiceProtocol: Sendable {
     /// Upserts the `MirroredRequest` + one `MirroredAnswer` per current `Answer` for
     /// every tokenized reflection in `reflectionIDs`, diffed against whatever is already
     /// published for each one's token (unchanged records are left alone; answers whose
@@ -63,7 +63,7 @@ enum SpaceMirrorError: Error, LocalizedError {
 /// outside that protocol's private/shared-DB Space hierarchy, and it needs a full,
 /// tokenless snapshot of one zone rather than the incremental change-token bookkeeping
 /// `SpaceCloudService.fetchChanges` owns.
-nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
+final class SpaceMirrorService: SpaceMirrorServiceProtocol {
 
     // MARK: - Dependencies
 
@@ -90,32 +90,27 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
 
         let zoneID = CKRecordZone.ID(zoneName: zone.zoneName, ownerName: zone.ownerName)
 
-        // Cheap per-candidate pre-check: fetch just each reflection record (not a full
-        // zone download) and drop any that aren't tokenized before paying for the
-        // *shared* `fetchAllRecords` tokenless zone-changes fetch below, which pulls
-        // down every record — including every image CKAsset — in the zone. Callers
-        // publish every reflection touched by a sync pass regardless of whether it's
-        // actually tokenized, so this still has to be cheap for the common
-        // not-yet-shared case; the difference from the old per-reflection
-        // `publishMirror` is that the zone-changes fetch and author-name resolution
-        // below now happen at most ONCE per batch instead of once per candidate.
-        var tokenizedReflectionIDs: [String] = []
-        for reflectionID in reflectionIDs {
-            let reflectionRecordID = CKRecord.ID(recordName: reflectionID, zoneID: zoneID)
-            do {
-                let precheckRecord = try await privateDB.record(for: reflectionRecordID)
-                guard precheckRecord.recordType == SpaceRecordType.spaceReflection,
-                      let precheckToken = precheckRecord[SpaceRecordField.requestToken] as? String,
-                      !precheckToken.isEmpty else { continue }
-                tokenizedReflectionIDs.append(reflectionID)
-            } catch let error as CKError where error.code == .unknownItem {
-                continue
-            } catch {
-                #if DEBUG
-                print("[SpaceMirrorService] precheck failed for \(reflectionID): \(error)")
-                #endif
-                continue
-            }
+        // Cheap batched pre-check: one `CKFetchRecordsOperation` over every candidate,
+        // restricted to `requestToken` via `desiredKeys` (same pattern
+        // `SpaceCloudService.deleteSpace` uses), so this is a single lightweight
+        // round-trip instead of a full-record (including image `CKAsset`) download per
+        // candidate. Drops any candidate that isn't tokenized before paying for the
+        // *shared* `fetchAllRecords` tokenless zone-changes fetch below. Callers publish
+        // every reflection touched by a sync pass regardless of whether it's actually
+        // tokenized, so this still has to be cheap for the common not-yet-shared case;
+        // the difference from the old per-reflection `publishMirror` is that the
+        // zone-changes fetch and author-name resolution below now happen at most ONCE
+        // per batch instead of once per candidate.
+        let precheckRecords = try await fetchRecords(
+            recordIDs: reflectionIDs.map { CKRecord.ID(recordName: $0, zoneID: zoneID) },
+            desiredKeys: [SpaceRecordField.requestToken]
+        )
+        let tokenizedReflectionIDs: [String] = precheckRecords.compactMap { recordID, result in
+            guard case .success(let record) = result,
+                  record.recordType == SpaceRecordType.spaceReflection,
+                  let token = record[SpaceRecordField.requestToken] as? String,
+                  !token.isEmpty else { return nil }
+            return recordID.recordName
         }
         guard !tokenizedReflectionIDs.isEmpty else { return }
 
@@ -409,6 +404,38 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
         }
     }
 
+    /// Fetches a batch of records from the private database in a single
+    /// `CKFetchRecordsOperation`, optionally restricted to `desiredKeys` so callers doing
+    /// a lightweight field-only precheck don't also download unrelated fields (notably
+    /// image `CKAsset`s). Per-record failures (e.g. `.unknownItem` for a since-deleted
+    /// reflection) are reported in the returned per-ID `Result` rather than failing the
+    /// whole batch — only an operation-level failure throws.
+    private func fetchRecords(
+        recordIDs: [CKRecord.ID],
+        desiredKeys: [CKRecord.FieldKey]? = nil
+    ) async throws -> [CKRecord.ID: Result<CKRecord, Error>] {
+        guard !recordIDs.isEmpty else { return [:] }
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecord.ID: Result<CKRecord, Error>], Error>) in
+            let operation = CKFetchRecordsOperation(recordIDs: recordIDs)
+            operation.desiredKeys = desiredKeys
+            operation.qualityOfService = .utility
+
+            var results: [CKRecord.ID: Result<CKRecord, Error>] = [:]
+            operation.perRecordResultBlock = { recordID, result in
+                results[recordID] = result
+            }
+            operation.fetchRecordsResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume(returning: results)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            privateDB.add(operation)
+        }
+    }
+
     /// Queries the public database, following the query cursor to every page. Requires
     /// the field's Queryable index (AC-H1) — until that Console setup lands this throws,
     /// which callers here treat as "nothing to diff against yet" rather than a hard
@@ -460,6 +487,12 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
     /// One `CKModifyRecordsOperation` against the public database, batched to CloudKit's
     /// ≤400-records-per-operation limit.
     ///
+    /// Saves and deletes are chunked together by their COMBINED count, not independently
+    /// — pairing an already-≤400 save batch with an already-≤400 delete batch into one
+    /// operation could carry up to 800 items, exceeding CloudKit's per-operation limit.
+    /// Interleaving both kinds into one item list before chunking keeps every batch's
+    /// `saves.count + deletes.count <= 400`.
+    ///
     /// Every batch is attempted even if an earlier one fails — a batching scheme that
     /// aborts on the first failure defeats the whole point of paging past 400 IDs: with
     /// >400 delete IDs (e.g. `revokeMirror` on a heavily-answered request), an early
@@ -468,16 +501,21 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
     /// revoke succeeded. Only a genuine (non-idempotent) per-item failure is thrown, and
     /// only after every batch has had a chance to run.
     private func modifyPublic(recordsToSave: [CKRecord], recordIDsToDelete: [CKRecord.ID]) async throws {
-        let saveBatches = recordsToSave.chunked(into: 400)
-        let deleteBatches = recordIDsToDelete.chunked(into: 400)
-        let batchCount = max(saveBatches.count, deleteBatches.count, recordsToSave.isEmpty && recordIDsToDelete.isEmpty ? 0 : 1)
+        let items: [ModifyItem] = recordsToSave.map { .save($0) } + recordIDsToDelete.map { .delete($0) }
+        guard !items.isEmpty else { return }
+        let batches = items.chunked(into: 400)
 
         var firstRealFailure: Error?
 
-        for index in 0..<batchCount {
-            let saves = index < saveBatches.count ? saveBatches[index] : []
-            let deletes = index < deleteBatches.count ? deleteBatches[index] : []
-            guard !saves.isEmpty || !deletes.isEmpty else { continue }
+        for batch in batches {
+            var saves: [CKRecord] = []
+            var deletes: [CKRecord.ID] = []
+            for item in batch {
+                switch item {
+                case .save(let record): saves.append(record)
+                case .delete(let recordID): deletes.append(recordID)
+                }
+            }
             do {
                 try await runModifyBatch(recordsToSave: saves, recordIDsToDelete: deletes)
             } catch {
@@ -490,6 +528,13 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
         }
     }
 
+    /// One save-or-delete item, used to chunk `modifyPublic`'s combined save+delete
+    /// workload by total count rather than chunking each kind independently.
+    private enum ModifyItem {
+        case save(CKRecord)
+        case delete(CKRecord.ID)
+    }
+
     /// Runs a single `CKModifyRecordsOperation` batch and normalizes its result.
     ///
     /// `CKModifyRecordsOperation` never reports a per-record "not found" as the
@@ -500,6 +545,7 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
     /// success. Only rethrow if a non-`.unknownItem` per-item error remains, or the
     /// top-level failure isn't a `.partialFailure` at all.
     private func runModifyBatch(recordsToSave: [CKRecord], recordIDsToDelete: [CKRecord.ID]) async throws {
+        let deleteRecordIDs = Set(recordIDsToDelete)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let operation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: recordIDsToDelete)
             operation.savePolicy = .allKeys
@@ -509,7 +555,7 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
                 case .success:
                     continuation.resume(returning: ())
                 case .failure(let error):
-                    if let realError = Self.nonIdempotentFailure(from: error) {
+                    if let realError = Self.nonIdempotentFailure(from: error, deleteRecordIDs: deleteRecordIDs) {
                         continuation.resume(throwing: realError)
                     } else {
                         continuation.resume(returning: ())
@@ -521,9 +567,12 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
     }
 
     /// Returns the underlying failure if `error` represents a genuine (non-idempotent)
-    /// per-item failure, or `nil` if every per-item error inside it is `.unknownItem`
-    /// (i.e. the whole batch can be treated as an idempotent success).
-    private static func nonIdempotentFailure(from error: Error) -> Error? {
+    /// per-item failure, or `nil` if every per-item error inside it is a `.unknownItem`
+    /// for an ID that was part of `deleteRecordIDs` (i.e. the whole batch can be treated
+    /// as an idempotent success). A `.unknownItem` on a SAVE is not idempotent-safe to
+    /// ignore — "record not found" for a save means the save itself failed, not that the
+    /// desired end state was already reached — so it only short-circuits for deletes.
+    private static func nonIdempotentFailure(from error: Error, deleteRecordIDs: Set<CKRecord.ID>) -> Error? {
         guard let ckError = error as? CKError else { return error }
         guard ckError.code == .partialFailure else {
             // A top-level `.unknownItem` (not actually emitted by
@@ -531,11 +580,14 @@ nonisolated final class SpaceMirrorService: SpaceMirrorServiceProtocol {
             // idempotent-success.
             return ckError.code == .unknownItem ? nil : ckError
         }
-        guard let itemErrors = ckError.partialErrorsByItemID as? [AnyHashable: Error] else {
+        guard let itemErrors = ckError.partialErrorsByItemID else {
             return ckError
         }
-        let realItemErrors = itemErrors.values.filter { itemError in
-            (itemError as? CKError)?.code != .unknownItem
+        let realItemErrors = itemErrors.filter { key, itemError in
+            guard (itemError as? CKError)?.code == .unknownItem else { return true }
+            guard let recordID = key as? CKRecord.ID else { return true }
+            // Only a delete's "not found" is idempotent-safe to ignore.
+            return !deleteRecordIDs.contains(recordID)
         }
         return realItemErrors.isEmpty ? nil : ckError
     }
