@@ -263,7 +263,7 @@ Screen order follows the decided flow: **name alert → Your Feedback → All fe
 | 5.2 | Size audit: App Thinning report, strip unused assets/dependencies; assert < 10 MB working budget | 0.5 day | Phase 3 |
 | 5.3 | Failure-mode pass: airplane mode, revoked share mid-session, deleted Space, iCloud unavailable, malformed token | 0.5 day | 5.1 |
 | 5.4 | TestFlight build (App Clips are testable via TestFlight invocation URL), E2E with production CloudKit schema | 0.5 day | H4, H5, 5.1 |
-| 5.5 | Submission prep: privacy nutrition label update (Clip collects a display name + UGC), App Review notes with a working demo token, UGC compliance check — guests can post content, so Apple's UGC guideline 1.2 may require a report/block affordance; verify existing Compliance work under `Presentation/Features/Space/Compliance` covers Clip-originated posts | 0.5 day | 5.4 |
+| 5.5 | Submission prep: privacy nutrition label update (Clip collects a display name + UGC), App Review notes with a working demo token, UGC compliance check — guests can post content, so Apple's UGC guideline 1.2 may require a report/block affordance; verify existing Compliance work under `Presentation/Features/Space/Compliance` covers Clip-originated posts. See [app-clip-appreview-notes.md](app-clip-appreview-notes.md) (AC-051) for the full App Review notes, privacy-label delta, UGC mechanisms, and demo instructions. | 0.5 day | 5.4 |
 
 **Acceptance:** two-device E2E green on TestFlight against production schema; thinned size under budget; all failure modes show recoverable UI; submission checklist complete.
 
