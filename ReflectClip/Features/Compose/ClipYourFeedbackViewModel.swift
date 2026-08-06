@@ -49,6 +49,7 @@ final class ClipYourFeedbackViewModel {
     private let repository: ClipSpaceRepositoring
     private let submitter: ClipFeedbackSubmitting
     private let pendingAnswerStore: PendingAnswerStoring
+    private let installContinuityStore: ClipInstallContinuityStoring
     private let logger = Logger(subsystem: "xyz.nandamochammad.Reflect.Clip", category: "ClipYourFeedbackViewModel")
 
     /// Matches `ANSWER_BODY_MAX_LENGTH` in `scripts/server/clip-feedback.php`, which is itself a
@@ -61,12 +62,14 @@ final class ClipYourFeedbackViewModel {
         session: ClipSession,
         repository: ClipSpaceRepositoring,
         submitter: ClipFeedbackSubmitting,
-        pendingAnswerStore: PendingAnswerStoring
+        pendingAnswerStore: PendingAnswerStoring,
+        installContinuityStore: ClipInstallContinuityStoring
     ) {
         self.session = session
         self.repository = repository
         self.submitter = submitter
         self.pendingAnswerStore = pendingAnswerStore
+        self.installContinuityStore = installContinuityStore
     }
 
     // MARK: - Derived State
@@ -179,6 +182,14 @@ final class ClipYourFeedbackViewModel {
         do {
             let sentIds = try await submitter.submit(submissionRequest)
             await pendingAnswerStore.markSent(submissionIds: sentIds)
+            // AC-040: durable signal for both this Clip's install-overlay gating and the full
+            // app's cold-start continuity detection — written once, here, at the moment a
+            // submission first reaches `.sent`. Deliberately independent of
+            // `PendingAnswerStore`'s queue file, which later prunes `.sent` entries once the
+            // mirror confirms them (see `ClipInstallContinuityStore`'s doc comment).
+            if !sentIds.isEmpty {
+                installContinuityStore.recordAnswerSent()
+            }
             for entry in entries {
                 drafts.removeValue(forKey: entry.questionId)
             }
@@ -241,7 +252,8 @@ extension ClipDIContainer {
             session: session,
             repository: makeClipSpaceRepository(),
             submitter: makeClipFeedbackSubmitter(),
-            pendingAnswerStore: makePendingAnswerStore()
+            pendingAnswerStore: makePendingAnswerStore(),
+            installContinuityStore: makeClipInstallContinuityStore()
         )
     }
 }
