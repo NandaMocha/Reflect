@@ -22,15 +22,26 @@ mechanisms:
 
 ### (a) Report affordance
 
-Every piece of feedback — the request itself and each guest answer — has a **Report** action
-(`ReportContentButton`, `Reflect/Presentation/Features/Space/Compliance/ReportContentButton.swift`).
-It opens the device's Mail composer pre-addressed to the developer
+Each guest answer has a **Report** action, implemented separately in the two targets that render
+it:
+
+- In the full app, `ReportContentButton`
+  (`Reflect/Presentation/Features/Space/Compliance/ReportContentButton.swift`) appears on the
+  request and on each guest answer in `AnswerBubble`/thread views.
+- In the guest Clip, `ClipAnswerBubble`
+  (`ReflectClip/Features/AllFeedback/ClipAnswerBubble.swift`, ~line 164) reimplements the same
+  mailto affordance Clip-side (it cannot import `ReportContentButton`, which lives outside
+  anything shared into `ReflectClip` — see `Reflect/ClipShared/README.md`), rather than reusing
+  the full-app component. Report is offered **only for mirror-confirmed answers** in the Clip: a
+  guest's own just-submitted, not-yet-confirmed draft has no server-side record yet, so there's
+  nothing for the owner to look up if reported, and the Clip has no report action on the request
+  itself.
+
+Both implementations open the device's Mail composer pre-addressed to the developer
 (`nanda.mocha@gmail.com`), pre-filled with the content kind, the CloudKit `recordName` of the
-reported content, and the Space name, so a report is immediately actionable without any extra
-lookup. The user still has to tap Send — this only stages the report — which keeps the affordance
-usable offline and avoids a bespoke reporting backend. The same component is reused on the guest
-Clip's feedback list (AC-030/AC-021 surface) and on the full app's `AnswerBubble`/thread views, so
-both guests and the owner can report.
+reported content, and the Space name (Space title in the Clip's case), so a report is immediately
+actionable without any extra lookup. The user still has to tap Send — this only stages the report
+— which keeps the affordance usable offline and avoids a bespoke reporting backend.
 
 ### (b) Owner delete of guest answers
 
@@ -47,14 +58,21 @@ down any guest post at any time from within the full app.
 
 ### (c) Token revocation as a block mechanism
 
-Every guest feedback link is a random, unguessable 128-bit token (`SpaceCloudService.ensureRequestToken`,
-base64url, not a UUID) minted per request. Deleting the request (or the whole Space) revokes that
-token: `SpaceMirrorService.revokeMirror(for:)` deletes the public `TokenIndex` record plus every
-mirrored record published under that token, and the PHP write endpoint's token lookup (`clip-feedback.php`,
-`tok-<token>` record) then 404s on any further submission attempt. Revocation is wired into all
-three deletion paths that end a request's life — deleting the reflection/request, deleting the
-Space, and revoking a share — so there is no path that removes the request UI without also cutting
-off the guest's ability to post. This is the "block an abusive participant" story: since access is
+Every guest feedback link is a random, unguessable 128-bit token (`ClipToken.generate()`,
+`Reflect/ClipShared/ClipMirrorSchema.swift`, base64url, not a UUID; minted by
+`SpaceCloudService.ensureRequestToken` per request). Deleting the request (or the whole Space)
+revokes that token: `SpaceMirrorService.revokeMirror(for:)` deletes the public `TokenIndex` record
+plus every mirrored record published under that token, and the PHP write endpoint's token lookup
+(`clip-feedback.php`, `tok-<token>` record) then 404s on any further submission attempt.
+Revocation (`SpaceCloudService.revokeMirrorsIfOwned`) is wired into the two deletion paths that
+end a request's life — deleting the reflection/request and deleting the whole Space (which is
+also this app's only complete share-revocation mechanism today: destroying the zone destroys its
+`CKShare` along with every participant's access). There is **no separate stop-sharing-only-this-
+Space entry point** in `SpaceCloudService` — the system `UICloudSharingController`'s own "Stop
+Sharing" action bypasses this service entirely, so a share stopped that way does not revoke the
+guest-feedback token or the public mirror (see AC-014; a real gap, not a mitigated case). In
+practice, fully revoking access to a Space means deleting it, which does trigger revocation. This
+is the "block an abusive participant" story for the deletion paths that do run it: since access is
 per-link rather than per-account, revoking the link is equivalent to blocking whoever holds it —
 existing guest content is unaffected (mechanism (b) handles takedown of what's already posted;
 revocation only stops *new* submissions).
@@ -97,8 +115,10 @@ Suggested reviewer-facing steps once the placeholder is filled in:
    owner; there is no visible confirmation that a *specific person* received it beyond the
    in-Clip "sent" state, since the Clip cannot read back into the owner's private data. This is
    expected — the Clip is intentionally write-only into the owner's Space (see §4, data flow).
-6. Optional: from the feedback list, use the "Report…" action on any item to see mechanism (a)
-   above (opens a pre-filled Mail draft; no need to actually send it).
+6. Optional: from the feedback list, use the "Report…" action on any **already-confirmed** guest
+   answer (not on your own just-submitted pending answer, and not on the request itself — the
+   Clip only offers Report on mirror-confirmed answers) to see mechanism (a) above (opens a
+   pre-filled Mail draft; no need to actually send it).
 
 No test account or credentials are required — the Clip only requires the demo link/token above.
 
@@ -129,12 +149,21 @@ Key points for the App Store Connect questionnaire:
 - **Storage**: guest submissions transit a small PHP write endpoint (server-to-server signed
   request, no data retained by that endpoint beyond a short-lived rate-limit counter keyed by IP
   and token — see `scripts/server/clip-feedback.php`) and land in Apple CloudKit, in a public
-  staging record type (`PendingClipFeedback`) readable only by the request owner's authenticated
-  app, until the owner's app ingests it and deletes the staging copy (§4).
+  staging record type (`PendingClipFeedback`) that has no world-read access — the owner reads it
+  as an authenticated user — until the owner's app ingests it and deletes the staging copy (§4).
 - **Data deletion**: because guest answers become CloudKit records owned by the request owner
-  (see §1(b)), the owner deleting the answer, the request, or the Space deletes the guest's data.
-  Revoking a request's link (§1(c)) also removes any not-yet-ingested staged submissions for that
-  token from the public database.
+  (see §1(b)), the owner deleting the answer, the request, or the Space deletes the guest's data
+  once it has been ingested into a real `Answer` record. Revoking a request's link (§1(c)) stops
+  the link from resolving and removes the public mirror records (`TokenIndex`,
+  `MirroredRequest`/`MirroredAnswer`) for that token, but it does **not** retroactively delete any
+  `PendingClipFeedback` records already staged for that token but not yet ingested —
+  `SpaceMirrorService.revokeMirror(for:)` only touches the mirror record types, and the only code
+  path that deletes a `PendingClipFeedback` record is a successful ingest
+  (`SpaceClipIngestService.deletePendingRecord`). In practice, revocation happens as part of
+  deleting the owning request or Space, so the reflection those pending records would have been
+  ingested against is also gone — the staged submissions become orphaned and unreachable (there
+  is no live tokenized request left for the owner's app to ingest them against) rather than
+  actively deleted. They are not otherwise cleaned up today.
 
 This is a **delta** against the full Reflect app's existing privacy label — it describes only
 what the *Clip target* collects, since the Clip and the full app are declared separately in App
@@ -161,9 +190,9 @@ short-lived staging points instead:
 2. **PHP endpoint → `PendingClipFeedback`.** The endpoint writes one `PendingClipFeedback` record
    per answer into CloudKit's **public** database, under a deterministic record name
    (`"pcf-" + submissionId`) so a retried submission overwrites in place instead of duplicating.
-   This record type has no world-read access; only the request owner's *authenticated* app can
-   query it (by the request's link token). It is a staging area, not a durable store — nothing
-   is meant to live here long-term.
+   This record type has no world-read access — the owner reads it as an authenticated user (by
+   the request's link token). It is a staging area, not a durable store — nothing is meant to
+   live here long-term.
 
 3. **`PendingClipFeedback` → owner app ingest.** The next time the Space owner's full Reflect app
    runs its normal CloudKit sync, `SpaceClipIngestService`
