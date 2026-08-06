@@ -88,13 +88,33 @@ final class SpaceRequestLinkService: SpaceRequestLinkServiceProtocol {
                     if let metadata {
                         continuation.resume(returning: metadata)
                     } else {
-                        continuation.resume(throwing: perShareError ?? SpaceRequestLinkError.invalidLink)
+                        continuation.resume(throwing: Self.mapShareMetadataError(perShareError ?? SpaceRequestLinkError.invalidLink))
                     }
                 case .failure(let error):
-                    continuation.resume(throwing: perShareError ?? error)
+                    continuation.resume(throwing: Self.mapShareMetadataError(perShareError ?? error))
                 }
             }
             container.add(operation)
+        }
+    }
+
+    /// Maps a raw CloudKit failure from the share-metadata fetch onto
+    /// `SpaceRequestLinkError`, mirroring `fetchTokenIndexRecord`'s mapping so callers
+    /// never see a raw `CKError` from either lookup step.
+    private static func mapShareMetadataError(_ error: Error) -> SpaceRequestLinkError {
+        if let requestLinkError = error as? SpaceRequestLinkError {
+            return requestLinkError
+        }
+        guard let ckError = error as? CKError else {
+            return .network(error.localizedDescription)
+        }
+        switch ckError.code {
+        case .unknownItem:
+            // The share behind this TokenIndex row was stopped/deleted (e.g. via
+            // UICloudSharingController's "Stop Sharing"), leaving a stale token.
+            return .invalidLink
+        default:
+            return .network(ckError.localizedDescription)
         }
     }
 }
