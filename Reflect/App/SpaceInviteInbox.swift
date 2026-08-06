@@ -27,4 +27,24 @@ enum SpaceInviteInbox {
         defer { pending = nil }
         return pending
     }
+
+    // MARK: - AC-014: guest-feedback request links (`/f/<token>`)
+
+    /// Same hand-off problem as `pending` above, one step earlier: resolving a `/f/<token>`
+    /// open into a `CKShare` is async network work (`SpaceRequestLinkService`) the
+    /// delegate can't do inline, so it stashes just the raw token here and `MainTabView`
+    /// resolves + navigates once the presentation stack is settled.
+    private static var pendingRequestToken: String?
+
+    /// Stash a request-link token for `MainTabView` to resolve. A newer link replaces an
+    /// unread one, same policy as `deposit(_:)`.
+    static func depositRequestToken(_ token: String) {
+        pendingRequestToken = token
+    }
+
+    /// Returns the stashed token (if any) and clears the slot.
+    static func drainRequestToken() -> String? {
+        defer { pendingRequestToken = nil }
+        return pendingRequestToken
+    }
 }

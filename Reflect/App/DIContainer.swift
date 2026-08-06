@@ -241,6 +241,37 @@ final class DIContainer {
         )
     }
 
+    // MARK: - Space — Clip guest-feedback links (AC-014)
+
+    /// The owner-side "share a request" flow: mints/reuses the request token, publishes
+    /// its public mirror, and returns the `/f/<token>` wrapper URL for the share sheet.
+    @MainActor
+    func makeShareFeedbackRequestUseCase() -> ShareFeedbackRequestUseCaseProtocol {
+        ShareFeedbackRequestUseCase(
+            cloudService: makeSpaceCloudService(),
+            mirrorService: makeSpaceMirrorService(),
+            repository: makeSpaceRepository()
+        )
+    }
+
+    /// Public-DB `TokenIndex` lookup + `CKShare.Metadata` fetch for an opened `/f/<token>`
+    /// link. No `@MainActor` dependency of its own — safe to call from a background task.
+    func makeSpaceRequestLinkService() -> SpaceRequestLinkServiceProtocol {
+        SpaceRequestLinkService()
+    }
+
+    /// The guest/invitee-side "open a request link" flow: resolves the token to a
+    /// `CKShare`, accepts it (unless already a member), and looks up the specific
+    /// `SpaceReflection` thread it points at.
+    @MainActor
+    func makeResolveRequestLinkUseCase() -> ResolveRequestLinkUseCaseProtocol {
+        ResolveRequestLinkUseCase(
+            linkService: makeSpaceRequestLinkService(),
+            acceptUseCase: makeAcceptSpaceInviteUseCase(),
+            repository: makeSpaceRepository()
+        )
+    }
+
     // MARK: - Repositories - Achievement
 
     func makeBadgeRepository() -> BadgeRepositoryProtocol {

@@ -31,6 +31,14 @@ struct MainTabView: View {
     @State private var isAcceptingInvite = false
     @State private var inviteErrorMessage: String?
 
+    // Guest-feedback request link ("/f/<token>", AC-014) — same queue-until-settled
+    // pattern as the invite state above, kept as its own set of state since resolving a
+    // token can land on an *existing* thread rather than a freshly-accepted space.
+    @State private var pendingRequestToken: String?
+    @State private var pendingOpenThread: SpaceThreadDeepLink?
+    @State private var isResolvingRequestLink = false
+    @State private var requestLinkErrorMessage: String?
+
     init(widgetAction: Binding<WidgetAction?> = .constant(nil)) {
         self._widgetAction = widgetAction
     }
@@ -48,13 +56,14 @@ struct MainTabView: View {
 
             Tab("Spaces", systemImage: "person.3.fill", value: .spaces) {
                 // No .modelContainer: Space views get their data through ViewModels, not @Query.
-                SpaceListView(openSpace: $pendingOpenSpace)
+                SpaceListView(openSpace: $pendingOpenSpace, openThread: $pendingOpenThread)
             }
         }
         .onAppear {
             checkOnboardingStatus()
             // Cold-launch / raced-notification invites are stashed in the inbox; pick them up.
             drainInviteInboxIfPossible()
+            drainRequestLinkInboxIfPossible()
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding)
@@ -83,13 +92,23 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .spaceShareInviteReceived)) { _ in
             drainInviteInboxIfPossible()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .spaceRequestLinkReceived)) { _ in
+            drainRequestLinkInboxIfPossible()
+        }
         .onChange(of: showOnboarding) { _, isShowing in
-            if !isShowing { processPendingInviteIfPossible() }
+            if !isShowing {
+                processPendingInviteIfPossible()
+                processPendingRequestLinkIfPossible()
+            }
         }
         .onChange(of: celebrationBadgeID) { _, badge in
-            if badge == nil { processPendingInviteIfPossible() }
+            if badge == nil {
+                processPendingInviteIfPossible()
+                processPendingRequestLinkIfPossible()
+            }
         }
         .errorAlert($inviteErrorMessage, title: "Couldn't Join Space")
+        .errorAlert($requestLinkErrorMessage, title: "Couldn't Open Link")
     }
 
     private func checkOnboardingStatus() {
@@ -143,6 +162,46 @@ struct MainTabView: View {
             isAcceptingInvite = false
             // Drain a newer invite that arrived while this one was in flight.
             processPendingInviteIfPossible()
+        }
+    }
+
+    // MARK: - Guest-feedback request links (AC-014)
+
+    /// Pulls any `/f/<token>` open the delegate stashed (cold launch, or a notification
+    /// that beat this view's subscription) into the pending slot and tries to resolve it.
+    private func drainRequestLinkInboxIfPossible() {
+        if let token = SpaceInviteInbox.drainRequestToken() {
+            pendingRequestToken = token
+        }
+        processPendingRequestLinkIfPossible()
+    }
+
+    /// Resolves a queued request-link token once no onboarding sheet or celebration cover
+    /// is up, then switches to the Spaces tab and deep-links straight into that request's
+    /// thread — accepting the underlying Space invite first if this device isn't already a
+    /// member (`ResolveRequestLinkUseCase` handles both cases).
+    private func processPendingRequestLinkIfPossible() {
+        guard let token = pendingRequestToken,
+              !showOnboarding,
+              celebrationBadgeID == nil,
+              !isResolvingRequestLink else { return }
+
+        isResolvingRequestLink = true
+        pendingRequestToken = nil   // consume; a newer link may re-populate this during the await
+        selectedTab = .spaces
+
+        Task {
+            do {
+                let deepLink = try await DIContainer.shared.makeResolveRequestLinkUseCase().execute(token: token)
+                pendingOpenThread = deepLink
+            } catch {
+                // Surface the failure instead of swallowing it — an unknown/revoked token
+                // is expected to end here with a friendly message (AC-014's acceptance).
+                requestLinkErrorMessage = error.localizedDescription
+            }
+            isResolvingRequestLink = false
+            // Drain a newer link that arrived while this one was in flight.
+            processPendingRequestLinkIfPossible()
         }
     }
 }
