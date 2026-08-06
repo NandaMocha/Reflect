@@ -78,7 +78,7 @@ final class DIContainer {
     // MARK: - Space
 
     func makeSpaceCloudService() -> SpaceCloudServiceProtocol {
-        SpaceCloudService(mirrorService: makeSpaceMirrorService())
+        SpaceCloudService(mirrorService: makeSpaceMirrorService(), ingestService: makeSpaceClipIngestService())
     }
 
     /// The Clip guest-feedback public mirror publisher (AC-011). `SpaceCloudService`
@@ -87,6 +87,13 @@ final class DIContainer {
     /// that needs to call `revokeMirror` directly.
     func makeSpaceMirrorService() -> SpaceMirrorServiceProtocol {
         SpaceMirrorService()
+    }
+
+    /// The Clip pending-feedback auto-ingester (AC-012). `SpaceCloudService` takes this
+    /// as a constructor dependency and calls it off the same sync tail as
+    /// `makeSpaceMirrorService()`.
+    func makeSpaceClipIngestService() -> SpaceClipIngestServiceProtocol {
+        SpaceClipIngestService()
     }
 
     @MainActor
