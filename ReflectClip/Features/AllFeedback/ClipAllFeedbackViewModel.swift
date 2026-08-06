@@ -64,6 +64,7 @@ final class ClipAllFeedbackViewModel {
     private let session: ClipSession
     private let repository: ClipSpaceRepositoring
     private let pendingAnswerStore: PendingAnswerStoring
+    private let installContinuityStore: ClipInstallContinuityStoring
     private let logger = Logger(subsystem: "xyz.nandamochammad.Reflect.Clip", category: "ClipAllFeedbackViewModel")
 
     /// Guards against `load()` (from `.task`) and `refresh()` (from `.refreshable`) running
@@ -74,10 +75,16 @@ final class ClipAllFeedbackViewModel {
 
     // MARK: - Initialization
 
-    init(session: ClipSession, repository: ClipSpaceRepositoring, pendingAnswerStore: PendingAnswerStoring) {
+    init(
+        session: ClipSession,
+        repository: ClipSpaceRepositoring,
+        pendingAnswerStore: PendingAnswerStoring,
+        installContinuityStore: ClipInstallContinuityStoring
+    ) {
         self.session = session
         self.repository = repository
         self.pendingAnswerStore = pendingAnswerStore
+        self.installContinuityStore = installContinuityStore
     }
 
     // MARK: - Derived State
@@ -119,6 +126,25 @@ final class ClipAllFeedbackViewModel {
         await fetch(isInitialLoad: loadState != .loaded)
     }
 
+    /// AC-040: whether `ClipAllFeedbackView.onAppear` should present the `SKOverlay` install
+    /// upsell right now. True at most once ever (per App Group lifetime, via
+    /// `installContinuityStore`'s persisted flag) and only once this guest has actually reached
+    /// `.sent` on at least one answer — "after the first successful submit," not merely after
+    /// landing on this screen. Marks the flag before returning `true` so a caller can't
+    /// accidentally re-present by calling this twice in the same session; the underlying flag
+    /// also makes the check itself idempotent across relaunches.
+    ///
+    /// Presenting the overlay itself needs a `UIWindowScene`, which this `@MainActor` view model
+    /// deliberately doesn't reach for — that stays in `ClipAllFeedbackView`, the same
+    /// view/view-model split every other Clip screen uses.
+    func presentInstallOverlayIfNeeded() async -> Bool {
+        guard !installContinuityStore.hasShownInstallOverlay() else { return false }
+        let hasReachedSent = await pendingAnswerStore.allAnswers().contains { $0.state == .sent }
+        guard hasReachedSent else { return false }
+        installContinuityStore.markInstallOverlayShown()
+        return true
+    }
+
     // MARK: - Private Helpers
 
     private func fetch(isInitialLoad: Bool) async {
@@ -130,6 +156,11 @@ final class ClipAllFeedbackViewModel {
             session.markLinkInvalid()
             return
         }
+
+        // AC-040: this screen is only reached after a resolved request the guest actually
+        // engaged with — record it so the full app can recognize a Clip-driven install on its
+        // own first cold launch (`SpaceInviteInbox.consumeClipDrivenInstall()`).
+        installContinuityStore.recordLastRequestToken(token)
 
         do {
             async let requestTask = repository.fetchRequest(token: token)
@@ -182,7 +213,8 @@ extension ClipDIContainer {
         ClipAllFeedbackViewModel(
             session: session,
             repository: makeClipSpaceRepository(),
-            pendingAnswerStore: makePendingAnswerStore()
+            pendingAnswerStore: makePendingAnswerStore(),
+            installContinuityStore: makeClipInstallContinuityStore()
         )
     }
 }
