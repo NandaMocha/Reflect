@@ -76,9 +76,10 @@ struct CloudSharingView: UIViewControllerRepresentable {
 @MainActor
 final class RequestLinkSharePresenter {
     var isPreparing = false
-    /// Set once a link has been prepared; the view watches this to present the share
-    /// sheet. `[Any]` matches `ReflectionShareSheet.items` / `UIActivityViewController`.
-    var shareItems: [Any]?
+    /// Set once a link has been prepared; the view drives `sheet(item:)` off this so the
+    /// optional is unwrapped safely instead of an `isPresented` boolean the view has to
+    /// keep in sync by hand.
+    var shareItems: ShareItems?
     var errorMessage: String?
 
     private let useCase: ShareFeedbackRequestUseCaseProtocol
@@ -100,19 +101,20 @@ final class RequestLinkSharePresenter {
             if let rawShareURL = result.rawShareURL {
                 items.append(rawShareURL)
             }
-            shareItems = items
+            shareItems = ShareItems(values: items)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    /// Clears the staged items once the share sheet has been dismissed, so re-tapping
-    /// "Share feedback link" always re-prepares rather than re-presenting stale state.
-    func sheetDismissed() {
-        shareItems = nil
-    }
-
     private static func message(for reflection: SpaceReflection, url: URL) -> String {
         "Give feedback on \u{201C}\(reflection.title)\u{201D}: \(url.absoluteString)"
+    }
+
+    /// `Identifiable` wrapper around the raw `[Any]` activity-item list `sheet(item:)`
+    /// needs — `[Any]` itself has no stable identity to key the presentation off of.
+    struct ShareItems: Identifiable {
+        let id = UUID()
+        let values: [Any]
     }
 }
