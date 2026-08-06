@@ -79,6 +79,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Task {
             try? await DIContainer.shared.makeSpaceCloudService().ensureSubscriptions()
         }
+
+        // AC-040: Clip-driven install continuity. A Clip-driven install leaves three signals in
+        // the shared App Group; if `consumeClipDrivenInstall()` finds all three, deposit the
+        // token exactly like a fresh `/f/<token>` open would — `MainTabView` already drains
+        // `SpaceInviteInbox` on its first appear and runs the same `ResolveRequestLinkUseCase`
+        // flow a manual open uses, so no new resolution path is needed here. Also migrates the
+        // guest's Clip display name into `spaceDisplayName` as a *default suggestion* only — it
+        // never overwrites a name the user already set.
+        MainActor.assumeIsolated {
+            if let (token, guestDisplayName) = SpaceInviteInbox.consumeClipDrivenInstall() {
+                if UserDefaults.standard.spaceDisplayName() == nil, let guestDisplayName {
+                    UserDefaults.standard.setSpaceDisplayName(guestDisplayName)
+                }
+                SpaceInviteInbox.depositRequestToken(token)
+            }
+        }
+
         return true
     }
 
