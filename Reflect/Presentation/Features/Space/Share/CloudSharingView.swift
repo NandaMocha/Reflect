@@ -1,6 +1,7 @@
 import SwiftUI
 import CloudKit
 import UIKit
+import Observation
 
 /// Presents the system CloudKit share sheet (`UICloudSharingController`) for an
 /// already-saved `CKShare`. Also doubles as the owner's participant-management
@@ -59,5 +60,61 @@ struct CloudSharingView: UIViewControllerRepresentable {
         func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) {
             parent.onStopped?()
         }
+    }
+}
+
+// MARK: - Request Link Share Presenter (AC-014)
+
+/// The "share a single feedback request" entry point — distinct from `CloudSharingView`
+/// above, which wraps `UICloudSharingController` for whole-Space membership invites (see
+/// `SpaceFormView`/`SpaceMembersView`). A guest-feedback request link doesn't need
+/// CloudKit's native participant-management UI: it's a plain URL a guest opens (via the
+/// App Clip or the full app's universal-link handling), so a system
+/// `UIActivityViewController` is enough. This presenter mints/reuses the link
+/// (`ShareFeedbackRequestUseCase`) and stages the resulting text for `ReflectionShareSheet`.
+@Observable
+@MainActor
+final class RequestLinkSharePresenter {
+    var isPreparing = false
+    /// Set once a link has been prepared; the view drives `sheet(item:)` off this so the
+    /// optional is unwrapped safely instead of an `isPresented` boolean the view has to
+    /// keep in sync by hand.
+    var shareItems: ShareItems?
+    var errorMessage: String?
+
+    private let useCase: ShareFeedbackRequestUseCaseProtocol
+
+    init(useCase: ShareFeedbackRequestUseCaseProtocol) {
+        self.useCase = useCase
+    }
+
+    /// Mints/reuses the request token, triggers a mirror publish, and stages the wrapper
+    /// URL — alongside the space's raw `CKShare` URL when it's available — for the system
+    /// share sheet.
+    func prepare(reflection: SpaceReflection, space: Space) async {
+        guard !isPreparing else { return }
+        isPreparing = true
+        defer { isPreparing = false }
+        do {
+            let result = try await useCase.execute(reflection: reflection, space: space)
+            var items: [Any] = [Self.message(for: reflection, url: result.requestLinkURL)]
+            if let rawShareURL = result.rawShareURL {
+                items.append(rawShareURL)
+            }
+            shareItems = ShareItems(values: items)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private static func message(for reflection: SpaceReflection, url: URL) -> String {
+        "Give feedback on \u{201C}\(reflection.title)\u{201D}: \(url.absoluteString)"
+    }
+
+    /// `Identifiable` wrapper around the raw `[Any]` activity-item list `sheet(item:)`
+    /// needs — `[Any]` itself has no stable identity to key the presentation off of.
+    struct ShareItems: Identifiable {
+        let id = UUID()
+        let values: [Any]
     }
 }

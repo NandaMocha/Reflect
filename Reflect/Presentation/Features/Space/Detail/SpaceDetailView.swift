@@ -12,8 +12,16 @@ struct SpaceDetailView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @Environment(\.scenePhase) private var scenePhase
 
+    // "Share feedback link" (AC-014) — mints the guest link for one request and hands it
+    // to the system share sheet. Lives here (not on `SpaceThreadView`) because the
+    // request's context menu is already the per-reflection action surface.
+    @State private var requestLinkPresenter: RequestLinkSharePresenter
+
     init(space: Space) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceDetailViewModel(space: space))
+        _requestLinkPresenter = State(initialValue: RequestLinkSharePresenter(
+            useCase: DIContainer.shared.makeShareFeedbackRequestUseCase()
+        ))
     }
 
     var body: some View {
@@ -66,7 +74,13 @@ struct SpaceDetailView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await viewModel.refresh() } }
         }
+        // `sheet(item:)` off the presenter's `ShareItems?` unwraps safely and clears
+        // itself on dismiss — no separate `isPresented` flag to keep in sync.
+        .sheet(item: $requestLinkPresenter.shareItems) { items in
+            ReflectionShareSheet(items: items.values)
+        }
         .errorAlert($viewModel.errorMessage)
+        .errorAlert($requestLinkPresenter.errorMessage, title: "Couldn't Share Link")
         .firstOpenIntro(.space, flagKey: Constants.UserDefaults.hasSeenSpaceIntro)
         .alert(
             "Delete request?",
@@ -111,6 +125,19 @@ struct SpaceDetailView: View {
                                     reflectionToEdit = reflection
                                 } label: {
                                     Label("Edit questions", systemImage: "pencil")
+                                }
+                            }
+                            // Owner-only (AC-014): only the space owner can mint/publish a
+                            // guest-feedback link — `ShareFeedbackRequestUseCase` also
+                            // guards this server-side, this just avoids offering an action
+                            // that would fail.
+                            if viewModel.space.isOwner {
+                                Button {
+                                    Task {
+                                        await requestLinkPresenter.prepare(reflection: reflection, space: viewModel.space)
+                                    }
+                                } label: {
+                                    Label("Share feedback link", systemImage: "link")
                                 }
                             }
                             ReportContentButton(

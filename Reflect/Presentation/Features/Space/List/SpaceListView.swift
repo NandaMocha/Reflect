@@ -20,8 +20,18 @@ struct SpaceListView: View {
     /// into that space, then clears the signal.
     var openSpace: Binding<Space?> = .constant(nil)
 
-    init(openSpace: Binding<Space?> = .constant(nil)) {
+    /// Same idea, one level deeper (AC-014): when set — by `MainTabView` after resolving a
+    /// `/f/<token>` request link — pushes both the space AND the specific reflection onto
+    /// `path` in one shot, landing straight on `SpaceThreadView` instead of the space's
+    /// reflection list. `path` is already type-erased for exactly this (see its comment).
+    var openThread: Binding<SpaceThreadDeepLink?> = .constant(nil)
+
+    init(
+        openSpace: Binding<Space?> = .constant(nil),
+        openThread: Binding<SpaceThreadDeepLink?> = .constant(nil)
+    ) {
         self.openSpace = openSpace
+        self.openThread = openThread
     }
 
     var body: some View {
@@ -87,6 +97,18 @@ struct SpaceListView: View {
                 newPath.append(space)
                 path = newPath
                 openSpace.wrappedValue = nil
+            }
+            .onChange(of: openThread.wrappedValue) { _, newValue in
+                guard let deepLink = newValue else { return }
+                // Same cache-first reasoning as the `openSpace` case above: the accept
+                // path (when this was a fresh join) already upserted the space, and a
+                // forced reconcile here could race CloudKit's mirror lag.
+                viewModel.reloadFromCache()
+                var newPath = NavigationPath()
+                newPath.append(deepLink.space)
+                newPath.append(deepLink.reflection)
+                path = newPath
+                openThread.wrappedValue = nil
             }
             .errorAlert($viewModel.errorMessage)
             .alert(
