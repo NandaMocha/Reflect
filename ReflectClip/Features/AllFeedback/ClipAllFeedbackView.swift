@@ -57,14 +57,23 @@ struct ClipAllFeedbackView: View {
     /// (finding the active `UIWindowScene`) lives here rather than in the view model since
     /// `SKOverlay` is a UIKit-facing API with no SwiftUI equivalent.
     ///
+    /// The durable "shown, never again" flag is only persisted (`markOverlayPresented()`) once
+    /// `SKOverlay.present(in:)` actually runs below — if no `UIWindowScene` resolves, the attempt
+    /// is released (`cancelOverlayPresentationAttempt()`) instead of silently burning the
+    /// one-time upsell opportunity on a scene-resolution failure.
+    ///
     /// No-ops in the iOS Simulator by design (`SKOverlay` itself no-ops there) — see AC-040's
     /// watch-out; this is verified for real on-device in AC-H4.
     private func presentInstallOverlayIfNeeded() {
         Task {
             guard await viewModel.presentInstallOverlayIfNeeded() else { return }
-            guard let windowScene = Self.activeWindowScene() else { return }
+            guard let windowScene = Self.activeWindowScene() else {
+                viewModel.cancelOverlayPresentationAttempt()
+                return
+            }
             let overlay = SKOverlay(configuration: SKOverlay.AppClipConfiguration(position: .bottom))
             overlay.present(in: windowScene)
+            viewModel.markOverlayPresented()
         }
     }
 
