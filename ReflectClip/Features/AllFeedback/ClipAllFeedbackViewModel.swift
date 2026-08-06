@@ -73,6 +73,14 @@ final class ClipAllFeedbackViewModel {
     /// which one started first.
     private var isFetching = false
 
+    /// Synchronous in-memory guard against the TOCTOU double-fire AC-040's review flagged: two
+    /// `.onAppear`/`.task` firings both calling `presentInstallOverlayIfNeeded()` around the same
+    /// instant. Set immediately (no suspension point before it) the moment a call passes the
+    /// gating checks, *before* anything durable is written — see `presentInstallOverlayIfNeeded()`
+    /// and `cancelOverlayPresentationAttempt()` for why this is deliberately distinct from
+    /// `installContinuityStore`'s durable "shown" flag.
+    private var isAttemptingOverlayPresentation = false
+
     // MARK: - Initialization
 
     init(
@@ -126,23 +134,49 @@ final class ClipAllFeedbackViewModel {
         await fetch(isInitialLoad: loadState != .loaded)
     }
 
-    /// AC-040: whether `ClipAllFeedbackView.onAppear` should present the `SKOverlay` install
-    /// upsell right now. True at most once ever (per App Group lifetime, via
-    /// `installContinuityStore`'s persisted flag) and only once this guest has actually reached
-    /// `.sent` on at least one answer — "after the first successful submit," not merely after
-    /// landing on this screen. Marks the flag before returning `true` so a caller can't
-    /// accidentally re-present by calling this twice in the same session; the underlying flag
-    /// also makes the check itself idempotent across relaunches.
+    /// AC-040: whether `ClipAllFeedbackView.onAppear` should attempt to present the `SKOverlay`
+    /// install upsell right now. True at most once ever (per App Group lifetime, via
+    /// `installContinuityStore`'s durable "shown" flag) and only once this guest has actually
+    /// reached `.sent` on at least one answer — "after the first successful submit," not merely
+    /// after landing on this screen. That "has ever sent" check reads
+    /// `installContinuityStore.hasEverSentAnswer()` — a durable flag written once at submit time
+    /// — rather than re-deriving it from `PendingAnswerStore`'s current queue state: that queue
+    /// prunes `.sent` entries once the mirror confirms them (`dropConfirmedAnswers`, called by
+    /// `fetch(isInitialLoad:)` below), so a naive "does a `.sent` entry currently exist" check can
+    /// race a `load()`/`refresh()` that already dropped it and never fire at all.
+    ///
+    /// Deliberately has no suspension point between the gating checks and setting
+    /// `isAttemptingOverlayPresentation` — every check here (`hasShownInstallOverlay`,
+    /// `hasEverSentAnswer`) is a synchronous `UserDefaults` read, so two overlapping calls (e.g.
+    /// `.task` and `.onAppear` firing around the same instant) can't both observe "not yet
+    /// attempted" before either sets the guard. This only marks the *attempt*, not the durable
+    /// "shown, never again" flag — that's `markOverlayPresented()`, called by the view only after
+    /// `SKOverlay.present(in:)` actually runs, so a `UIWindowScene` resolution failure doesn't
+    /// permanently burn the one-time upsell (see `cancelOverlayPresentationAttempt()`).
     ///
     /// Presenting the overlay itself needs a `UIWindowScene`, which this `@MainActor` view model
     /// deliberately doesn't reach for — that stays in `ClipAllFeedbackView`, the same
     /// view/view-model split every other Clip screen uses.
     func presentInstallOverlayIfNeeded() async -> Bool {
+        guard !isAttemptingOverlayPresentation else { return false }
         guard !installContinuityStore.hasShownInstallOverlay() else { return false }
-        let hasReachedSent = await pendingAnswerStore.allAnswers().contains { $0.state == .sent }
-        guard hasReachedSent else { return false }
-        installContinuityStore.markInstallOverlayShown()
+        guard installContinuityStore.hasEverSentAnswer() else { return false }
+        isAttemptingOverlayPresentation = true
         return true
+    }
+
+    /// Persists the durable "shown, never again" flag — call only after
+    /// `SKOverlay.present(in:)` has actually run.
+    func markOverlayPresented() {
+        installContinuityStore.markInstallOverlayShown()
+    }
+
+    /// Releases the in-memory attempt guard without persisting anything durable — call when the
+    /// view couldn't actually present (no resolvable `UIWindowScene`) so a later, genuinely new
+    /// attempt (e.g. this screen reappearing) isn't permanently locked out by a guard meant only
+    /// to stop a same-instant double-fire.
+    func cancelOverlayPresentationAttempt() {
+        isAttemptingOverlayPresentation = false
     }
 
     // MARK: - Private Helpers
