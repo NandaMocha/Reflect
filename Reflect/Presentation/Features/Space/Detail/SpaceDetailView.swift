@@ -73,18 +73,10 @@ struct SpaceDetailView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await viewModel.refresh() } }
         }
-        // Presented once the link has been prepared; `[Any]` (the share sheet's item
-        // list) isn't `Equatable` so this drives off presence rather than `.onChange`,
-        // same technique `SpaceMembersView` uses for its `shareToPresent` sheet.
-        .sheet(
-            isPresented: Binding(
-                get: { requestLinkPresenter.shareItems != nil },
-                set: { if !$0 { requestLinkPresenter.sheetDismissed() } }
-            )
-        ) {
-            if let items = requestLinkPresenter.shareItems {
-                ReflectionShareSheet(items: items)
-            }
+        // `sheet(item:)` off the presenter's `ShareItems?` unwraps safely and clears
+        // itself on dismiss — no separate `isPresented` flag to keep in sync.
+        .sheet(item: $requestLinkPresenter.shareItems) { items in
+            ReflectionShareSheet(items: items.values)
         }
         .errorAlert($viewModel.errorMessage)
         .errorAlert($requestLinkPresenter.errorMessage, title: "Couldn't Share Link")
