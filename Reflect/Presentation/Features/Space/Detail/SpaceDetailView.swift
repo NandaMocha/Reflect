@@ -12,6 +12,13 @@ struct SpaceDetailView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @Environment(\.scenePhase) private var scenePhase
 
+    // "Share feedback link" (AC-014) — mints the guest link for one request and hands it
+    // to the system share sheet. Lives here (not on `SpaceThreadView`) because the
+    // request's context menu is already the per-reflection action surface.
+    @State private var requestLinkPresenter = RequestLinkSharePresenter(
+        useCase: DIContainer.shared.makeShareFeedbackRequestUseCase()
+    )
+
     init(space: Space) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceDetailViewModel(space: space))
     }
@@ -66,7 +73,21 @@ struct SpaceDetailView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await viewModel.refresh() } }
         }
+        // Presented once the link has been prepared; `[Any]` (the share sheet's item
+        // list) isn't `Equatable` so this drives off presence rather than `.onChange`,
+        // same technique `SpaceMembersView` uses for its `shareToPresent` sheet.
+        .sheet(
+            isPresented: Binding(
+                get: { requestLinkPresenter.shareItems != nil },
+                set: { if !$0 { requestLinkPresenter.sheetDismissed() } }
+            )
+        ) {
+            if let items = requestLinkPresenter.shareItems {
+                ReflectionShareSheet(items: items)
+            }
+        }
         .errorAlert($viewModel.errorMessage)
+        .errorAlert($requestLinkPresenter.errorMessage, title: "Couldn't Share Link")
         .firstOpenIntro(.space, flagKey: Constants.UserDefaults.hasSeenSpaceIntro)
         .alert(
             "Delete request?",
@@ -112,6 +133,24 @@ struct SpaceDetailView: View {
                                 } label: {
                                     Label("Edit questions", systemImage: "pencil")
                                 }
+                            }
+                            // Owner-only (AC-014): only the space owner can mint/publish a
+                            // guest-feedback link — `ShareFeedbackRequestUseCase` also
+                            // guards this server-side, this just avoids offering an action
+                            // that would fail.
+                            if viewModel.space.isOwner {
+                                Button {
+                                    Task {
+                                        await requestLinkPresenter.prepare(reflection: reflection, space: viewModel.space)
+                                    }
+                                } label: {
+                                    if requestLinkPresenter.isPreparing {
+                                        Label("Preparing link…", systemImage: "link")
+                                    } else {
+                                        Label("Share feedback link", systemImage: "link")
+                                    }
+                                }
+                                .disabled(requestLinkPresenter.isPreparing)
                             }
                             ReportContentButton(
                                 contentKind: "request",
