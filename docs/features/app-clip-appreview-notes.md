@@ -27,9 +27,10 @@ it:
 
 - In the full app, `ReportContentButton`
   (`Reflect/Presentation/Features/Space/Compliance/ReportContentButton.swift`) appears on the
-  request and on each guest answer in `AnswerBubble`/thread views.
+  request (`Reflect/Presentation/Features/Space/Detail/SpaceDetailView.swift:116`) and on each
+  guest answer in `AnswerBubble`/thread views.
 - In the guest Clip, `ClipAnswerBubble`
-  (`ReflectClip/Features/AllFeedback/ClipAnswerBubble.swift`, ~line 164) reimplements the same
+  (`ReflectClip/Features/AllFeedback/ClipAnswerBubble.swift`, ~line 167) reimplements the same
   mailto affordance Clip-side (it cannot import `ReportContentButton`, which lives outside
   anything shared into `ReflectClip` — see `Reflect/ClipShared/README.md`), rather than reusing
   the full-app component. Report is offered **only for mirror-confirmed answers** in the Clip: a
@@ -39,9 +40,10 @@ it:
 
 Both implementations open the device's Mail composer pre-addressed to the developer
 (`nanda.mocha@gmail.com`), pre-filled with the content kind, the CloudKit `recordName` of the
-reported content, and the Space name (Space title in the Clip's case), so a report is immediately
-actionable without any extra lookup. The user still has to tap Send — this only stages the report
-— which keeps the affordance usable offline and avoids a bespoke reporting backend.
+reported content, and the Space name (the request's title in the Clip's case, since the Clip never
+fetches the Space name), so a report is immediately actionable without any extra lookup. The user
+still has to tap Send — this only stages the report — which keeps the affordance usable offline
+and avoids a bespoke reporting backend.
 
 ### (b) Owner delete of guest answers
 
