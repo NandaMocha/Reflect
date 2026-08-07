@@ -17,6 +17,7 @@ enum SpaceError: Error, LocalizedError {
     case answerNotFound
     case notReflectionOwner
     case notFound
+    case spaceUnavailable
     case notOwner
     case notAuthor
     case shareFailed(String)
@@ -42,6 +43,8 @@ enum SpaceError: Error, LocalizedError {
         case .answerNotFound: return "That answer could not be found."
         case .notReflectionOwner: return "Only the feedback request owner can do that."
         case .notFound: return "That space could not be found."
+        case .spaceUnavailable:
+            return "This space is no longer available in iCloud. It was either deleted, or it was created by a different kind of build — Debug builds and TestFlight/App Store builds use separate iCloud environments and can't see each other's spaces. It has been removed from this device."
         case .notOwner: return "Only the space's owner can do that."
         case .notAuthor: return "You can only delete your own content."
         case .shareFailed(let m): return "Couldn't create the invite: \(m)"
