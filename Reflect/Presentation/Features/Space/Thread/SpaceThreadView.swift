@@ -163,7 +163,7 @@ struct SpaceThreadView: View {
         }
 
         let myAnswers = viewModel.myAnswers(for: viewModel.selectedQuestionId)
-        Text("Your answers / \(myAnswers.count)")
+        Text("Your answers - \(myAnswers.count)")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
 

@@ -11,13 +11,13 @@
 		04F260732F33602B00BF5E99 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 04F260722F33602B00BF5E99 /* SwiftUI.framework */; };
 		04F2607E2F33602C00BF5E99 /* Quick ActionsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		153AF6CCD848B91FC767DF7F /* DSWaveformImageViews in Frameworks */ = {isa = PBXBuildFile; productRef = DBB814AFA67536633EFF9DDB /* DSWaveformImageViews */; };
-		D7C8DFC6E7726E03C07703DE /* DSWaveformImage in Frameworks */ = {isa = PBXBuildFile; productRef = F93A04F213FA82B6592668B6 /* DSWaveformImage */; };
 		ACC0000000000000000000AA /* ReflectClip.app in Embed App Clips */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000A1 /* ReflectClip.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		ACC0000000000000000000D2 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C2 /* Constants.swift */; };
 		ACC0000000000000000000D3 /* SpaceReflection.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C3 /* SpaceReflection.swift */; };
 		ACC0000000000000000000D4 /* SpaceAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C4 /* SpaceAnswer.swift */; };
 		ACC0000000000000000000D5 /* SpaceQuestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C5 /* SpaceQuestion.swift */; };
 		ACC0000000000000000000D6 /* SpaceError.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC0000000000000000000C6 /* SpaceError.swift */; };
+		D7C8DFC6E7726E03C07703DE /* DSWaveformImage in Frameworks */ = {isa = PBXBuildFile; productRef = F93A04F213FA82B6592668B6 /* DSWaveformImage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,7 +67,7 @@
 		04F2606E2F33602B00BF5E99 /* Quick ActionsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Quick ActionsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		04F260702F33602B00BF5E99 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		04F260722F33602B00BF5E99 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		ACC0000000000000000000A1 /* ReflectClip.app */ = {isa = PBXFileReference; explicitFileType = "wrapper.application"; includeInIndex = 0; path = ReflectClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACC0000000000000000000A1 /* ReflectClip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ReflectClip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ACC0000000000000000000C2 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = Reflect/Core/Utilities/Constants.swift; sourceTree = "<group>"; };
 		ACC0000000000000000000C3 /* SpaceReflection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpaceReflection.swift; path = Reflect/Domain/Entities/Space/SpaceReflection.swift; sourceTree = "<group>"; };
 		ACC0000000000000000000C4 /* SpaceAnswer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpaceAnswer.swift; path = Reflect/Domain/Entities/Space/SpaceAnswer.swift; sourceTree = "<group>"; };
@@ -79,17 +79,10 @@
 		048F4DBD2F2CD90F005443FA /* Exceptions for "Reflect" folder in "Reflect" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
 				ClipShared/README.md,
+				Info.plist,
 			);
 			target = 042635EF2F288EA100BB939D /* Reflect */;
-		};
-		ACC0000000000000000000C7 /* Exceptions for "ClipShared" folder in "ReflectClip" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				README.md,
-			);
-			target = ACC0000000000000000000A2 /* ReflectClip */;
 		};
 		04F260832F33602C00BF5E99 /* Exceptions for "Quick Actions" folder in "Quick ActionsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -102,6 +95,13 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+			);
+			target = ACC0000000000000000000A2 /* ReflectClip */;
+		};
+		ACC0000000000000000000C7 /* Exceptions for "Reflect/ClipShared" folder in "ReflectClip" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				README.md,
 			);
 			target = ACC0000000000000000000A2 /* ReflectClip */;
 		};
@@ -137,12 +137,12 @@
 			path = ReflectClip;
 			sourceTree = "<group>";
 		};
-		ACC0000000000000000000A8 /* ClipShared */ = {
+		ACC0000000000000000000A8 /* Reflect/ClipShared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				ACC0000000000000000000C7 /* Exceptions for "ClipShared" folder in "ReflectClip" target */,
+				ACC0000000000000000000C7 /* Exceptions for "Reflect/ClipShared" folder in "ReflectClip" target */,
 			);
-			path = "Reflect/ClipShared";
+			path = Reflect/ClipShared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -183,7 +183,7 @@
 				04F260742F33602B00BF5E99 /* Quick Actions */,
 				19A28503CC25FB806F38FF04 /* Shared */,
 				ACC0000000000000000000A6 /* ReflectClip */,
-				ACC0000000000000000000A8 /* ClipShared */,
+				ACC0000000000000000000A8 /* Reflect/ClipShared */,
 				ACC0000000000000000000B0 /* ClipShared (app-owned refs) */,
 				04F2606F2F33602B00BF5E99 /* Frameworks */,
 				042635F12F288EA100BB939D /* Products */,
@@ -290,7 +290,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				ACC0000000000000000000A6 /* ReflectClip */,
-				ACC0000000000000000000A8 /* ClipShared */,
+				ACC0000000000000000000A8 /* Reflect/ClipShared */,
 			);
 			name = ReflectClip;
 			packageProductDependencies = (
@@ -528,6 +528,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Reflect/Reflect.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
@@ -550,6 +551,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -570,6 +572,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Reflect/Reflect.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
@@ -592,6 +595,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -676,6 +680,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ReflectClip/ReflectClip.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
@@ -690,6 +695,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect.Clip;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -711,6 +717,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ReflectClip/ReflectClip.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 9NAU7R3577;
@@ -725,6 +732,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.nandamochammad.Reflect.Clip;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
