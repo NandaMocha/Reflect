@@ -24,6 +24,9 @@ struct SpaceThreadView: View {
                     header
                     Divider()
                     yourAnswersSection
+                        .onTapGesture {
+                            hideKeyboard()
+                        }
                 }
                 .padding(Constants.Spacing.md)
             }
