@@ -97,11 +97,16 @@ final class RequestLinkSharePresenter {
         defer { isPreparing = false }
         do {
             let result = try await useCase.execute(reflection: reflection, space: space)
-            var items: [Any] = [Self.message(for: reflection, url: result.requestLinkURL)]
-            if let rawShareURL = result.rawShareURL {
-                items.append(rawShareURL)
-            }
-            shareItems = ShareItems(values: items)
+            // Deliberately shares only the `/f/<token>` wrapper link, not `result.rawShareURL`.
+            // The Space's `CKShare` is created with `publicPermission = .none`
+            // (`SpaceCloudService.createSpace`), so its raw URL only resolves for Apple IDs
+            // already on the share's participant list — which is populated exclusively by
+            // `UICloudSharingController`'s own "Add People" UI. Handing that URL to anyone
+            // else produced iOS's "The owner stopped sharing, or your account doesn't have
+            // permission to open it" dialog, which is why AC-014's "alongside the raw
+            // CKShare URL" acceptance is intentionally not honoured here. Re-add this only
+            // together with a public `publicPermission` + `.allowPublic` in `availablePermissions`.
+            shareItems = ShareItems(values: [Self.message(for: reflection, url: result.requestLinkURL)])
         } catch {
             errorMessage = error.localizedDescription
         }
