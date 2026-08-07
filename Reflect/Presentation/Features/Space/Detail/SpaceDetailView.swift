@@ -11,6 +11,7 @@ struct SpaceDetailView: View {
     @State private var reflectionToEdit: SpaceReflection?
     @State private var selectedPhotoItem: PhotosPickerItem?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismiss) private var dismiss
 
     // "Share feedback link" (AC-014) — mints the guest link for one request and hands it
     // to the system share sheet. Lives here (not on `SpaceThreadView`) because the
@@ -80,6 +81,11 @@ struct SpaceDetailView: View {
             ReflectionShareSheet(items: items.values)
         }
         .errorAlert($viewModel.errorMessage)
+        // The space's zone is gone in this build's iCloud environment and its cache row has
+        // been evicted — once the explanation is dismissed there's nothing left to show here.
+        .onChange(of: viewModel.errorMessage) { _, message in
+            if message == nil && viewModel.spaceWasRemoved { dismiss() }
+        }
         .errorAlert($requestLinkPresenter.errorMessage, title: "Couldn't Share Link")
         .firstOpenIntro(.space, flagKey: Constants.UserDefaults.hasSeenSpaceIntro)
         .alert(

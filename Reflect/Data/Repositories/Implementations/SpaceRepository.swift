@@ -172,9 +172,21 @@ final class SpaceRepository: SpaceRepositoryProtocol {
     }
 
     func fetchReflections(for space: Space) async throws -> [SpaceReflection] {
-        let delta = try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        let delta = try await fetchZoneChanges(for: space)
         try applyZoneDelta(delta, spaceID: space.id)
         return cachedReflections(spaceID: space.id)
+    }
+
+    /// One zone-changes pass, with the "this zone is gone" case handled once for every
+    /// caller: the cached space (and its children) is evicted so the list stops offering a
+    /// space that can't be opened, then the error is rethrown for the UI to explain.
+    private func fetchZoneChanges(for space: Space) async throws -> SpaceZoneDelta {
+        do {
+            return try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        } catch SpaceError.spaceUnavailable {
+            try removeCached(id: space.id)
+            throw SpaceError.spaceUnavailable
+        }
     }
 
     func createReflection(in space: Space, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection {
@@ -237,7 +249,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
     }
 
     func fetchAnswers(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceAnswer] {
-        let delta = try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        let delta = try await fetchZoneChanges(for: space)
         try applyZoneDelta(delta, spaceID: space.id)
         return cachedAnswers(reflectionID: reflection.id)
     }

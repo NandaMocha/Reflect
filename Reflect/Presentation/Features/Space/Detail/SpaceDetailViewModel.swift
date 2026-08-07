@@ -15,6 +15,9 @@ final class SpaceDetailViewModel {
     var reflections: [SpaceReflection] = []
     var isRefreshing: Bool = false
     var errorMessage: String?
+    /// Set when the space's zone no longer exists in this build's iCloud environment. The
+    /// cached row is already gone by then, so the view pops back to the list.
+    var spaceWasRemoved: Bool = false
 
     // Compose
     var newTitle: String = ""
@@ -105,6 +108,10 @@ final class SpaceDetailViewModel {
             errorMessage = nil
         } catch is CancellationError {
             // Cancelled pull-to-refresh — not a real error.
+        } catch SpaceError.spaceUnavailable {
+            reflections = []
+            errorMessage = SpaceError.spaceUnavailable.localizedDescription
+            spaceWasRemoved = true
         } catch {
             errorMessage = error.localizedDescription
         }

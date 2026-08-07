@@ -572,6 +572,15 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             saveChangeToken(nil, key: tokenKey)
             previousToken = nil
             result = try await fetchZoneDelta(in: zoneID, database: database, since: nil)
+        } catch let error as CKError where error.code == .zoneNotFound || error.code == .userDeletedZone {
+            // The zone this cached space points at doesn't exist in the environment this
+            // build talks to. Either it was really deleted, or — far more commonly — the
+            // space was created by a Debug build and we're now running a TestFlight/App
+            // Store build (or vice versa); CloudKit's Development and Production stores are
+            // entirely separate. Nothing to sync against, so drop the stale token and let
+            // the repository evict the cached space rather than surfacing raw CloudKit copy.
+            saveChangeToken(nil, key: tokenKey)
+            throw SpaceError.spaceUnavailable
         }
         let isFullSnapshot = previousToken == nil
 
