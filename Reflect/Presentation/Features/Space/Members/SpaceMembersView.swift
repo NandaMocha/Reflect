@@ -129,15 +129,6 @@ struct SpaceMembersView: View {
                 } footer: {
                     Text("Anyone with the invite link can join this space — paste it wherever you like. Invite People sends an invite to specific people instead.")
                 }
-                // Revert the "Link Copied" confirmation on its own so the button returns to
-                // its normal label without the user having to leave the sheet.
-                .onChange(of: viewModel.didCopyLink) { _, copied in
-                    guard copied else { return }
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        viewModel.resetCopiedState()
-                    }
-                }
             }
 
             Section {

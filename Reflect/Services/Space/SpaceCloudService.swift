@@ -97,16 +97,11 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             colorHex: colorHex
         )
         let share = CKShare(rootRecord: spaceRecord)
-        // `.readWrite` (not `.none`) so the share URL works as a copy-and-paste invite link:
-        // anyone who opens it joins, without the owner having to add them as a named
-        // participant in `UICloudSharingController`'s "Add People" UI first. That
-        // pre-invite requirement was the whole reason the raw share URL had to be withheld
-        // from guest-feedback links — see the comment in `CloudSharingView`.
-        //
-        // This does not over-share: a `CKShare` grants access to its own zone only, and
-        // every space gets its own `Space-<UUID>` zone (above), so a leaked link joins the
-        // recipient to that one space and nothing else.
-        share.publicPermission = .readWrite
+        // Created closed, on purpose. A space only starts accepting "anyone with the link"
+        // when the owner explicitly asks for a link — `ensurePublicInviteLink` flips this
+        // on the first "Copy Invite Link" tap — so a space that's never shared stays
+        // invite-only, and the permission change always corresponds to a user action.
+        share.publicPermission = .none
         share[CKShare.SystemFieldKey.title] = trimmedName as CKRecordValue
 
         // 3. Root + share saved atomically — see `saveRootAndShare` below.
