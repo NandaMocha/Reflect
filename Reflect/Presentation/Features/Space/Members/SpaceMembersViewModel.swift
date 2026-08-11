@@ -35,14 +35,17 @@ final class SpaceMembersViewModel {
     /// time, made public).
     var isPreparingLink: Bool = false
     /// Flips true once the link is on the pasteboard, so the button can confirm the copy.
-    /// Reset by `resetCopiedState()` after a beat — the view owns that timing.
-    var didCopyLink: Bool = false
+    /// Cleared automatically a couple of seconds later by `scheduleCopiedReset()`.
+    private(set) var didCopyLink: Bool = false
 
     // MARK: - Dependencies
 
     private let fetchUseCase: FetchSpaceMembersUseCaseProtocol
     private let shareLinkUseCase: ShareSpaceInviteLinkUseCaseProtocol
     private let repository: SpaceRepositoryProtocol
+
+    /// Held so a repeat copy can restart the "Link Copied" timer rather than race it.
+    private var copiedResetTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -128,11 +131,12 @@ final class SpaceMembersViewModel {
         }
     }
 
-    /// Copies the space's open invite link to the pasteboard — the "paste it in a group
-    /// chat and anyone can join" path, which needs no named participants up front.
+    /// Copies the space's invite link to the pasteboard — the "paste it in a group chat and
+    /// anyone can join" path, which needs no named participants up front.
     ///
-    /// The first call on a space created before invite links existed also flips its share
-    /// to public, so it can take a round trip; `isPreparingLink` covers that.
+    /// This is also the point where the space becomes link-joinable: shares are created
+    /// invite-only and `ensurePublicInviteLink` opens them on the first call, so it can
+    /// take a round trip. `isPreparingLink` covers that.
     func copyInviteLink() async {
         guard canInvite, !isPreparingLink else { return }
         isPreparingLink = true
@@ -146,16 +150,26 @@ final class SpaceMembersViewModel {
             didCopyLink = true
             errorMessage = nil
             HapticManager.shared.success()
+            scheduleCopiedReset()
         } catch {
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
         }
     }
 
-    /// Clears the transient "Link Copied" confirmation. Called by the view after a delay so
-    /// the label reverts on its own.
-    func resetCopiedState() {
-        didCopyLink = false
+    /// Reverts the transient "Link Copied" label after a beat.
+    ///
+    /// Owned here rather than driven by an `.onChange` in the view: the button lives inside
+    /// a `List` `Section`, and `List` destructures its sections, so a modifier hung off the
+    /// section is unreliable — it can be dropped or applied once per row. Holding the task
+    /// lets a second copy restart the timer cleanly instead of racing the first one's reset.
+    private func scheduleCopiedReset() {
+        copiedResetTask?.cancel()
+        copiedResetTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            self?.didCopyLink = false
+        }
     }
 
     /// Called when the sharing controller closes. The participant list may have changed
