@@ -63,6 +63,10 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         try await cloudService.fetchShare(for: space.zoneID)
     }
 
+    func publicInviteLink(for space: Space) async throws -> URL {
+        try await cloudService.ensurePublicInviteLink(for: space.zoneID)
+    }
+
     func members(of space: Space) async throws -> [SpaceMember] {
         try await cloudService.fetchMembers(for: space.zoneID)
     }

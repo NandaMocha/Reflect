@@ -24,6 +24,12 @@ protocol SpaceRepositoryProtocol {
     /// The `CKShare` backing a space's root record, for the sharing controller.
     func shareForSpace(_ space: Space) async throws -> CKShare
 
+    /// Owner-only. The space's open invite link — a URL anyone can open to join this one
+    /// space, no prior invite needed. Ensures the underlying share is public first, so
+    /// this also migrates spaces created before invite links existed. Not cached: the URL
+    /// lives on the `CKShare`, not in a record, same as `members(of:)`.
+    func publicInviteLink(for space: Space) async throws -> URL
+
     /// A space's members, read live from its `CKShare`. Not cached — membership lives on
     /// the share, not in a record, so there's nothing in `SpaceStore` to reconcile.
     func members(of space: Space) async throws -> [SpaceMember]

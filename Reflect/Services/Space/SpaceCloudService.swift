@@ -97,7 +97,16 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             colorHex: colorHex
         )
         let share = CKShare(rootRecord: spaceRecord)
-        share.publicPermission = .none
+        // `.readWrite` (not `.none`) so the share URL works as a copy-and-paste invite link:
+        // anyone who opens it joins, without the owner having to add them as a named
+        // participant in `UICloudSharingController`'s "Add People" UI first. That
+        // pre-invite requirement was the whole reason the raw share URL had to be withheld
+        // from guest-feedback links — see the comment in `CloudSharingView`.
+        //
+        // This does not over-share: a `CKShare` grants access to its own zone only, and
+        // every space gets its own `Space-<UUID>` zone (above), so a leaked link joins the
+        // recipient to that one space and nothing else.
+        share.publicPermission = .readWrite
         share[CKShare.SystemFieldKey.title] = trimmedName as CKRecordValue
 
         // 3. Root + share saved atomically — see `saveRootAndShare` below.
@@ -296,6 +305,60 @@ final class SpaceCloudService: SpaceCloudServiceProtocol {
             throw SpaceError.shareFailed("Fetched record was not a CKShare")
         }
         return share
+    }
+
+    // MARK: - Public invite link
+
+    func ensurePublicInviteLink(for zone: SpaceZoneRef) async throws -> URL {
+        // Only the owner can widen a share's permission — a joined participant has no
+        // write access to the `CKShare` at all, so this would fail server-side anyway.
+        guard zone.lane == .privateDB else { throw SpaceError.notOwner }
+
+        // Fetch-modify-save with conflict retry, same shape as `updateReflection` /
+        // `ensureRequestToken`.
+        var conflictRetries = 0
+        while true {
+            do {
+                let share = try await fetchShare(for: zone)
+
+                // Idempotent: a share that's already public returns its URL untouched, so
+                // repeated taps on "Copy Invite Link" cost one fetch and no write. Spaces
+                // created before this feature land here with `.none` and get migrated on
+                // the first tap.
+                if share.publicPermission == .readWrite, let url = share.url {
+                    return url
+                }
+
+                share.publicPermission = .readWrite
+
+                // Deliberately `privateDB.save(_:)` — the default
+                // `.ifServerRecordUnchanged` policy — rather than `saveOverwriting`. That
+                // helper's `.allKeys` policy is right for the deterministic-name
+                // MemberProfile/TokenIndex records it was written for, but on a `CKShare`
+                // it would push our whole locally-held copy and could clobber a
+                // participant list that changed between the fetch above and this save
+                // (someone accepting an invite, say). A conflict surfaces as
+                // `.serverRecordChanged` and is retried below instead.
+                //
+                // Saving the share on its own is correct here: the "a CKShare must be
+                // saved in the same operation as its root record" rule (see
+                // `saveRootAndShare`) applies only to a share's first save, not to
+                // updating one that already exists on the server.
+                let savedRecord = try await withRetry { try await self.privateDB.save(share) }
+
+                guard let savedShare = savedRecord as? CKShare else {
+                    throw SpaceError.shareFailed("Saved record was not a CKShare")
+                }
+                guard let url = savedShare.url else {
+                    throw SpaceError.shareFailed("Share has no URL yet")
+                }
+                return url
+            } catch let error as CKError where error.code == .serverRecordChanged && conflictRetries < 2 {
+                conflictRetries += 1
+            } catch let error as CKError where error.code == .unknownItem {
+                throw SpaceError.notFound
+            }
+        }
     }
 
     // MARK: - Members

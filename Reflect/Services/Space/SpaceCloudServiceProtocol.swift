@@ -42,6 +42,14 @@ protocol SpaceCloudServiceProtocol {
     /// for `zone.lane`.
     func fetchShare(for zone: SpaceZoneRef) async throws -> CKShare
 
+    /// Owner-only. Ensures the space's `CKShare` accepts anyone who has its URL (public
+    /// `.readWrite`) and returns that URL, for the "Copy Invite Link" flow.
+    ///
+    /// Idempotent, and doubles as the lazy migration for spaces created before invite
+    /// links existed — those shares were saved with `publicPermission = .none`, which
+    /// makes their URL resolve only for already-named participants.
+    func ensurePublicInviteLink(for zone: SpaceZoneRef) async throws -> URL
+
     /// The share's participants, flattened into `SpaceMember` values. Owner first, then
     /// joined members, then still-pending invites. Display names are resolved from
     /// self-registered `MemberProfile` records first, then CloudKit's identity name.
