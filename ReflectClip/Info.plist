@@ -4,6 +4,11 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<!-- Same export-compliance declaration as the main app's Info.plist — see the comment
+	     there. Declared on the Clip too so App Store Connect can't surface a separate
+	     "Missing Compliance" prompt for it. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleDisplayName</key>
 	<string>Reflect Clip</string>
 	<key>CFBundleExecutable</key>
