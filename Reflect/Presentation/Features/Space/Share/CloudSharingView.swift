@@ -25,7 +25,12 @@ struct CloudSharingView: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UICloudSharingController {
         let controller = UICloudSharingController(share: share, container: container)
-        controller.availablePermissions = [.allowReadWrite, .allowPrivate]
+        // `.allowPublic` is load-bearing, not just an extra option: the controller writes its
+        // own permission selection back to the share on save, and if only `.allowPrivate` is
+        // offered it resets `publicPermission` to `.none` — silently killing every invite
+        // link the owner has already pasted somewhere. `.allowPrivate` stays available so an
+        // owner can still deliberately re-lock a space to named participants only.
+        controller.availablePermissions = [.allowReadWrite, .allowPublic, .allowPrivate]
         controller.delegate = context.coordinator
         return controller
     }
@@ -97,15 +102,17 @@ final class RequestLinkSharePresenter {
         defer { isPreparing = false }
         do {
             let result = try await useCase.execute(reflection: reflection, space: space)
-            // Deliberately shares only the `/f/<token>` wrapper link, not `result.rawShareURL`.
-            // The Space's `CKShare` is created with `publicPermission = .none`
-            // (`SpaceCloudService.createSpace`), so its raw URL only resolves for Apple IDs
-            // already on the share's participant list — which is populated exclusively by
-            // `UICloudSharingController`'s own "Add People" UI. Handing that URL to anyone
-            // else produced iOS's "The owner stopped sharing, or your account doesn't have
-            // permission to open it" dialog, which is why AC-014's "alongside the raw
-            // CKShare URL" acceptance is intentionally not honoured here. Re-add this only
-            // together with a public `publicPermission` + `.allowPublic` in `availablePermissions`.
+            // Still shares only the `/f/<token>` wrapper link, not `result.rawShareURL` —
+            // but for a different reason than before. The original blocker (the Space's
+            // `CKShare` was `publicPermission = .none`, so its raw URL only resolved for
+            // Apple IDs already on the participant list) is gone: shares are now created
+            // public, and `SpaceCloudService.ensurePublicInviteLink` migrates older ones.
+            //
+            // The remaining reason is scope. The raw `CKShare` URL joins the recipient to
+            // the whole Space, while a `/f/<token>` link is meant to point at one feedback
+            // request. Sending both would quietly turn "give feedback on this" into full
+            // Space membership. The Space-wide link now has its own deliberate entry point
+            // (Members → "Copy Invite Link"), which is where that choice belongs.
             shareItems = ShareItems(values: [Self.message(for: reflection, url: result.requestLinkURL)])
         } catch {
             errorMessage = error.localizedDescription
