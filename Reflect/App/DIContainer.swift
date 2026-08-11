@@ -135,6 +135,11 @@ final class DIContainer {
     }
 
     @MainActor
+    func makeShareSpaceInviteLinkUseCase() -> ShareSpaceInviteLinkUseCaseProtocol {
+        ShareSpaceInviteLinkUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
     func makeSpaceFormViewModel() -> SpaceFormViewModel {
         SpaceFormViewModel(
             createUseCase: makeCreateSpaceUseCase()
@@ -219,6 +224,7 @@ final class DIContainer {
         SpaceMembersViewModel(
             space: space,
             fetchUseCase: makeFetchSpaceMembersUseCase(),
+            shareLinkUseCase: makeShareSpaceInviteLinkUseCase(),
             repository: makeSpaceRepository()
         )
     }
