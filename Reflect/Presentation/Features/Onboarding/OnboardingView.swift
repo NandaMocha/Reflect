@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// First-run walkthrough: a swipeable pager introducing Reflect and its three pillars —
 /// Learnings, Insights, Spaces.
