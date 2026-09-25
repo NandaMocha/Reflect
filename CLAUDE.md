@@ -117,3 +117,19 @@ Git permissions for `git status`, `diff`, `log`, `add`, `commit` are pre-allowed
 - A reflection's `Learning` is **fixed at creation** from the list's filter — no picker in the editor. To reassign, use the row's swipe → Move action in `ReflectionListView`, which goes through `MoveReflectionUseCase`.
 - Markdown docs live under `/docs` at repo root — **not** under `Reflect/Resources/`. Resources are shipped with the app; dev docs are not.
 - The `docs/archive/streak-original-spec/` folder describes an earlier "streak" badge design that was intentionally removed. It's kept for reference but does not reflect current code. See the reconciliation review linked above.
+
+## Running under Multica (multica.ai agents)
+
+This section applies only to runs started by the Multica daemon. Those run in their own worktree, on a `multica/*` branch. The `loop/` runner and manual sessions keep following the rest of this file unchanged.
+
+- **Integration branch:** `multica-task` is a second integration branch, next to the loop's. Only the Multica Code Reviewer integrates into it, using `multica-team/scripts/merge-to-multica-task.sh`. The Release Steward merges the active development line into it daily. That branch is named in the Multica project description.
+- **Pre-approved for Multica runs:**
+  - Pushing `multica/*` branches and `multica-task`.
+  - Rebasing unmerged `multica/*` branches.
+  - Bug branches named `multica/BUG-NNN-slug`.
+- **Exclusivity:** the rule that the dev-loop owns the checkout and nothing else runs in parallel covers the loop's integration branch and the main checkout only. Multica runs never touch either.
+- **Still needs the owner:**
+  - Merging `multica-task` into the loop's integration branch or anything above it.
+  - Force pushes and branch deletion.
+  - Every other confirmation rule in this file.
+- The full workflow lives in the Multica workspace context: `/Users/nandamochammad/Dev-Project/Tes/multica-team/workflow.md`.
