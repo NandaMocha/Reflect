@@ -12,6 +12,9 @@ loop/REPLAN-*.sh
 loop/REPLAN-*.sh.applied
 loop/REPLAN-*.sh.failed
 
+# Multica agent runtime files, local to each run. Never commit.
+.multica/
+
 # CloudKit server-to-server keys — never commit private keys
 *.pem
 *.p8
