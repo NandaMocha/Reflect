@@ -2,8 +2,9 @@ import SwiftUI
 import DSWaveformImage
 import DSWaveformImageViews
 
-/// Reusable waveform visualization rendered with DSWaveformImage's `Waveform.Style.striped` style
-/// via `WaveformLiveCanvas`.
+/// Reusable waveform visualization. `.playback` and `.preview` render with DSWaveformImage's
+/// `Waveform.Style.striped` style via `WaveformLiveCanvas`. `.live` draws its own bars, see
+/// `liveCanvas`.
 ///
 /// **Sample convention:** samples are DSWaveformImage's own dB-normalized convention where `0.0` is
 /// the loudest sample and `1.0` is silence. The library renderer inverts internally (`1 - sample`),
@@ -21,8 +22,10 @@ struct ReflectWaveform: View {
     // MARK: - Content
 
     enum Content {
-        /// Continuously updating samples, e.g. while recording.
-        case live(samples: [Float])
+        /// Continuously updating samples, e.g. while recording. One sample is one bar, newest on
+        /// the right. `lastAppend` is when the newest sample arrived and drives the scroll between
+        /// updates. `nil` draws the bars at rest.
+        case live(samples: [Float], lastAppend: Date? = nil)
         /// Fixed samples with a playback progress indicator (0...1).
         case playback(samples: [Float], progress: Double)
         /// Fixed samples with no progress indicator, e.g. a list-row preview.
@@ -71,8 +74,8 @@ struct ReflectWaveform: View {
             let samplesNeeded = max(1, Int(geo.size.width * scale))
 
             switch content {
-            case .live(let samples):
-                stripedCanvas(resample(samples, to: samplesNeeded), color: color, scale: scale)
+            case .live(let samples, let lastAppend):
+                liveCanvas(samples, lastAppend: lastAppend)
 
             case .preview(let samples):
                 stripedCanvas(resample(samples, to: samplesNeeded), color: color, scale: scale)
@@ -96,6 +99,46 @@ struct ReflectWaveform: View {
     }
 
     // MARK: - Private Helpers
+
+    /// Draws one bar per sample on a fixed slot grid and scrolls the grid one slot between level
+    /// updates.
+    ///
+    /// This does not go through `WaveformLiveCanvas`: its drawer moves the stripe grid by the
+    /// *growth* of the sample array, and the live window has a fixed length. The grid stood still
+    /// while the resampled blocks moved under it, so bar heights jumped instead of scrolling.
+    private func liveCanvas(_ samples: [Float], lastAppend: Date?) -> some View {
+        TimelineView(.animation(paused: lastAppend == nil)) { timeline in
+            Canvas { context, size in
+                let barWidth = style.barWidth
+                let slotWidth = barWidth + style.barSpacing
+                let visibleBars = LiveWaveformBuffer.barCount(
+                    width: size.width,
+                    barWidth: barWidth,
+                    barSpacing: style.barSpacing
+                )
+                let elapsed = lastAppend.map { timeline.date.timeIntervalSince($0) } ?? .infinity
+                let offset = LiveWaveformBuffer.scrollOffset(elapsed: elapsed, slotWidth: slotWidth)
+
+                for (index, sample) in samples.enumerated() {
+                    let x = LiveWaveformBuffer.barOriginX(
+                        index: index,
+                        count: samples.count,
+                        visibleBars: visibleBars,
+                        slotWidth: slotWidth,
+                        scrollOffset: offset
+                    )
+                    guard x + barWidth > 0, x < size.width else { continue }
+                    let height = LiveWaveformBuffer.barHeight(
+                        sample: sample,
+                        canvasHeight: size.height,
+                        minimum: barWidth
+                    )
+                    let bar = CGRect(x: x, y: (size.height - height) / 2, width: barWidth, height: height)
+                    context.fill(Path(roundedRect: bar, cornerRadius: barWidth / 2), with: .color(color))
+                }
+            }
+        }
+    }
 
     /// A `WaveformLiveCanvas` configured with the `.striped` style in `color`.
     private func stripedCanvas(_ samples: [Float], color: Color, scale: CGFloat) -> some View {

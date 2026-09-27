@@ -140,6 +140,8 @@ struct VoiceAudioView: View {
 
     // MARK: - Waveform section
 
+    private let liveWaveformStyle: ReflectWaveform.Style = .full
+
     @ViewBuilder
     private var waveformSection: some View {
         switch screenState {
@@ -148,12 +150,26 @@ struct VoiceAudioView: View {
             // "armed, nothing coming in". The previous placeholder was a constant mid-level
             // array, i.e. a fake waveform for audio that didn't exist.
             ReflectWaveform(
-                content: .live(samples: audioRecorder.waveformSamples),
-                style: .full,
+                content: .live(
+                    samples: audioRecorder.waveformSamples,
+                    lastAppend: audioRecorder.lastWaveformAppend
+                ),
+                style: liveWaveformStyle,
                 color: .primaryDefault
             )
             .frame(height: 110)
             .frame(maxWidth: .infinity)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                audioRecorder.setVisibleBarCount(
+                    LiveWaveformBuffer.barCount(
+                        width: width,
+                        barWidth: liveWaveformStyle.barWidth,
+                        barSpacing: liveWaveformStyle.barSpacing
+                    )
+                )
+            }
             .padding(.vertical, 16)
             .padding(.horizontal, 8)
             .background(RoundedRectangle(cornerRadius: 16).fill(Color.secondary.opacity(0.05)))
@@ -482,31 +498,38 @@ final class AudioRecorderWrapper {
     var currentTime: TimeInterval = 0
 
     /// Rolling window of the most recent levels, already in DSWaveformImage's convention
-    /// (`0` = loudest, `1` = silence).
+    /// (`0` = loudest, `1` = silence). One value per drawn bar.
     ///
-    /// Always exactly `barCount` long: it starts full of silence and scrolls right-to-left,
-    /// so the waveform *grows into* the view as you speak. Keeping it a fixed length is what
-    /// makes the visualisation honest — a shorter array gets stretched across the full width
-    /// by `ReflectWaveform`, which made a half-second of audio look identical in extent to
-    /// thirty seconds of it.
+    /// It starts full of silence and scrolls right-to-left, so the waveform *grows into* the
+    /// view as you speak. Its length follows the view width (`setVisibleBarCount`) plus one bar
+    /// that waits past the right edge and scrolls in.
     ///
     /// The buffer lives here rather than in the view because a `Float` level that repeats its
     /// previous value — silence, most obviously — doesn't fire `onChange`, so a view-side
     /// buffer stopped scrolling whenever the room went quiet.
-    private(set) var waveformSamples: [Float]
+    var waveformSamples: [Float] { waveformBuffer.samples }
 
-    @ObservationIgnored private let barCount: Int
+    /// When the newest level arrived. `nil` while no levels are coming in, which parks the
+    /// waveform's scroll animation.
+    private(set) var lastWaveformAppend: Date?
+
+    private var waveformBuffer: LiveWaveformBuffer
+
     @ObservationIgnored private let service = AudioRecorderService()
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+    #if DEBUG
+    @ObservationIgnored private var syntheticLevels: AnyCancellable?
+    #endif
 
-    init(barCount: Int = 60) {
-        self.barCount = barCount
-        self.waveformSamples = Self.silence(barCount)
+    init(visibleBarCount: Int = 60) {
+        self.waveformBuffer = LiveWaveformBuffer(count: visibleBarCount + 1)
 
-        service.audioLevelPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] level in self?.appendLevel(level) }
-            .store(in: &cancellables)
+        if !Self.usesSyntheticLevels {
+            service.audioLevelPublisher
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] level in self?.appendLevel(level) }
+                .store(in: &cancellables)
+        }
 
         service.recordingStatePublisher
             .receive(on: DispatchQueue.main)
@@ -517,25 +540,65 @@ final class AudioRecorderWrapper {
     }
 
     func startRecording() async throws {
-        waveformSamples = Self.silence(barCount)
+        waveformBuffer.reset()
+        lastWaveformAppend = nil
         try await service.startRecording()
+        startSyntheticLevelsIfNeeded()
     }
 
-    func stopRecording() async throws -> AudioRecordingResult { try await service.stopRecording() }
-    func cancelRecording() { service.cancelRecording() }
+    func stopRecording() async throws -> AudioRecordingResult {
+        stopLevels()
+        return try await service.stopRecording()
+    }
 
-    /// Shifts the window one bar to the left and drops the new level on the right. The
-    /// service publishes normalised loudness (`1` = loudest), which inverts here into the
-    /// renderer's convention.
+    func cancelRecording() {
+        stopLevels()
+        service.cancelRecording()
+    }
+
+    /// Sizes the window to the number of bars the waveform view can show.
+    func setVisibleBarCount(_ count: Int) {
+        waveformBuffer.resize(to: max(1, count) + 1)
+    }
+
+    /// Scrolls the window one bar and stamps the time, which restarts the view's scroll.
     private func appendLevel(_ level: Float) {
-        var next = waveformSamples
-        next.removeFirst()
-        next.append(max(0, min(1, 1 - level)))
-        waveformSamples = next
+        waveformBuffer.append(level: level)
+        lastWaveformAppend = Date()
     }
 
-    private static func silence(_ count: Int) -> [Float] {
-        Array(repeating: 1.0, count: count)
+    private func stopLevels() {
+        #if DEBUG
+        syntheticLevels = nil
+        #endif
+        lastWaveformAppend = nil
+    }
+
+    // MARK: - UI test seam
+
+    /// `-UITestSyntheticAudioLevels` replaces the microphone levels with a fixed sequence, so a
+    /// UI test sees the same waveform on every run. Recording itself still uses the real service.
+    private static var usesSyntheticLevels: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-UITestSyntheticAudioLevels")
+        #else
+        false
+        #endif
+    }
+
+    /// 20 Hz: a constant 0.6 for 2 seconds, then silence.
+    private func startSyntheticLevelsIfNeeded() {
+        #if DEBUG
+        guard Self.usesSyntheticLevels else { return }
+        let loudTicks = Int(2 / LiveWaveformBuffer.emissionInterval)
+        var tick = 0
+        syntheticLevels = Timer.publish(every: LiveWaveformBuffer.emissionInterval, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.appendLevel(tick < loudTicks ? 0.6 : 0)
+                tick += 1
+            }
+        #endif
     }
 }
 
