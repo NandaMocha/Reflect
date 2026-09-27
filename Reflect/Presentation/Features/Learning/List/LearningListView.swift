@@ -54,6 +54,7 @@ struct LearningListView: View {
                     ContentUnavailableView.search(text: searchText)
                 } else {
                     learningList
+                        .accessibilityIdentifier("learnings.list")
                 }
             }
             .navigationTitle("Learning Chapters")

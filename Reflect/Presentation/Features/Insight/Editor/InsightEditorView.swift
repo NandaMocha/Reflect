@@ -37,6 +37,7 @@ struct InsightEditorView: View {
                 }
                 .padding(Constants.Spacing.md)
             }
+            .accessibilityIdentifier("insight.editor")
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
