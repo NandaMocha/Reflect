@@ -57,6 +57,7 @@ struct ReflectionListView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("reflections.list")
 
             // FAB with quick actions
             if let viewModel = viewModel, !viewModel.isEmpty {

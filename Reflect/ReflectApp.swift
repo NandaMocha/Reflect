@@ -65,7 +65,7 @@ struct ReflectApp: App {
 
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
-                isStoredInMemoryOnly: false,
+                isStoredInMemoryOnly: Self.isUITesting,
                 // Pin to the app's OWN container. Without this, SwiftData's default
                 // `groupContainer: .automatic` silently relocates this store into the
                 // App Group (added for the Insight feature), where it would (a) collide
@@ -83,6 +83,9 @@ struct ReflectApp: App {
             // Wire the DIContainer with the live ModelContext so make...() factories work
             // (ReflectionEditorView's init relies on makeReflectionEditorViewModel).
             DIContainer.shared.configure(with: modelContainer.mainContext)
+            #if DEBUG
+            Self.seedForUITestingIfNeeded(modelContainer.mainContext)
+            #endif
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
@@ -265,6 +268,35 @@ struct ReflectApp: App {
             print("✅ Badges already up to date")
         }
     }
+
+    // MARK: - UI Test Launch Hook
+
+    /// `-uiTesting` swaps in an in-memory store so XCUITests start from a known state and never
+    /// touch the user's data. Debug builds only; a Release build always uses the on-disk store.
+    private static var isUITesting: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-uiTesting")
+        #else
+        false
+        #endif
+    }
+
+    #if DEBUG
+    /// Seeds one Learning so the widget deep links have a chapter to open. `-uiTestingNoLearnings`
+    /// seeds none, for the "no learning yet" path. The fixed ID lets a test pass it as
+    /// `-lastOpenedLearningId` to start on that chapter, like state restoration does.
+    private static func seedForUITestingIfNeeded(_ context: ModelContext) {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-uiTesting"), !arguments.contains("-uiTestingNoLearnings"),
+              let seededID = UUID(uuidString: "00000000-0000-0000-0000-000000000001") else { return }
+        context.insert(Learning(id: seededID, title: "UI Test Chapter"))
+        do {
+            try context.save()
+        } catch {
+            fatalError("UI test seed failed: \(error)")
+        }
+    }
+    #endif
 
     // MARK: - Widget URL Handling
 

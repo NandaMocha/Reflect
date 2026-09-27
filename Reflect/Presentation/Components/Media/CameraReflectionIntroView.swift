@@ -27,6 +27,7 @@ struct CameraReflectionIntroView: View {
             footer
         }
         .background(Color(.systemBackground))
+        .accessibilityIdentifier("camera.intro")
         .interactiveDismissDisabled()
     }
 

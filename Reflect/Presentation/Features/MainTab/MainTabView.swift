@@ -44,6 +44,7 @@ struct MainTabView: View {
             Tab("Insights", systemImage: "lightbulb.fill", value: .insights) {
                 InsightListView(composeSignal: $insightComposeSignal)
                     .modelContainer(InsightStore.container)
+                    .accessibilityIdentifier("insights.tab")
             }
 
             Tab("Spaces", systemImage: "person.3.fill", value: .spaces) {

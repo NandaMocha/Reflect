@@ -108,6 +108,7 @@ struct ReflectionEditorView: View {
     var body: some View {
         NavigationStack {
             contentView
+                .accessibilityIdentifier("reflection.editor")
                 .navigationTitle(navigationTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { toolbarContent }

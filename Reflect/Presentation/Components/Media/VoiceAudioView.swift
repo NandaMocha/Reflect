@@ -85,6 +85,7 @@ struct VoiceAudioView: View {
                         .padding(.bottom, 16)
                 }
             }
+            .accessibilityIdentifier("voice.recorder")
             .navigationTitle("Voice Note")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
