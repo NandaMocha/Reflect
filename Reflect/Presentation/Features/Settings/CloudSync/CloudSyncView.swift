@@ -44,12 +44,14 @@ struct CloudSyncView: View {
 
                 // Warning
                 warningSection
+
+                // About
+                aboutFooter
             }
             .padding(Constants.Spacing.lg)
         }
         .navigationTitle("iCloud Sync")
         .navigationBarTitleDisplayMode(.inline)
-        .firstOpenIntro(.cloudSync, flagKey: Constants.UserDefaults.hasSeenCloudSyncIntro)
         .onAppear {
             setupViewModel()
         }
@@ -353,6 +355,7 @@ struct CloudSyncView: View {
             ) {
                 showRestoreAlert = true
             }
+            .accessibilityIdentifier("cloudSync.restoreButton")
             .disabled(
                 viewModel?.cloudAvailability != .available ||
                 viewModel?.isSyncing == true ||
@@ -411,6 +414,19 @@ struct CloudSyncView: View {
             RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
                 .fill(Color.warning.opacity(0.1))
         )
+    }
+
+    // MARK: - About Footer
+
+    private var aboutFooter: some View {
+        VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
+            Label("Your data lives in your own iCloud, never on our servers.", systemImage: "lock.icloud.fill")
+            Label("Backs up learnings, reflections, photos and voice notes.", systemImage: "icloud.and.arrow.up")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Setup

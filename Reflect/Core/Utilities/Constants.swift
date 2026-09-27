@@ -116,16 +116,10 @@ enum Constants {
         static let hasSeenCameraIntro = "hasSeenCameraIntro"
 
         // MARK: First-open feature intros
-        // Each key gates a one-time, onboarding-styled intro shown the first time its feature is
-        // opened (see `FeatureIntroView` / `View.firstOpenIntro`). Mirrors `hasSeenCameraIntro`.
+        // Gates the one remaining one-time, onboarding-styled intro (see `FeatureIntroView` /
+        // `View.firstOpenIntro`). Mirrors `hasSeenCameraIntro`. Spaces, Achievements and iCloud
+        // Sync are explained in onboarding instead.
 
-        /// First time a Space's detail is opened — explains the invite-only model and the
-        /// blind-feedback rule (write your own feedback before you can read others').
-        static let hasSeenSpaceIntro = "hasSeenSpaceIntro"
-        /// First time the Achievements gallery is opened — explains how badges unlock.
-        static let hasSeenBadgesIntro = "hasSeenBadgesIntro"
-        /// First time the iCloud Sync screen is opened — explains what syncs and where it lives.
-        static let hasSeenCloudSyncIntro = "hasSeenCloudSyncIntro"
         /// First time the voice recorder is opened — explains voice notes + on-device
         /// transcription and primes the Microphone + Speech Recognition permissions.
         static let hasSeenVoiceIntro = "hasSeenVoiceIntro"

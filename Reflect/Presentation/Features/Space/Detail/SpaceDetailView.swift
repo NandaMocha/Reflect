@@ -67,7 +67,6 @@ struct SpaceDetailView: View {
             if phase == .active { Task { await viewModel.refresh() } }
         }
         .errorAlert($viewModel.errorMessage)
-        .firstOpenIntro(.space, flagKey: Constants.UserDefaults.hasSeenSpaceIntro)
         .alert(
             "Delete request?",
             isPresented: Binding(
