@@ -64,7 +64,21 @@ open Reflect.xcodeproj
 
 ## Test
 
-**No test target exists yet.** See [docs/reviews/achievement-counter-review.md](docs/reviews/achievement-counter-review.md) — setting up Swift Testing is a noted follow-up.
+Two test targets, both in the `Reflect` scheme's Test action (not in Build-for-Running, so a plain `build` stays as fast as before):
+
+- `ReflectTests/`: unit tests, Swift Testing (`import Testing`), hosted by `Reflect.app`. Use `@testable import Reflect`; code under `Shared/` is reachable the same way.
+- `ReflectUITests/`: UI tests, XCUITest, target application `Reflect`.
+
+Both folders are file-system synchronized groups: drop a new `.swift` file in and it joins the target, no `project.pbxproj` edit needed.
+
+```bash
+xcodebuild -project Reflect.xcodeproj -scheme Reflect \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -derivedDataPath "${TMPDIR:-/tmp}/multica-dd/Reflect-$(printf '%s' "$PWD" | shasum | cut -c1-10)" \
+  test
+```
+
+Add `-only-testing:ReflectTests` to skip the slower UI tests. Run one UI test suite at a time per machine.
 
 ## Build-and-verify workflow
 
