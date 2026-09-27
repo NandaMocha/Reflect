@@ -1,18 +1,37 @@
 import Foundation
-import Speech
 import AVFoundation
 import Combine
+import os
 
-final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol {
-    private var audioEngine: AVAudioEngine?
-    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
-    private var recognitionTask: SFSpeechRecognitionTask?
-    private var speechRecognizer: SFSpeechRecognizer?
+final class SpeechRecognitionService: SpeechRecognitionServiceProtocol {
+    typealias Sleep = @Sendable (TimeInterval) async throws -> Void
+
+    /// One live recognition run, from `startLiveTask` until its final result or error.
+    private final class LiveSession {
+        var task: (any SpeechLiveRecognitionTask)?
+        let startTime = Date()
+        var lastText = ""
+        var ending: Ending?
+        var waiter: CheckedContinuation<Ending, Never>?
+    }
+
+    /// How a live session ended.
+    private enum Ending {
+        case final(String)
+        case failure(any Error)
+        case timedOut
+    }
+
+    // MARK: - State
+
+    private var session: LiveSession?
     private var currentLanguage: Constants.SpeechLanguage = .english
-
-    private var recordingURL: URL?
-    private var audioFile: AVAudioFile?
-    private var recordingStartTime: Date?
+    /// Why the last `startRecording` did not get a recognizer running, so `stopRecording`
+    /// can report it.
+    private var startFailure: TranscriptionError?
+    /// Bumped by every start, stop and cancel. A start that finds it changed after an
+    /// `await` was overtaken and must not bring the microphone up.
+    private var generation = 0
     private var lastUIUpdateTime: Date?
 
     private let transcribedTextSubject = CurrentValueSubject<String, Never>("")
@@ -23,8 +42,32 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
 
     private let uiUpdateInterval: TimeInterval = 0.5  // Update UI every 500ms
 
+    // MARK: - Dependencies
+
+    private let engine: any SpeechRecognitionEngine
+    private let audioInput: any SpeechAudioInput
+    private let sleep: Sleep
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "xyz.nandamochammad.Reflect",
+        category: "Speech"
+    )
+
+    // MARK: - Initialization
+
+    init(
+        engine: any SpeechRecognitionEngine = SFSpeechRecognitionEngine(),
+        audioInput: any SpeechAudioInput = AVAudioEngineSpeechInput(),
+        sleep: @escaping Sleep = { try await Task.sleep(for: .seconds($0)) }
+    ) {
+        self.engine = engine
+        self.audioInput = audioInput
+        self.sleep = sleep
+    }
+
+    // MARK: - SpeechRecognitionServiceProtocol
+
     var isRecording: Bool {
-        audioEngine?.isRunning ?? false
+        audioInput.isRunning
     }
 
     var transcribedText: String {
@@ -44,179 +87,271 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
     }
 
     func requestPermission() async -> Bool {
-        let speechStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status == .authorized)
-            }
-        }
-
-        let audioStatus = await withCheckedContinuation { continuation in
-            AVAudioApplication.requestRecordPermission { granted in
-                continuation.resume(returning: granted)
-            }
-        }
+        let speechStatus = await engine.requestAuthorization()
+        let audioStatus = await audioInput.requestPermission()
 
         return speechStatus && audioStatus
     }
 
     func startRecording(language: Constants.SpeechLanguage) async throws {
-        let hasPermission = await requestPermission()
-        guard hasPermission else {
-            throw TranscriptionError.notAuthorized
-        }
-
-        cancelRecording()
-
-        currentLanguage = language
-        speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: language.rawValue))
-
-        guard let recognizer = speechRecognizer, recognizer.isAvailable else {
-            throw TranscriptionError.notAvailable
-        }
-
-        recordingStateSubject.send(.preparing)
-        transcribedTextSubject.send("")
+        generation += 1
+        let myGeneration = generation
+        startFailure = nil
 
         do {
-            try setupAudioSession()
-            try setupAudioEngine()
-            try setupRecordingFile()
-
-            recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-            guard let request = recognitionRequest else {
-                throw TranscriptionError.recognitionFailed
+            guard await requestPermission() else {
+                throw TranscriptionError.notAuthorized
+            }
+            // Stop or cancel arrived while the permission request was pending. The caller
+            // already has its answer, so starting now would leave the microphone running
+            // with nobody left to stop it.
+            guard myGeneration == generation else {
+                throw TranscriptionError.cancelled
             }
 
-            request.shouldReportPartialResults = true
-            request.addsPunctuation = true
+            discardSession()
 
-            recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                if let result = result {
-                    self?.transcribedTextSubject.send(result.bestTranscription.formattedString)
-                }
-
-                if error != nil || (result?.isFinal ?? false) {
-                    // Keep recording even if recognition has issues
-                }
+            currentLanguage = language
+            guard engine.isAvailable(for: language) else {
+                throw TranscriptionError.notAvailable
             }
 
-            recordingStartTime = Date()
-            audioEngine?.prepare()
-            try audioEngine?.start()
+            recordingStateSubject.send(.preparing)
+            transcribedTextSubject.send("")
+
+            let newSession = LiveSession()
+            let task = try engine.startLiveTask(language: language) { [weak self, weak newSession] event in
+                // The recognizer calls back on its own queue. The main queue keeps the
+                // events in the order they arrived.
+                DispatchQueue.main.async {
+                    guard let self, let newSession else { return }
+                    self.handle(event, in: newSession)
+                }
+            }
+            newSession.task = task
+            session = newSession
+
+            try audioInput.start { [weak self] buffer in
+                task.append(buffer)
+                let level = Self.audioLevel(of: buffer)
+                DispatchQueue.main.async {
+                    self?.audioLevelSubject.send(level)
+                }
+            }
 
             recordingStateSubject.send(.recording(duration: 0))
-            startDurationTimer()
+            startDurationTimer(for: newSession)
         } catch {
-            recordingStateSubject.send(.failed(error.localizedDescription))
-            throw error
+            let failure = Self.transcriptionError(from: error)
+            if myGeneration == generation {
+                discardSession()
+                startFailure = failure
+                recordingStateSubject.send(.failed(failure.localizedDescription))
+            }
+            logger.error("Speech recognition did not start: \(String(describing: error), privacy: .public)")
+            throw failure
         }
     }
 
     func stopRecording() async throws -> VoiceRecordingResult {
-        guard isRecording else {
-            throw TranscriptionError.cancelled
+        generation += 1
+
+        guard let session else {
+            // No recognizer ran, so there is nothing to wait for. This is an outcome, not
+            // a thrown error, so the caller can fall back to `transcribe(audioData:)`.
+            let outcome: TranscriptionOutcome = startFailure.map { .recognizerFailed($0) } ?? .recognizerDidNotRun
+            logger.notice("Stop without a running recognizer: \(String(describing: outcome), privacy: .public)")
+            return VoiceRecordingResult(
+                audioData: Data(),
+                transcription: nil,
+                language: currentLanguage.rawValue,
+                duration: 0,
+                outcome: outcome
+            )
         }
+        self.session = nil
 
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
-        recognitionRequest?.endAudio()
-        recognitionTask?.cancel()
+        let audioData = audioInput.stop()
+        // `endAudio()` asks for the final result. Cancelling here would drop it.
+        session.task?.endAudio()
 
-        let duration = Date().timeIntervalSince(recordingStartTime ?? Date())
-
+        let duration = Date().timeIntervalSince(session.startTime)
         recordingStateSubject.send(.processing)
 
-        // Wait for final transcription with timeout instead of fixed delay
-        let finalTranscription = await waitForFinalTranscription(timeout: 2.0)
-
-        guard let url = recordingURL else {
-            throw TranscriptionError.recognitionFailed
+        let ending = await waitForEnding(of: session, timeout: Self.finalResultTimeout(forDuration: duration))
+        if case .timedOut = ending {
+            logger.error("No final result within the timeout. Using the last partial text.")
+            session.task?.cancel()
         }
 
-        let audioData = try Data(contentsOf: url)
-        let transcription = finalTranscription ?? transcribedTextSubject.value
-
+        let (text, outcome) = classify(ending, lastText: session.lastText)
         let result = VoiceRecordingResult(
             audioData: audioData,
-            transcription: transcription.isEmpty ? nil : transcription,
+            transcription: text.isEmpty ? nil : text,
             language: currentLanguage.rawValue,
-            duration: duration
+            duration: duration,
+            outcome: outcome
         )
 
+        transcribedTextSubject.send(text)
         recordingStateSubject.send(.completed(result))
-        cleanup()
 
         return result
     }
 
     func cancelRecording() {
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
-        recognitionRequest?.endAudio()
-        recognitionTask?.cancel()
-        cleanup()
+        generation += 1
+        startFailure = nil
+        discardSession()
         recordingStateSubject.send(.idle)
         transcribedTextSubject.send("")
     }
 
-    // MARK: - Private Methods
-
-    private func setupAudioSession() throws {
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .duckOthers])
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
-    }
-
-    private func setupAudioEngine() throws {
-        audioEngine = AVAudioEngine()
-
-        guard let audioEngine = audioEngine else {
-            throw TranscriptionError.audioEngineError
+    func transcribe(audioData: Data, language: Constants.SpeechLanguage) async -> VoiceRecordingResult {
+        func result(_ text: String, _ outcome: TranscriptionOutcome) -> VoiceRecordingResult {
+            VoiceRecordingResult(
+                audioData: audioData,
+                transcription: text.isEmpty ? nil : text,
+                language: language.rawValue,
+                duration: 0,
+                outcome: outcome
+            )
         }
 
-        let inputNode = audioEngine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        guard await engine.requestAuthorization() else {
+            logger.error("File transcription skipped: speech recognition is not authorized.")
+            return result("", .recognizerFailed(.notAuthorized))
+        }
+        guard engine.isAvailable(for: language) else {
+            logger.error("File transcription skipped: no recognizer for \(language.rawValue, privacy: .public).")
+            return result("", .recognizerFailed(.notAvailable))
+        }
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-            self?.recognitionRequest?.append(buffer)
-            
-            // Write audio buffer to file
-            if let audioFile = self?.audioFile {
-                try? audioFile.write(from: buffer)
+        // The recorder deletes its own file once it has read it, so the caller only has
+        // the bytes. The recognizer only reads files.
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("transcribe_\(UUID().uuidString).m4a")
+        do {
+            try audioData.write(to: url, options: .atomic)
+        } catch {
+            logger.error("Could not write the audio for transcription: \(error.localizedDescription, privacy: .public)")
+            return result("", .recognizerFailed(.audioFileUnavailable))
+        }
+        defer {
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                logger.error("Could not delete the transcription file: \(error.localizedDescription, privacy: .public)")
             }
+        }
 
-            // Calculate audio level
-            let level = self?.calculateAudioLevel(buffer: buffer) ?? 0
-            self?.audioLevelSubject.send(level)
+        let ending: Ending
+        do {
+            ending = .final(try await engine.transcribeFile(at: url, language: language))
+        } catch {
+            ending = .failure(error)
+        }
+
+        let (text, outcome) = classify(ending, lastText: "")
+        return result(text, outcome)
+    }
+
+    // MARK: - Final Result Timeout
+
+    /// How long `stopRecording` waits for the final result: a quarter of the recording,
+    /// at least 3 seconds and at most 15.
+    nonisolated static func finalResultTimeout(forDuration duration: TimeInterval) -> TimeInterval {
+        min(15, max(3, duration * 0.25))
+    }
+
+    // MARK: - Private Helpers
+
+    private func handle(_ event: SpeechRecognitionEvent, in session: LiveSession) {
+        // A session that was cancelled or replaced has an ending already, which makes
+        // whatever its recognizer still sends stale.
+        guard session.ending == nil else { return }
+
+        switch event {
+        case .partial(let text):
+            session.lastText = text
+            transcribedTextSubject.send(text)
+        case .final(let text):
+            session.lastText = text
+            transcribedTextSubject.send(text)
+            finish(session, with: .final(text))
+        case .failure(let error):
+            // Recording goes on without the recognizer. The error is reported on stop.
+            logger.error("Speech recognition failed: \(String(describing: error), privacy: .public)")
+            finish(session, with: .failure(error))
         }
     }
 
-    private func setupRecordingFile() throws {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileName = "voice_\(UUID().uuidString).m4a"
-        recordingURL = documentsPath.appendingPathComponent(fileName)
-
-        guard let url = recordingURL, let audioEngine = audioEngine else {
-            throw TranscriptionError.audioEngineError
-        }
-
-        let format = audioEngine.inputNode.outputFormat(forBus: 0)
-
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: format.sampleRate,
-            AVNumberOfChannelsKey: format.channelCount,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
-
-        audioFile = try AVAudioFile(forWriting: url, settings: settings)
+    private func finish(_ session: LiveSession, with ending: Ending) {
+        guard session.ending == nil else { return }
+        session.ending = ending
+        session.waiter?.resume(returning: ending)
+        session.waiter = nil
     }
 
-    private func calculateAudioLevel(buffer: AVAudioPCMBuffer) -> Float {
+    private func waitForEnding(of session: LiveSession, timeout: TimeInterval) async -> Ending {
+        if let ending = session.ending { return ending }
+
+        let timeoutTask = Task { [sleep, weak self] in
+            do {
+                try await sleep(timeout)
+            } catch {
+                // Cancelled because the recognizer answered first.
+                return
+            }
+            self?.finish(session, with: .timedOut)
+        }
+        defer { timeoutTask.cancel() }
+
+        return await withCheckedContinuation { continuation in
+            session.waiter = continuation
+        }
+    }
+
+    private func classify(_ ending: Ending, lastText: String) -> (text: String, outcome: TranscriptionOutcome) {
+        switch ending {
+        case .final(let text):
+            return text.isEmpty ? ("", .noSpeechDetected) : (text, .transcribed)
+        case .timedOut:
+            return lastText.isEmpty ? ("", .recognizerFailed(.timedOut)) : (lastText, .transcribed)
+        case .failure(let error):
+            if Self.isNoSpeech(error) {
+                return lastText.isEmpty ? ("", .noSpeechDetected) : (lastText, .transcribed)
+            }
+            return (lastText, .recognizerFailed(Self.transcriptionError(from: error)))
+        }
+    }
+
+    /// `kAFAssistantErrorDomain` 1110 is the recognizer saying it heard no speech.
+    private static func isNoSpeech(_ error: any Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1110
+    }
+
+    private static func transcriptionError(from error: any Error) -> TranscriptionError {
+        (error as? TranscriptionError) ?? .recognitionFailed
+    }
+
+    private func discardSession() {
+        if let session {
+            session.task?.cancel()
+            finish(session, with: .failure(TranscriptionError.cancelled))
+        }
+        session = nil
+        audioInput.cancel()
+        lastUIUpdateTime = nil
+    }
+
+    private nonisolated static func audioLevel(of buffer: AVAudioPCMBuffer) -> Float {
         guard let channelData = buffer.floatChannelData else { return 0 }
 
         let channelCount = Int(buffer.format.channelCount)
         let frameLength = Int(buffer.frameLength)
+        guard channelCount > 0, frameLength > 0 else { return 0 }
 
         var sum: Float = 0
         for channel in 0..<channelCount {
@@ -229,102 +364,34 @@ final class SpeechRecognitionService: NSObject, SpeechRecognitionServiceProtocol
         return min(1, average * 10)
     }
 
-    private func startDurationTimer() {
-        Task {
-            while isRecording {
+    private func startDurationTimer(for session: LiveSession) {
+        Task { [weak self] in
+            while let self, self.session === session, self.isRecording {
                 let now = Date()
-                let duration = Date().timeIntervalSince(recordingStartTime ?? Date())
+                let duration = now.timeIntervalSince(session.startTime)
 
                 // Throttle UI updates - only update every 500ms instead of every 100ms
                 if lastUIUpdateTime == nil || now.timeIntervalSince(lastUIUpdateTime!) >= uiUpdateInterval {
-                    await MainActor.run {
-                        recordingStateSubject.send(.recording(duration: duration))
-                    }
+                    recordingStateSubject.send(.recording(duration: duration))
                     lastUIUpdateTime = now
                 }
 
                 // Check max duration
                 if duration >= Double(Constants.Limits.maxVoiceDurationMinutes * 60) {
-                    _ = try? await stopRecording()
+                    do {
+                        _ = try await stopRecording()
+                    } catch {
+                        logger.error("Stop at the max duration failed: \(error.localizedDescription, privacy: .public)")
+                    }
                     break
                 }
 
-                try? await Task.sleep(nanoseconds: 100_000_000)  // Check every 100ms
-            }
-        }
-    }
-
-    // MARK: - Timeout-based Final Transcription Wait
-
-    private func waitForFinalTranscription(timeout: TimeInterval) async -> String? {
-        await withTaskGroup(of: String?.self) { group in
-            // Wait for final transcription
-            group.addTask {
-                // Monitor for changes in transcription
-                let initialText = self.transcribedTextSubject.value
-                var lastText = initialText
-                let startTime = Date()
-
-                while Date().timeIntervalSince(startTime) < timeout {
-                    try? await Task.sleep(nanoseconds: 100_000_000)  // Check every 100ms
-                    // Exit promptly when the sibling wins and cancels us — otherwise the
-                    // swallowed sleep returns instantly and this loop busy-spins to timeout.
-                    if Task.isCancelled { break }
-
-                    let currentText = self.transcribedTextSubject.value
-                    if currentText != initialText, currentText.count > initialText.count {
-                        lastText = currentText
-                    }
-
-                    // If we haven't received updates in 500ms, consider transcription complete
-                    if Date().timeIntervalSince(startTime) >= 0.5 {
-                        let checkTime = Date()
-                        var stableCount = 0
-                        while Date().timeIntervalSince(checkTime) < 0.5 && stableCount < 5 {
-                            try? await Task.sleep(nanoseconds: 100_000_000)
-                            if Task.isCancelled { break }
-                            if self.transcribedTextSubject.value == lastText {
-                                stableCount += 1
-                            } else {
-                                lastText = self.transcribedTextSubject.value
-                            }
-                        }
-                        if stableCount >= 5 {
-                            break
-                        }
-                    }
-                }
-
-                return lastText.isEmpty ? nil : lastText
-            }
-
-            // Timeout task
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                return nil  // Timeout - return nil
-            }
-
-            // Return first non-nil result
-            for await result in group {
-                if let result = result {
-                    group.cancelAll()
-                    return result
+                do {
+                    try await Task.sleep(nanoseconds: 100_000_000)  // Check every 100ms
+                } catch {
+                    break
                 }
             }
-            return nil
         }
-    }
-
-    private func cleanup() {
-        audioEngine = nil
-        recognitionRequest = nil
-        recognitionTask = nil
-        audioFile = nil
-
-        if let url = recordingURL {
-            try? FileManager.default.removeItem(at: url)
-        }
-        recordingURL = nil
-        recordingStartTime = nil
     }
 }
