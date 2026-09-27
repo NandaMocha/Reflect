@@ -5,6 +5,23 @@ struct VoiceRecordingResult: Equatable {
     let transcription: String?
     let language: String
     let duration: TimeInterval
+    let outcome: TranscriptionOutcome
+
+    /// `outcome` defaults to what the text alone says: `.transcribed` when there is text,
+    /// `.noSpeechDetected` when there is none.
+    init(
+        audioData: Data,
+        transcription: String?,
+        language: String,
+        duration: TimeInterval,
+        outcome: TranscriptionOutcome? = nil
+    ) {
+        self.audioData = audioData
+        self.transcription = transcription
+        self.language = language
+        self.duration = duration
+        self.outcome = outcome ?? ((transcription ?? "").isEmpty ? .noSpeechDetected : .transcribed)
+    }
 
     var hasTranscription: Bool {
         transcription != nil && !(transcription?.isEmpty ?? true)
@@ -18,8 +35,23 @@ struct VoiceRecordingResult: Equatable {
         lhs.audioData == rhs.audioData &&
         lhs.transcription == rhs.transcription &&
         lhs.language == rhs.language &&
-        lhs.duration == rhs.duration
+        lhs.duration == rhs.duration &&
+        lhs.outcome == rhs.outcome
     }
+}
+
+/// How the transcript came out, so a caller can tell "nothing was said" apart from "the
+/// recognizer broke" and decide whether to fall back to transcribing the saved audio.
+enum TranscriptionOutcome: Equatable {
+    /// `transcription` holds the text.
+    case transcribed
+    /// The recognizer ran and heard no speech.
+    case noSpeechDetected
+    /// The recognizer ran, or tried to, and failed. `transcription` holds the last partial
+    /// text when there was one, which may be incomplete.
+    case recognizerFailed(TranscriptionError)
+    /// The recognizer never started, for example because stop arrived before start finished.
+    case recognizerDidNotRun
 }
 
 enum RecordingState: Equatable {
@@ -59,6 +91,8 @@ enum TranscriptionError: Error, LocalizedError {
     case recognitionFailed
     case languageNotSupported
     case cancelled
+    case timedOut
+    case audioFileUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -74,6 +108,10 @@ enum TranscriptionError: Error, LocalizedError {
             return "The selected language is not supported."
         case .cancelled:
             return "Recording was cancelled."
+        case .timedOut:
+            return "Speech recognition took too long to finish."
+        case .audioFileUnavailable:
+            return "The recording could not be read for transcription."
         }
     }
 }
