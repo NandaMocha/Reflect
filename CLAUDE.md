@@ -109,6 +109,7 @@ Git permissions for `git status`, `diff`, `log`, `add`, `commit` are pre-allowed
 - [Achievement counter deep-dive](docs/reviews/achievement-counter-deep-dive.md) — runtime trace of why the counter didn't update
 - [Achievement counter root cause](docs/reviews/achievement-counter-root-cause.md) — orphaned ViewModel analysis and Option B refactor record
 - [Streak docs vs. implementation](docs/reviews/streak-docs-vs-implementation.md) — doc–code drift analysis for the removed streak system
+- [Session recap 2026-09-27](docs/reviews/session-recap-2026-09-27.md) — branch completeness check and tutorial sheet (first-open intro) analysis
 
 ## Non-obvious gotchas
 
