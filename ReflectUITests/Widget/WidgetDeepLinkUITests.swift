@@ -71,10 +71,11 @@ final class WidgetDeepLinkUITests: XCTestCase {
     func testInsightLinkAfterInsightsTabWasOpenedSelectsTabAndOpensCompose() throws {
         let app = launchOnLearningsList()
         // Build the Insights tab once, then go back, so its view already exists when the link lands.
-        // Tab buttons carry their SF Symbol name as identifier (set by SwiftUI, not by us).
-        app.tabBars.buttons["lightbulb.fill"].tap()
+        // Tabs are tapped by label: SwiftUI does not reliably give tab buttons an identifier.
+        // This is navigation only; the landing checks below still assert on identifiers.
+        tapTab("Insights", in: app)
         XCTAssertTrue(element("insights.tab", in: app).waitForExistence(timeout: landingTimeout))
-        app.tabBars.buttons["book.fill"].tap()
+        tapTab("Chapters", in: app)
         XCTAssertTrue(element("learnings.list", in: app).waitForExistence(timeout: landingTimeout))
 
         app.open(try url("reflect://insight"))
@@ -185,6 +186,12 @@ final class WidgetDeepLinkUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: landingTimeout))
         return app
+    }
+
+    private func tapTab(_ label: String, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        let tab = app.tabBars.buttons[label]
+        XCTAssertTrue(tab.waitForExistence(timeout: landingTimeout), "No \(label) tab", file: file, line: line)
+        tab.tap()
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
