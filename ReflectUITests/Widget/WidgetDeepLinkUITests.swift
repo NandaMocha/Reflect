@@ -8,7 +8,8 @@ import XCTest
 /// Launch state comes from the app's `-uiTesting` hook (in-memory store, one seeded Learning)
 /// plus argument-domain UserDefaults, which override the stored values for this launch only.
 /// No permission prompt is expected: camera and voice only ask for access after a further tap
-/// (camera intro "Continue", voice record button), and these tests stop before that.
+/// (camera primer "Continue", voice record button), and these tests stop before that. Camera
+/// access is reset before each launch, so the camera link always lands on the primer.
 ///
 /// Every landing state saves a screenshot (kept even on success) for the UI check on the issue.
 @MainActor
@@ -30,9 +31,9 @@ final class WidgetDeepLinkUITests: XCTestCase {
     }
 
     func testCameraLinkFromChapterOpensCameraFlow() throws {
-        // The simulator has no camera. With the intro not yet seen, the flow's first screen is
-        // the camera intro, shown before any permission request or camera hardware check.
-        try assertLink("reflect://camera", opens: "camera.intro", from: launchOnChapter(), screenshot: "chapter-camera")
+        // The simulator has no camera. With camera access reset to not determined, the flow's
+        // first screen is the permission primer, shown before the system prompt or any camera.
+        try assertLink("reflect://camera", opens: "camera.permissionPrimer", from: launchOnChapter(), screenshot: "chapter-camera")
     }
 
     func testVoiceLinkFromChapterOpensVoiceRecorder() throws {
@@ -48,7 +49,7 @@ final class WidgetDeepLinkUITests: XCTestCase {
 
     func testCameraLinkFromChaptersListOpensCameraFlow() throws {
         let app = launchOnLearningsList()
-        try assertLink("reflect://camera", opens: "camera.intro", from: app, screenshot: "chapters-list-camera")
+        try assertLink("reflect://camera", opens: "camera.permissionPrimer", from: app, screenshot: "chapters-list-camera")
     }
 
     func testVoiceLinkFromChaptersListOpensVoiceRecorder() throws {
@@ -155,7 +156,7 @@ final class WidgetDeepLinkUITests: XCTestCase {
 
         app.open(try url(urlString))
 
-        let landingScreens = ["reflection.editor", "camera.intro", "voice.recorder", "insight.editor", "learning.form"]
+        let landingScreens = ["reflection.editor", "camera.permissionPrimer", "voice.recorder", "insight.editor", "learning.form"]
         assertStaysAbsent(landingScreens, in: app, "\(urlString) opened a screen", file: file, line: line)
         XCTAssertEqual(app.state, .runningForeground, "\(urlString) moved the app out of the foreground", file: file, line: line)
         XCTAssertTrue(element("learnings.list", in: app).exists, "\(urlString) left the Chapters list", file: file, line: line)
@@ -179,12 +180,13 @@ final class WidgetDeepLinkUITests: XCTestCase {
     /// `lastOpenedLearningID` empty means no chapter to restore, so the app starts on the Chapters list.
     private func launch(lastOpenedLearningID: String = "", extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
+        // Not determined, so the camera flow shows its primer instead of the camera or the alert.
+        app.resetAuthorizationStatus(for: .camera)
         app.launchArguments = [
             "-uiTesting",
             // Argument-domain overrides, so a previous run on this simulator can't change the start state.
             "-hasCompletedOnboarding", "YES",
             "-debugAlwaysShowOnboarding", "NO",
-            "-hasSeenCameraIntro", "NO",
             "-hasSeenVoiceIntro", "YES",
             "-lastOpenedLearningId", lastOpenedLearningID,
         ] + extraArguments
