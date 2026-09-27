@@ -12,10 +12,10 @@ struct InsightListView: View {
     @State private var showSettings = false
 
     // Deep-link compose hook: flips to true to trigger the compose sheet, e.g. from `reflect://insight`.
-    var composeSignal: Binding<Bool>
+    @Binding var composeSignal: Bool
 
     init(composeSignal: Binding<Bool> = .constant(false)) {
-        self.composeSignal = composeSignal
+        self._composeSignal = composeSignal
     }
 
     private var groupedInsights: [(group: InsightDateGroup, insights: [Insight])] {
@@ -63,12 +63,21 @@ struct InsightListView: View {
                 SettingsView()
             }
             .errorAlert($viewModel.errorMessage, title: "Error")
-            .onChange(of: composeSignal.wrappedValue) { _, newValue in
-                guard newValue else { return }
-                showComposeSheet = true
-                composeSignal.wrappedValue = false
+            .onAppear {
+                consumeComposeSignal()
+            }
+            .onChange(of: composeSignal) {
+                consumeComposeSignal()
             }
         }
+    }
+
+    // MARK: - Deep-link Compose
+
+    private func consumeComposeSignal() {
+        guard composeSignal else { return }
+        composeSignal = false
+        showComposeSheet = true
     }
 
     // MARK: - Filter Menu
