@@ -17,17 +17,6 @@ final class WidgetDeepLinkUITests: XCTestCase {
     /// How long a no-op URL gets to (wrongly) change the screen before we call it a no-op.
     private let noOpWindow: TimeInterval = 3
 
-    /// Write, camera and voice links opened while the Chapters list is on screen push the chapter
-    /// but never present the editor / camera / recorder: `ReflectionListView` only reacts in
-    /// `.onChange(of: widgetAction)`, which does not fire for the value it appears with.
-    /// Strict, so these tests fail once the bug is fixed and the wrapper must be removed.
-    private let pushedChapterDropsAction = "Widget link from the Chapters list pushes the chapter but drops the action (reported on GAR-8)"
-
-    /// `reflect://insight` selects the Insights tab but no compose sheet appears, whether or not the
-    /// tab was opened before. `InsightListView.onChange(of: composeSignal)` does not fire.
-    /// Strict, like `pushedChapterDropsAction`.
-    private let insightLinkDropsCompose = "Insight link selects the tab but compose never opens (reported on GAR-8)"
-
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -52,19 +41,16 @@ final class WidgetDeepLinkUITests: XCTestCase {
 
     func testWriteLinkFromChaptersListOpensReflectionEditor() throws {
         let app = launchOnLearningsList()
-        XCTExpectFailure(pushedChapterDropsAction)
         try assertLink("reflect://write", opens: "reflection.editor", from: app)
     }
 
     func testCameraLinkFromChaptersListOpensCameraFlow() throws {
         let app = launchOnLearningsList()
-        XCTExpectFailure(pushedChapterDropsAction)
         try assertLink("reflect://camera", opens: "camera.intro", from: app)
     }
 
     func testVoiceLinkFromChaptersListOpensVoiceRecorder() throws {
         let app = launchOnLearningsList()
-        XCTExpectFailure(pushedChapterDropsAction)
         try assertLink("reflect://voice", opens: "voice.recorder", from: app)
     }
 
@@ -81,8 +67,18 @@ final class WidgetDeepLinkUITests: XCTestCase {
         app.open(try url("reflect://insight"))
 
         XCTAssertTrue(element("insights.tab", in: app).waitForExistence(timeout: landingTimeout))
-        XCTExpectFailure(insightLinkDropsCompose)
         XCTAssertTrue(element("insight.editor", in: app).waitForExistence(timeout: landingTimeout))
+
+        // A second link in the same session must open compose again, so the signal was reset.
+        app.buttons["Cancel"].firstMatch.tap()
+        XCTAssertTrue(element("insight.editor", in: app).waitForNonExistence(timeout: landingTimeout))
+
+        app.open(try url("reflect://insight"))
+
+        XCTAssertTrue(
+            element("insight.editor", in: app).waitForExistence(timeout: landingTimeout),
+            "A second reflect://insight in the same session did not open compose"
+        )
     }
 
     func testInsightLinkBeforeInsightsTabWasOpenedSelectsTabAndOpensCompose() throws {
@@ -91,7 +87,6 @@ final class WidgetDeepLinkUITests: XCTestCase {
         app.open(try url("reflect://insight"))
 
         XCTAssertTrue(element("insights.tab", in: app).waitForExistence(timeout: landingTimeout))
-        XCTExpectFailure(insightLinkDropsCompose)
         XCTAssertTrue(element("insight.editor", in: app).waitForExistence(timeout: landingTimeout))
     }
 
