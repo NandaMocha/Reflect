@@ -19,6 +19,24 @@ enum WidgetAction {
     case insight
 }
 
+extension WidgetAction {
+    /// Exhaustive on purpose: a new `WidgetDeepLink` case fails to compile until it is mapped here.
+    init(_ link: WidgetDeepLink) {
+        switch link {
+        case .write: self = .write
+        case .camera: self = .camera
+        case .voice: self = .voice
+        case .insight: self = .insight
+        }
+    }
+
+    /// `nil` for a foreign or unknown URL, which the app ignores.
+    init?(url: URL) {
+        guard let link = WidgetDeepLink(url: url) else { return nil }
+        self.init(link)
+    }
+}
+
 @main
 struct ReflectApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -251,20 +269,8 @@ struct ReflectApp: App {
     // MARK: - Widget URL Handling
 
     private func handleWidgetURL(_ url: URL) {
-        guard url.scheme == "reflect" else { return }
-
-        switch url.host {
-        case "write":
-            widgetAction = .write
-        case "camera":
-            widgetAction = .camera
-        case "voice":
-            widgetAction = .voice
-        case "insight":
-            widgetAction = .insight
-        default:
-            break
-        }
+        guard let action = WidgetAction(url: url) else { return }
+        widgetAction = action
     }
 
     private var colorScheme: ColorScheme? {
