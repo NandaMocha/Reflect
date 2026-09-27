@@ -9,6 +9,8 @@ import XCTest
 /// plus argument-domain UserDefaults, which override the stored values for this launch only.
 /// No permission prompt is expected: camera and voice only ask for access after a further tap
 /// (camera intro "Continue", voice record button), and these tests stop before that.
+///
+/// Every landing state saves a screenshot (kept even on success) for the UI check on the issue.
 @MainActor
 final class WidgetDeepLinkUITests: XCTestCase {
     /// The Learning the `-uiTesting` hook seeds (see `ReflectApp.seedForUITestingIfNeeded`).
@@ -24,34 +26,34 @@ final class WidgetDeepLinkUITests: XCTestCase {
     // MARK: - Valid links, starting on the chapter (the app's usual landing page)
 
     func testWriteLinkFromChapterOpensReflectionEditor() throws {
-        try assertLink("reflect://write", opens: "reflection.editor", from: launchOnChapter())
+        try assertLink("reflect://write", opens: "reflection.editor", from: launchOnChapter(), screenshot: "chapter-write")
     }
 
     func testCameraLinkFromChapterOpensCameraFlow() throws {
         // The simulator has no camera. With the intro not yet seen, the flow's first screen is
         // the camera intro, shown before any permission request or camera hardware check.
-        try assertLink("reflect://camera", opens: "camera.intro", from: launchOnChapter())
+        try assertLink("reflect://camera", opens: "camera.intro", from: launchOnChapter(), screenshot: "chapter-camera")
     }
 
     func testVoiceLinkFromChapterOpensVoiceRecorder() throws {
-        try assertLink("reflect://voice", opens: "voice.recorder", from: launchOnChapter())
+        try assertLink("reflect://voice", opens: "voice.recorder", from: launchOnChapter(), screenshot: "chapter-voice")
     }
 
     // MARK: - Valid links, starting on the Chapters list
 
     func testWriteLinkFromChaptersListOpensReflectionEditor() throws {
         let app = launchOnLearningsList()
-        try assertLink("reflect://write", opens: "reflection.editor", from: app)
+        try assertLink("reflect://write", opens: "reflection.editor", from: app, screenshot: "chapters-list-write")
     }
 
     func testCameraLinkFromChaptersListOpensCameraFlow() throws {
         let app = launchOnLearningsList()
-        try assertLink("reflect://camera", opens: "camera.intro", from: app)
+        try assertLink("reflect://camera", opens: "camera.intro", from: app, screenshot: "chapters-list-camera")
     }
 
     func testVoiceLinkFromChaptersListOpensVoiceRecorder() throws {
         let app = launchOnLearningsList()
-        try assertLink("reflect://voice", opens: "voice.recorder", from: app)
+        try assertLink("reflect://voice", opens: "voice.recorder", from: app, screenshot: "chapters-list-voice")
     }
 
     func testInsightLinkAfterInsightsTabWasOpenedSelectsTabAndOpensCompose() throws {
@@ -68,10 +70,19 @@ final class WidgetDeepLinkUITests: XCTestCase {
 
         XCTAssertTrue(element("insights.tab", in: app).waitForExistence(timeout: landingTimeout))
         XCTAssertTrue(element("insight.editor", in: app).waitForExistence(timeout: landingTimeout))
+        attachScreenshot("insight-after-tab-opened", of: app)
 
         // A second link in the same session must open compose again, so the signal was reset.
         app.buttons["Cancel"].firstMatch.tap()
         XCTAssertTrue(element("insight.editor", in: app).waitForNonExistence(timeout: landingTimeout))
+        // A signal left `true` reopens compose the next time the Insights list appears. Opening a
+        // URL also makes the list appear again, so the second link alone can't catch that.
+        tapTab("Chapters", in: app)
+        XCTAssertTrue(element("learnings.list", in: app).waitForExistence(timeout: landingTimeout))
+        tapTab("Insights", in: app)
+        XCTAssertTrue(element("insights.tab", in: app).waitForExistence(timeout: landingTimeout))
+        assertStaysAbsent(["insight.editor"], in: app, "Compose reopened on revisiting Insights without a new link")
+        attachScreenshot("insight-revisit-after-cancel", of: app)
 
         app.open(try url("reflect://insight"))
 
@@ -79,6 +90,7 @@ final class WidgetDeepLinkUITests: XCTestCase {
             element("insight.editor", in: app).waitForExistence(timeout: landingTimeout),
             "A second reflect://insight in the same session did not open compose"
         )
+        attachScreenshot("insight-second-link", of: app)
     }
 
     func testInsightLinkBeforeInsightsTabWasOpenedSelectsTabAndOpensCompose() throws {
@@ -88,6 +100,7 @@ final class WidgetDeepLinkUITests: XCTestCase {
 
         XCTAssertTrue(element("insights.tab", in: app).waitForExistence(timeout: landingTimeout))
         XCTAssertTrue(element("insight.editor", in: app).waitForExistence(timeout: landingTimeout))
+        attachScreenshot("insight-before-tab-opened", of: app)
     }
 
     func testWriteLinkWithoutLearningsOpensAddLearning() throws {
@@ -97,6 +110,7 @@ final class WidgetDeepLinkUITests: XCTestCase {
 
         XCTAssertTrue(element("learning.form", in: app).waitForExistence(timeout: landingTimeout))
         XCTAssertFalse(element("reflection.editor", in: app).exists)
+        attachScreenshot("no-learnings-write", of: app)
     }
 
     // MARK: - Links the app must ignore
@@ -119,6 +133,7 @@ final class WidgetDeepLinkUITests: XCTestCase {
         _ urlString: String,
         opens identifier: String,
         from app: XCUIApplication,
+        screenshot name: String,
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws {
@@ -130,6 +145,7 @@ final class WidgetDeepLinkUITests: XCTestCase {
             file: file,
             line: line
         )
+        attachScreenshot(name, of: app)
     }
 
     /// Opens `urlString` and checks nothing reacted: still foreground, still on the Chapters list,
@@ -140,17 +156,11 @@ final class WidgetDeepLinkUITests: XCTestCase {
         app.open(try url(urlString))
 
         let landingScreens = ["reflection.editor", "camera.intro", "voice.recorder", "insight.editor", "learning.form"]
-        let noneAppeared = landingScreens.map { identifier in
-            let appears = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true"), object: element(identifier, in: app))
-            appears.isInverted = true
-            return appears
-        }
-        // Inverted: `.completed` only if none of the landing screens showed up within the window.
-        let result = XCTWaiter().wait(for: noneAppeared, timeout: noOpWindow)
-        XCTAssertEqual(result, .completed, "\(urlString) opened a screen", file: file, line: line)
+        assertStaysAbsent(landingScreens, in: app, "\(urlString) opened a screen", file: file, line: line)
         XCTAssertEqual(app.state, .runningForeground, "\(urlString) moved the app out of the foreground", file: file, line: line)
         XCTAssertTrue(element("learnings.list", in: app).exists, "\(urlString) left the Chapters list", file: file, line: line)
         XCTAssertFalse(element("reflections.list", in: app).exists, "\(urlString) pushed a chapter", file: file, line: line)
+        attachScreenshot("ignored-\(urlString)", of: app)
     }
 
     private func launchOnLearningsList() -> XCUIApplication {
@@ -187,6 +197,32 @@ final class WidgetDeepLinkUITests: XCTestCase {
         let tab = app.tabBars.buttons[label]
         XCTAssertTrue(tab.waitForExistence(timeout: landingTimeout), "No \(label) tab", file: file, line: line)
         tab.tap()
+    }
+
+    /// Checks that none of `identifiers` appears during the no-op window.
+    private func assertStaysAbsent(
+        _ identifiers: [String],
+        in app: XCUIApplication,
+        _ message: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let noneAppeared = identifiers.map { identifier in
+            let appears = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true"), object: element(identifier, in: app))
+            appears.isInverted = true
+            return appears
+        }
+        // Inverted: `.completed` only if none of them showed up within the window.
+        let result = XCTWaiter().wait(for: noneAppeared, timeout: noOpWindow)
+        XCTAssertEqual(result, .completed, message, file: file, line: line)
+    }
+
+    /// Keeps the screenshot even when the test passes, so the UI check can compare it with the Goal.
+    private func attachScreenshot(_ name: String, of app: XCUIApplication) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
