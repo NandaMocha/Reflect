@@ -57,6 +57,7 @@ struct ReflectionListView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("reflections.list")
 
             // FAB with quick actions
             if let viewModel = viewModel, !viewModel.isEmpty {
@@ -142,6 +143,9 @@ struct ReflectionListView: View {
             Task {
                 await viewModel?.loadReflections()
             }
+            // A widget link opened from the Chapters list pushes this view with the action
+            // already set, and `.onChange` does not fire for the value a view appears with.
+            handleWidgetAction(widgetAction)
         }
         .onReceive(NotificationCenter.default.publisher(for: .reflectionDidSave)) { _ in
             // Reload reflections when a notification is received after saving

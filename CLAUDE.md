@@ -64,7 +64,21 @@ open Reflect.xcodeproj
 
 ## Test
 
-**No test target exists yet.** See [docs/reviews/achievement-counter-review.md](docs/reviews/achievement-counter-review.md) — setting up Swift Testing is a noted follow-up.
+Two test targets, both in the `Reflect` scheme's Test action (not in Build-for-Running, so a plain `build` stays as fast as before):
+
+- `ReflectTests/`: unit tests, Swift Testing (`import Testing`), hosted by `Reflect.app`. Use `@testable import Reflect`; code under `Shared/` is reachable the same way.
+- `ReflectUITests/`: UI tests, XCUITest, target application `Reflect`.
+
+Both folders are file-system synchronized groups: drop a new `.swift` file in and it joins the target, no `project.pbxproj` edit needed.
+
+```bash
+xcodebuild -project Reflect.xcodeproj -scheme Reflect \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -derivedDataPath "${TMPDIR:-/tmp}/multica-dd/Reflect-$(printf '%s' "$PWD" | shasum | cut -c1-10)" \
+  test
+```
+
+Add `-only-testing:ReflectTests` to skip the slower UI tests. Run one UI test suite at a time per machine.
 
 ## Build-and-verify workflow
 
@@ -117,3 +131,19 @@ Git permissions for `git status`, `diff`, `log`, `add`, `commit` are pre-allowed
 - A reflection's `Learning` is **fixed at creation** from the list's filter — no picker in the editor. To reassign, use the row's swipe → Move action in `ReflectionListView`, which goes through `MoveReflectionUseCase`.
 - Markdown docs live under `/docs` at repo root — **not** under `Reflect/Resources/`. Resources are shipped with the app; dev docs are not.
 - The `docs/archive/streak-original-spec/` folder describes an earlier "streak" badge design that was intentionally removed. It's kept for reference but does not reflect current code. See the reconciliation review linked above.
+
+## Running under Multica (multica.ai agents)
+
+This section applies only to runs started by the Multica daemon. Those run in their own worktree, on a `multica/*` branch. The `loop/` runner and manual sessions keep following the rest of this file unchanged.
+
+- **Integration branch:** `multica-task` is a second integration branch, next to the loop's. Only the Multica Code Reviewer integrates into it, using `multica-team/scripts/merge-to-multica-task.sh`. The Release Steward merges the active development line into it daily. That branch is named in the Multica project description.
+- **Pre-approved for Multica runs:**
+  - Pushing `multica/*` branches and `multica-task`.
+  - Rebasing unmerged `multica/*` branches.
+  - Bug branches named `multica/BUG-NNN-slug`.
+- **Exclusivity:** the rule that the dev-loop owns the checkout and nothing else runs in parallel covers the loop's integration branch and the main checkout only. Multica runs never touch either.
+- **Still needs the owner:**
+  - Merging `multica-task` into the loop's integration branch or anything above it.
+  - Force pushes and branch deletion.
+  - Every other confirmation rule in this file.
+- The full workflow lives in the Multica workspace context: `/Users/nandamochammad/Dev-Project/Tes/multica-team/workflow.md`.

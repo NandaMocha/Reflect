@@ -21,8 +21,8 @@ struct OnboardingHighlight: Identifiable {
 // MARK: - Content
 
 extension OnboardingPage {
-    /// The onboarding script. Ordered: what the app is, then the three things it's built
-    /// around — Learnings, Insights, Spaces.
+    /// The onboarding script. Ordered: what the app is, then the four things it's built
+    /// around — Learnings, Insights, Achievements, Spaces.
     static let all: [OnboardingPage] = [
         OnboardingPage(
             icon: "book.closed.fill",
@@ -58,6 +58,17 @@ extension OnboardingPage {
             ]
         ),
         OnboardingPage(
+            icon: "medal.fill",
+            title: "Achievements",
+            subtitle: "Milestones you unlock as you keep reflecting.",
+            color: .warning,
+            highlights: [
+                OnboardingHighlight(icon: "checkmark.seal.fill", text: "Earn badges by adding reflections over time"),
+                OnboardingHighlight(icon: "chart.bar.fill", text: "Each card shows your progress toward the next one"),
+                OnboardingHighlight(icon: "sparkles", text: "New badges are celebrated the moment you unlock them")
+            ]
+        ),
+        OnboardingPage(
             icon: "person.3.fill",
             title: "Spaces",
             subtitle: "A small, private group you invite people into when you want feedback.",
@@ -65,6 +76,7 @@ extension OnboardingPage {
             highlights: [
                 OnboardingHighlight(icon: "person.badge.plus", text: "Only the people you invite can see it"),
                 OnboardingHighlight(icon: "text.bubble.fill", text: "Ask for feedback; replies stay in a thread"),
+                OnboardingHighlight(icon: "eye.slash.fill", text: "Share your own feedback first, then you see everyone else's"),
                 OnboardingHighlight(icon: "lock.fill", text: "Never public or searchable — leave any time")
             ]
         )

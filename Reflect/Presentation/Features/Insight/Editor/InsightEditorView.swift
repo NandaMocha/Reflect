@@ -3,6 +3,7 @@ import SwiftUI
 struct InsightEditorView: View {
     @State private var viewModel: InsightEditorViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isTextFieldFocused: Bool
 
     init(mode: InsightEditorViewModel.Mode = .create) {
@@ -37,6 +38,7 @@ struct InsightEditorView: View {
                 }
                 .padding(Constants.Spacing.md)
             }
+            .accessibilityIdentifier("insight.editor")
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -80,7 +82,7 @@ struct InsightEditorView: View {
 
     private func typeChip(for type: InsightType) -> some View {
         let isSelected = viewModel.type == type
-        let tintColor = Color(hex: type.colorHex)
+        let tintColor = Color(hex: type.colorHex(for: colorScheme))
 
         return Button {
             HapticManager.shared.selection()

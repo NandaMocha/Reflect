@@ -12,4 +12,7 @@ protocol SpeechRecognitionServiceProtocol {
     func startRecording(language: Constants.SpeechLanguage) async throws
     func stopRecording() async throws -> VoiceRecordingResult
     func cancelRecording()
+    /// Transcribes a recording that is already saved. The fallback for when the live
+    /// recognizer did not run or failed. Never throws: the failure is in `outcome`.
+    func transcribe(audioData: Data, language: Constants.SpeechLanguage) async -> VoiceRecordingResult
 }

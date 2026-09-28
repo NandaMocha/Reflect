@@ -87,7 +87,6 @@ struct SpaceDetailView: View {
             if message == nil && viewModel.spaceWasRemoved { dismiss() }
         }
         .errorAlert($requestLinkPresenter.errorMessage, title: "Couldn't Share Link")
-        .firstOpenIntro(.space, flagKey: Constants.UserDefaults.hasSeenSpaceIntro)
         .alert(
             "Delete request?",
             isPresented: Binding(

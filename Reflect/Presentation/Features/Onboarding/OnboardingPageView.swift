@@ -121,5 +121,5 @@ struct OnboardingDataBadge: View {
 }
 
 #Preview {
-    OnboardingPageView(page: OnboardingPage.all[3])
+    OnboardingPageView(page: OnboardingPage.all[4])
 }

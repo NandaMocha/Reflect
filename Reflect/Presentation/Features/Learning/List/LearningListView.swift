@@ -54,6 +54,7 @@ struct LearningListView: View {
                     ContentUnavailableView.search(text: searchText)
                 } else {
                     learningList
+                        .accessibilityIdentifier("learnings.list")
                 }
             }
             .navigationTitle("Learning Chapters")
@@ -135,7 +136,7 @@ struct LearningListView: View {
     private func handleWidgetAction(_ action: WidgetAction?) {
         if action == .insight { return }
 
-        guard let action = action else { return }
+        guard action != nil else { return }
 
         // Get the target learning
         let targetLearning = getTargetLearning()
@@ -342,7 +343,6 @@ private struct AchievementGallerySheet: View {
             BadgeGridView(viewModel: viewModel)
                 .navigationTitle("Achievements")
                 .navigationBarTitleDisplayMode(.inline)
-                .firstOpenIntro(.badges, flagKey: Constants.UserDefaults.hasSeenBadgesIntro)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { isPresented = false }

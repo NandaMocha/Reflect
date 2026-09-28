@@ -62,6 +62,7 @@ struct LearningFormView: View {
                 colorSection
                 previewSection
             }
+            .accessibilityIdentifier("learning.form")
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

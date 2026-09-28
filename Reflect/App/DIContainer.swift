@@ -354,7 +354,12 @@ final class DIContainer {
     // MARK: - Services
 
     func makeSpeechRecognitionService() -> SpeechRecognitionServiceProtocol {
-        SpeechRecognitionService()
+        #if DEBUG
+        if let scenario = UITestingSpeechRecognitionService.launchScenario {
+            return UITestingSpeechRecognitionService(scenario: scenario)
+        }
+        #endif
+        return SpeechRecognitionService()
     }
 
     func makeAudioRecorderService() -> AudioRecorderServiceProtocol {

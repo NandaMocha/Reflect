@@ -13,9 +13,9 @@ enum MediaPickerResult {
 
 struct ImagePickerView: UIViewControllerRepresentable {
     let sourceType: UIImagePickerController.SourceType
-    /// Which camera to open with (only used when `sourceType == .camera`). Defaults to `.front`
-    /// to preserve the original selfie-style behavior for any caller that doesn't specify one.
-    var cameraPosition: CameraPosition = .front
+    /// Which camera to open with (only used when `sourceType == .camera`). Defaults to `.back`,
+    /// matching the camera-reflection flow; the user flips with the system camera's own control.
+    var cameraPosition: CameraPosition = .back
     var onPhotoPicked: ((UIImage) -> Void)?
     var onVideoPicked: ((URL, UIImage, TimeInterval) -> Void)?
     @Environment(\.dismiss) private var dismiss
