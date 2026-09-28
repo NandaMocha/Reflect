@@ -22,6 +22,16 @@ final class ClipSession {
     private(set) var phase: Phase = .loading
     private(set) var requestToken: String?
     private(set) var guestIdentity: GuestIdentity?
+    /// True while one POST of guest answers is in flight, from either the composer
+    /// (`ClipYourFeedbackViewModel.submit()`) or `ClipPendingAnswerRetrier`. Both resend the same
+    /// stored `submissionId`s and the server keeps whichever copy lands first, so letting them
+    /// overlap could drop a guest's edit. Only one may send at a time — see
+    /// `beginAnswerDelivery()`.
+    private(set) var isAnswerDeliveryInFlight = false
+    /// The answers `ClipPendingAnswerRetrier` most recently delivered on its own. The composer
+    /// observes this to clear exactly the drafts that went out, instead of the retrier navigating
+    /// away from a composer that may hold newer text.
+    private(set) var lastAutoDelivery: ClipAutoDelivery?
 
     // MARK: - Dependencies
 
@@ -147,6 +157,26 @@ final class ClipSession {
         phase = .compose
     }
 
+    /// Claims the single answer-delivery slot. Returns `false` when another sender already holds
+    /// it; the caller must then skip its POST. Every `true` must be paired with
+    /// `endAnswerDelivery()`.
+    func beginAnswerDelivery() -> Bool {
+        guard !isAnswerDeliveryInFlight else { return false }
+        isAnswerDeliveryInFlight = true
+        return true
+    }
+
+    func endAnswerDelivery() {
+        isAnswerDeliveryInFlight = false
+    }
+
+    /// Publishes a successful automatic retry for the composer to reconcile. Never changes
+    /// `phase` itself.
+    func recordAutoDelivery(_ answers: [ClipAutoDelivery.Answer]) {
+        guard !answers.isEmpty else { return }
+        lastAutoDelivery = ClipAutoDelivery(answers: answers)
+    }
+
     /// Routes to the existing "this link isn't working" phase from anywhere the guest discovers
     /// the request is dead: a `.invalidLink` load failure (`ClipYourFeedbackViewModel.load()`) or
     /// a `.linkRevoked` submit failure (same view model's `submit()`). Reusing `.invalidLink`
@@ -195,4 +225,17 @@ final class ClipSession {
         }
         return components[1]
     }
+}
+
+/// One successful `ClipPendingAnswerRetrier` delivery. `id` makes two deliveries with identical
+/// answers still distinct, so `onChange(of:)` fires for each.
+struct ClipAutoDelivery: Equatable {
+    struct Answer: Equatable {
+        let requestToken: String
+        let questionId: String
+        let body: String
+    }
+
+    let id = UUID()
+    let answers: [Answer]
 }

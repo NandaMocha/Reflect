@@ -67,6 +67,10 @@ struct ClipYourFeedbackView: View {
                 GuestNamePrompt(session: session, isEditMode: true)
             }
             .task { await viewModel.load() }
+            .onChange(of: session.lastAutoDelivery) { _, delivery in
+                guard let delivery else { return }
+                viewModel.reconcile(autoDelivery: delivery)
+            }
         }
     }
 
@@ -179,7 +183,7 @@ struct ClipYourFeedbackView: View {
             }
 
             HStack {
-                if viewModel.isSubmitting {
+                if viewModel.isSending {
                     ProgressView()
                     Text("Sending…")
                         .font(.subheadline)
@@ -210,7 +214,9 @@ struct ClipYourFeedbackView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Not sent yet")
                     .font(.caption.weight(.semibold))
-                Text("\(message) Your answer is saved and will send when you're back online.")
+                // Honest about timing: `ClipPendingAnswerRetrier` retries on launch/foreground
+                // only, never in the background.
+                Text("\(message) Your answer is saved on this device and will be sent automatically the next time you open this, or tap Retry.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -219,6 +225,7 @@ struct ClipYourFeedbackView: View {
                 Task { await viewModel.retrySubmit() }
             }
             .font(.caption.weight(.semibold))
+            .disabled(!viewModel.canSubmit)
         }
         .accessibilityElement(children: .combine)
     }

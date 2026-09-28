@@ -114,8 +114,18 @@ final class LiveGuestIdentityStore: GuestIdentityStoring, Sendable {
         let query = keychainQuery(includingValue: true)
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return try? JSONDecoder().decode(GuestIdentity.self, from: data)
+        guard status == errSecSuccess, let data = result as? Data else {
+            if status != errSecItemNotFound {
+                logger.error("Keychain read failed (status \(status, privacy: .public)); falling back to App Group mirror")
+            }
+            return nil
+        }
+        do {
+            return try JSONDecoder().decode(GuestIdentity.self, from: data)
+        } catch {
+            logger.error("Keychain guest identity failed to decode; falling back to App Group mirror — \(String(describing: error), privacy: .public)")
+            return nil
+        }
     }
 
     private func writeToKeychain(_ data: Data) -> OSStatus {
@@ -140,7 +150,12 @@ final class LiveGuestIdentityStore: GuestIdentityStoring, Sendable {
 
     private func loadFromAppGroupMirror() -> GuestIdentity? {
         guard let data = appGroupDefaults?.data(forKey: appGroupDefaultsKey) else { return nil }
-        return try? JSONDecoder().decode(GuestIdentity.self, from: data)
+        do {
+            return try JSONDecoder().decode(GuestIdentity.self, from: data)
+        } catch {
+            logger.error("App Group mirror guest identity failed to decode; guest will be asked for a name again — \(String(describing: error), privacy: .public)")
+            return nil
+        }
     }
 
     /// Writes to the App Group mirror. `UserDefaults(suiteName:)` returns a non-nil instance even
