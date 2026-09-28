@@ -21,9 +21,10 @@ struct VoiceAudioView: View {
     private enum ScreenState { case idle, recording, playback }
     @State private var screenState: ScreenState = .idle
 
-    // One-time voice-notes intro (record mode only). Its dismissal primes the mic + speech
-    // permissions, mirroring the camera-reflection intro → permission hand-off.
-    @State private var showIntro = false
+    // Record mode only: `.primer` shows the inline permission card while the microphone or
+    // speech was never asked. `.settings` (something refused) keeps today's record path.
+    @State private var permissionStep: PermissionPrimer.Step = .proceed
+    @State private var isRequestingPermissions = false
 
     // Recording state
     @State private var waveformLevels: [Float] = []
@@ -117,30 +118,13 @@ struct VoiceAudioView: View {
                 }
             }
 
-            // Record mode: show the one-time voice-notes intro before the recorder.
-            if case .record = mode,
-               !UserDefaults.standard.bool(forKey: Constants.UserDefaults.hasSeenVoiceIntro) {
-                showIntro = true
+            if case .record = mode {
+                permissionStep = VoicePermission.nextStep
             }
         }
         .onDisappear {
             cleanupPlayback()
         }
-        .fullScreenCover(isPresented: $showIntro, onDismiss: handleIntroDismissed) {
-            FeatureIntroView(intro: .voice) { showIntro = false }
-        }
-    }
-
-    /// Persists the "seen" flag when the one-time voice intro is dismissed.
-    ///
-    /// We deliberately do NOT prime Microphone/Speech permissions here. Firing the system
-    /// permission dialogs from the cover's `onDismiss` — while it tears down inside the recorder
-    /// sheet — collided with the dismissal and could leave the intro stuck on screen, unable to
-    /// close. Both permissions are already requested at point of use instead: the microphone via
-    /// `AudioRecorderService.startRecording()` and speech via `SpeechRecognitionService`, both on
-    /// the first record tap.
-    private func handleIntroDismissed() {
-        UserDefaults.standard.set(true, forKey: Constants.UserDefaults.hasSeenVoiceIntro)
     }
 
     // MARK: - Waveform section
@@ -228,10 +212,20 @@ struct VoiceAudioView: View {
         Group {
             switch screenState {
             case .idle:
-                Text("Tap to start recording")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 24)
+                if permissionStep == .primer {
+                    // Inline, not a cover: a cover's dismissal collided with the system prompts
+                    // and could leave it stuck. The record button below still asks at point of use.
+                    VoicePermissionPrimerCard(isRequesting: isRequestingPermissions) {
+                        Task { await requestVoicePermissions() }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                } else {
+                    Text("Tap to start recording")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 24)
+                }
 
             case .recording:
                 RecordingIndicator()
@@ -356,6 +350,20 @@ struct VoiceAudioView: View {
                 .tint(.primaryDefault)
             }
         }
+    }
+
+    // MARK: - Permission actions
+
+    /// Asks for the microphone, then speech, straight from the primer's button. Speech is skipped
+    /// when the microphone is refused: without it there is nothing to transcribe.
+    @MainActor
+    private func requestVoicePermissions() async {
+        isRequestingPermissions = true
+        if await VoicePermission.requestMicrophoneAccess() {
+            _ = await VoicePermission.requestSpeechAccess()
+        }
+        permissionStep = VoicePermission.nextStep
+        isRequestingPermissions = false
     }
 
     // MARK: - Recording actions
@@ -1070,6 +1078,37 @@ private struct RippleRing: View {
             .scaleEffect(animating ? 2.1 : 1.0)
             .animation(.easeOut(duration: 2).repeatForever(autoreverses: false).delay(delay), value: animating)
             .onAppear { animating = true }
+    }
+}
+
+private struct VoicePermissionPrimerCard: View {
+    let isRequesting: Bool
+    let onContinue: () -> Void
+
+    var body: some View {
+        VStack(spacing: Constants.Spacing.md) {
+            HStack(alignment: .top, spacing: Constants.Spacing.sm) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color.primaryDefault)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.primaryDefault.opacity(0.12)))
+                    .accessibilityHidden(true)
+                Text("Reflect needs the microphone to record and speech recognition to transcribe your voice notes.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            PrimaryButton("Continue", isLoading: isRequesting, isDisabled: isRequesting, action: onContinue)
+                .accessibilityIdentifier("voice.permissionPrimer.continue")
+        }
+        .padding(Constants.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color.secondary.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.secondary.opacity(0.1), lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("voice.permissionPrimer")
     }
 }
 

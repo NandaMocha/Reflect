@@ -111,18 +111,6 @@ enum Constants {
         static let selectedTheme = "selectedTheme"
         static let defaultLanguage = "defaultLanguage"
         static let lastSyncDate = "lastSyncDate"
-        /// Whether the one-time camera-reflection intro sheet has been shown. After this is set,
-        /// the camera opens straight to the remembered `preferredCameraPosition`.
-        static let hasSeenCameraIntro = "hasSeenCameraIntro"
-
-        // MARK: First-open feature intros
-        // Gates the one remaining one-time, onboarding-styled intro (see `FeatureIntroView` /
-        // `View.firstOpenIntro`). Mirrors `hasSeenCameraIntro`. Spaces, Achievements and iCloud
-        // Sync are explained in onboarding instead.
-
-        /// First time the voice recorder is opened — explains voice notes + on-device
-        /// transcription and primes the Microphone + Speech Recognition permissions.
-        static let hasSeenVoiceIntro = "hasSeenVoiceIntro"
         /// One-time inline hint on the reflection list surfacing the hidden swipe → Move gesture.
         static let hasSeenReflectionListHint = "hasSeenReflectionListHint"
     }

@@ -195,7 +195,6 @@ final class WidgetDeepLinkUITests: XCTestCase {
             // Argument-domain overrides, so a previous run on this simulator can't change the start state.
             "-hasCompletedOnboarding", "YES",
             "-debugAlwaysShowOnboarding", "NO",
-            "-hasSeenVoiceIntro", "YES",
             "-lastOpenedLearningId", lastOpenedLearningID,
         ] + extraArguments
         app.launch()
