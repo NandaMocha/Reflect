@@ -106,28 +106,18 @@ nonisolated struct SFSpeechRecognitionEngine: SpeechRecognitionEngine {
         request.addsPunctuation = true
         configureOnDevice(request, recognizer: recognizer, language: language)
 
-        let resumed = OSAllocatedUnfairLock(initialState: false)
-        return try await withCheckedThrowingContinuation { continuation in
-            // The callback can fire again after the final result or the error, and a
-            // continuation must resume exactly once.
-            let finish: @Sendable (Result<String, any Error>) -> Void = { result in
-                let isFirst = resumed.withLock { alreadyResumed in
-                    defer { alreadyResumed = true }
-                    return !alreadyResumed
-                }
-                guard isFirst else { return }
-                // Holding the recognizer here keeps it alive until the task has ended.
-                _ = recognizer
-                continuation.resume(with: result)
+        // The callback can fire again after the final result or the error, and a
+        // continuation must resume exactly once. Holding the recognizer in the run keeps
+        // it alive until the task has ended.
+        let run = SFFileRecognitionRun(recognizer: recognizer)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                run.start(continuation: continuation, request: request)
             }
-
-            recognizer.recognitionTask(with: request) { result, error in
-                if let error {
-                    finish(.failure(error))
-                } else if let result, result.isFinal {
-                    finish(.success(result.bestTranscription.formattedString))
-                }
-            }
+        } onCancel: {
+            // The caller gave up, for example on a timeout. Without this the recognition
+            // task would keep running with nobody waiting for it.
+            run.cancel()
         }
     }
 
@@ -175,6 +165,64 @@ private nonisolated final class SFLiveRecognitionTask: SpeechLiveRecognitionTask
     func append(_ buffer: AVAudioPCMBuffer) { request.append(buffer) }
     func endAudio() { request.endAudio() }
     func cancel() { task.cancel() }
+}
+
+/// One file recognition task and the continuation waiting for it.
+private nonisolated final class SFFileRecognitionRun: @unchecked Sendable {
+    private struct State {
+        var continuation: CheckedContinuation<String, any Error>?
+        var task: SFSpeechRecognitionTask?
+        var isCancelled = false
+    }
+
+    private let recognizer: SFSpeechRecognizer
+    private let state = OSAllocatedUnfairLock(uncheckedState: State())
+
+    init(recognizer: SFSpeechRecognizer) {
+        self.recognizer = recognizer
+    }
+
+    func start(continuation: CheckedContinuation<String, any Error>, request: SFSpeechURLRecognitionRequest) {
+        let wasCancelled = state.withLockUnchecked { state in
+            state.continuation = continuation
+            return state.isCancelled
+        }
+        guard !wasCancelled else {
+            finish(.failure(TranscriptionError.cancelled))
+            return
+        }
+
+        let task = recognizer.recognitionTask(with: request) { [self] result, error in
+            if let error {
+                finish(.failure(error))
+            } else if let result, result.isFinal {
+                finish(.success(result.bestTranscription.formattedString))
+            }
+        }
+
+        let cancelledMeanwhile = state.withLockUnchecked { state in
+            state.task = task
+            return state.isCancelled
+        }
+        if cancelledMeanwhile { task.cancel() }
+    }
+
+    func cancel() {
+        let task = state.withLockUnchecked { state in
+            state.isCancelled = true
+            return state.task
+        }
+        task?.cancel()
+        finish(.failure(TranscriptionError.cancelled))
+    }
+
+    private func finish(_ result: Result<String, any Error>) {
+        let continuation = state.withLockUnchecked { state in
+            defer { state.continuation = nil }
+            return state.continuation
+        }
+        continuation?.resume(with: result)
+    }
 }
 
 // MARK: - AVAudioEngine implementation

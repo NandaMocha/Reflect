@@ -15,7 +15,20 @@ final class SpeechRecognitionService: SpeechRecognitionServiceProtocol {
         var waiter: CheckedContinuation<Ending, Never>?
     }
 
-    /// How a live session ended.
+    /// One file transcription racing its timeout. Whichever ends first wins.
+    private final class FileRace {
+        var ending: Ending?
+        var waiter: CheckedContinuation<Ending, Never>?
+
+        func finish(with ending: Ending) {
+            guard self.ending == nil else { return }
+            self.ending = ending
+            waiter?.resume(returning: ending)
+            waiter = nil
+        }
+    }
+
+    /// How a live session or a file transcription ended.
     private enum Ending {
         case final(String)
         case failure(any Error)
@@ -245,11 +258,10 @@ final class SpeechRecognitionService: SpeechRecognitionServiceProtocol {
             }
         }
 
-        let ending: Ending
-        do {
-            ending = .final(try await engine.transcribeFile(at: url, language: language))
-        } catch {
-            ending = .failure(error)
+        let timeout = Self.fileTranscriptionTimeout(forDuration: Self.audioDuration(at: url))
+        let ending = await transcribeFile(at: url, language: language, timeout: timeout)
+        if case .timedOut = ending {
+            logger.error("File transcription did not answer within \(timeout, privacy: .public) seconds.")
         }
 
         let (text, outcome) = classify(ending, lastText: "")
@@ -264,7 +276,66 @@ final class SpeechRecognitionService: SpeechRecognitionServiceProtocol {
         min(15, max(3, duration * 0.25))
     }
 
+    /// How long `transcribe(audioData:)` waits for the file recognizer: as long as the
+    /// audio itself, at least 10 seconds and at most 60. 30 when the length is unknown.
+    nonisolated static func fileTranscriptionTimeout(forDuration duration: TimeInterval?) -> TimeInterval {
+        guard let duration else { return 30 }
+        return min(60, max(10, duration))
+    }
+
     // MARK: - Private Helpers
+
+    /// Runs the file recognizer against a timeout, so a recognizer that never calls back
+    /// cannot hang the caller.
+    private func transcribeFile(
+        at url: URL,
+        language: Constants.SpeechLanguage,
+        timeout: TimeInterval
+    ) async -> Ending {
+        let race = FileRace()
+
+        let recognition = Task { [engine] in
+            do {
+                race.finish(with: .final(try await engine.transcribeFile(at: url, language: language)))
+            } catch {
+                race.finish(with: .failure(error))
+            }
+        }
+        let timeoutTask = Task { [sleep] in
+            do {
+                try await sleep(timeout)
+            } catch {
+                // Cancelled because the recognizer answered first.
+                return
+            }
+            race.finish(with: .timedOut)
+        }
+        defer { timeoutTask.cancel() }
+
+        let ending = await withCheckedContinuation { continuation in
+            if let ending = race.ending {
+                continuation.resume(returning: ending)
+            } else {
+                race.waiter = continuation
+            }
+        }
+        if case .timedOut = ending {
+            // Cancelling the task is what cancels the recognition task in the engine.
+            recognition.cancel()
+        }
+        return ending
+    }
+
+    private nonisolated static func audioDuration(at url: URL) -> TimeInterval? {
+        do {
+            let file = try AVAudioFile(forReading: url)
+            let sampleRate = file.processingFormat.sampleRate
+            guard sampleRate > 0 else { return nil }
+            return Double(file.length) / sampleRate
+        } catch {
+            return nil
+        }
+    }
 
     private func handle(_ event: SpeechRecognitionEvent, in session: LiveSession) {
         // A session that was cancelled or replaced has an ending already, which makes
