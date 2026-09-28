@@ -151,12 +151,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     fail(405, 'method_not_allowed', 'Use POST.');
 }
 
-$rawBody = file_get_contents('php://input');
-$input   = json_decode($rawBody ?: '', true);
-if (!is_array($input)) {
-    fail(400, 'invalid_json', 'Request body must be valid JSON.');
-}
-
 // ---------------------------------------------------------- RATE LIMITING
 
 // Constants.Limits caps sourced from Reflect/Core/Utilities/Constants.swift.
@@ -197,6 +191,14 @@ if (!rate_limit_ok('ip-' . $clientIp, $rateLimitDir, RATE_LIMIT_PER_IP_MAX, RATE
 }
 
 // --------------------------------------------------------- VALIDATE PAYLOAD
+
+// Parsed only after the per-IP check above, so malformed bodies still count
+// against the IP budget instead of exiting before it (GAR-65).
+$rawBody = file_get_contents('php://input');
+$input   = json_decode($rawBody ?: '', true);
+if (!is_array($input)) {
+    fail(400, 'invalid_json', 'Request body must be valid JSON.');
+}
 
 $requestToken = $input['requestToken'] ?? null;
 $guestId      = $input['guestId'] ?? null;
