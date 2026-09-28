@@ -19,46 +19,6 @@ struct FeatureIntro {
 // MARK: - Presets
 
 extension FeatureIntro {
-    /// Spaces — the invite-only model and, crucially, the blind-feedback rule.
-    static let space = FeatureIntro(
-        icon: "person.3.fill",
-        title: "How Spaces Work",
-        subtitle: "A private group for getting feedback on what you're learning.",
-        highlights: [
-            OnboardingHighlight(icon: "person.badge.plus", text: "Only people you invite can see this space — it's never public."),
-            OnboardingHighlight(icon: "square.and.pencil", text: "Post a request to ask your group for feedback."),
-            OnboardingHighlight(icon: "eye.slash.fill", text: "Share your own feedback first — then you can see everyone else's."),
-            OnboardingHighlight(icon: "lock.fill", text: "Everything stays in iCloud. You can leave any time.")
-        ],
-        color: .success
-    )
-
-    /// Achievements / badges — how they unlock.
-    static let badges = FeatureIntro(
-        icon: "medal.fill",
-        title: "Achievements",
-        subtitle: "Milestones you unlock as you keep reflecting.",
-        highlights: [
-            OnboardingHighlight(icon: "checkmark.seal.fill", text: "Earn badges by adding reflections over time."),
-            OnboardingHighlight(icon: "chart.bar.fill", text: "Each card shows your progress toward the next one."),
-            OnboardingHighlight(icon: "sparkles", text: "New badges are celebrated the moment you unlock them.")
-        ],
-        color: .warning
-    )
-
-    /// iCloud Sync — what syncs and where it lives.
-    static let cloudSync = FeatureIntro(
-        icon: "icloud.fill",
-        title: "iCloud Sync",
-        subtitle: "Keep your reflections backed up and available on all your devices.",
-        highlights: [
-            OnboardingHighlight(icon: "lock.icloud.fill", text: "Your data lives in your own iCloud — never on our servers."),
-            OnboardingHighlight(icon: "icloud.and.arrow.up", text: "Back up learnings, reflections, photos, and voice notes."),
-            OnboardingHighlight(icon: "exclamationmark.triangle.fill", text: "Restoring replaces local data with your iCloud copy.")
-        ],
-        color: .info
-    )
-
     /// Voice notes — what they are, plus a heads-up that mic + speech access are needed. Its CTA
     /// primes those permissions (see `VoiceAudioView`), so the button reads "Continue".
     static let voice = FeatureIntro(
@@ -199,11 +159,4 @@ extension View {
     func firstOpenIntro(_ intro: FeatureIntro, flagKey: String) -> some View {
         modifier(FirstOpenIntroModifier(intro: intro, flagKey: flagKey))
     }
-}
-
-#Preview {
-    Color(.systemGroupedBackground)
-        .sheet(isPresented: .constant(true)) {
-            FeatureIntroView(intro: .space, onDismiss: {})
-        }
 }
