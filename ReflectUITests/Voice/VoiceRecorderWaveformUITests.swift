@@ -197,8 +197,7 @@ final class VoiceRecorderWaveformUITests: XCTestCase {
     }
 
     private func recordButton(in app: XCUIApplication) -> XCUIElement {
-        // The button has no label of its own; its `mic.fill` image gives it "Microphone".
-        app.buttons.matching(NSPredicate(format: "identifier == 'voice.recorder' AND label == 'Microphone'")).firstMatch
+        app.buttons.matching(NSPredicate(format: "identifier == 'voice.record' AND label == 'Start recording'")).firstMatch
     }
 
     // MARK: - Waveform measurement
