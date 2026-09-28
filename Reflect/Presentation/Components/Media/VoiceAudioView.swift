@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import Combine
+import os
 
 // MARK: - Mode
 
@@ -30,6 +31,7 @@ struct VoiceAudioView: View {
     @State private var recordTimer: Timer?
     @State private var transcription: String = ""
     @State private var recordingResult: AudioRecordingResult?
+    @State private var transcriptTask: Task<Void, Never>?
 
     // Playback state (shared between post-record replay and play mode)
     @State private var audioPlayer: AVAudioPlayer?
@@ -239,9 +241,19 @@ struct VoiceAudioView: View {
     private var transcriptionSection: some View {
         switch mode {
         case .record:
-            // Post-record replay: show transcription card if text exists
-            if !transcription.isEmpty {
-                TranscriptionCard(text: transcription)
+            // Post-record replay: the transcript, or the reason there is none
+            switch speechRecognizer.status {
+            case .idle:
+                EmptyView()
+            case .transcript(let text):
+                TranscriptionCard(text: text)
+                    .accessibilityIdentifier("voice.transcript.text")
+            case .transcribing:
+                TranscriptStatusRow(status: .transcribing)
+            case .noSpeech:
+                TranscriptStatusRow(status: .noSpeech)
+            case .unavailable:
+                TranscriptStatusRow(status: .unavailable)
             }
 
         case .play(let input):
@@ -301,6 +313,7 @@ struct VoiceAudioView: View {
                 switch mode {
                 case .record:
                     Button("Cancel") {
+                        cancelTranscript()
                         cleanupPlayback()
                         isPresented = false
                     }
@@ -344,7 +357,7 @@ struct VoiceAudioView: View {
         // error haptic; or by never returning at all, which left the audio queue running
         // while the UI sat on "Tap to start recording" forever. Start it alongside instead,
         // and treat a missing transcript as a degraded result rather than a failed one.
-        Task { try? await speechRecognizer.startRecording(language: selectedLanguage) }
+        speechRecognizer.startRecording(language: selectedLanguage)
 
         screenState = .recording
         recordDuration = 0
@@ -358,12 +371,15 @@ struct VoiceAudioView: View {
 
         do {
             let audioResult = try await audioRecorder.stopRecording()
-            // Same reasoning as `startRecording`: never let the transcript take the audio
-            // down with it.
-            let speechResult = try? await speechRecognizer.stopRecording()
-
             recordingResult = audioResult
-            transcription = speechResult?.transcription ?? ""
+
+            // Same reasoning as `startRecording`: never let the transcript take the audio
+            // down with it. The transcript is worked out on the side, so playback and Done
+            // are there right away and a slow or failed recognizer cannot hold them back.
+            let language = selectedLanguage
+            transcriptTask = Task {
+                _ = await speechRecognizer.finishTranscript(audioData: audioResult.data, language: language)
+            }
 
             // Prefer the full-file analysis over the live rolling window: the window only
             // holds the last few seconds, whereas playback needs the whole recording.
@@ -378,9 +394,15 @@ struct VoiceAudioView: View {
         }
     }
 
+    private func cancelTranscript() {
+        transcriptTask?.cancel()
+        transcriptTask = nil
+        speechRecognizer.cancelRecording()
+    }
+
     private func cancelRecording() {
         audioRecorder.cancelRecording()
-        speechRecognizer.cancelRecording()
+        cancelTranscript()
         recordTimer?.invalidate()
         recordTimer = nil
         cleanupPlayback()
@@ -400,6 +422,8 @@ struct VoiceAudioView: View {
             fromWidget: fromWidget
         )
 
+        // A transcript that is still being worked out is left behind. Save does not wait.
+        cancelTranscript()
         cleanupPlayback()
         if case .record(let onComplete, _) = mode {
             onComplete(input)
@@ -539,17 +563,72 @@ final class AudioRecorderWrapper {
     }
 }
 
+/// What the transcript area shows once a recording has stopped.
+enum TranscriptStatus: Equatable {
+    /// Nothing to show: no recording has been stopped yet.
+    case idle
+    case transcribing
+    case transcript(String)
+    case noSpeech
+    /// The recognizer failed, for example offline without on-device support.
+    case unavailable
+}
+
 @Observable
 final class SpeechRecognizerWrapper {
+    typealias Sleep = @Sendable (TimeInterval) async throws -> Void
+
+    /// Lets `finishTranscript` wait for a start that is still running, without waiting forever.
+    private final class StartGate {
+        private var isOpen = false
+        private var waiter: CheckedContinuation<Void, Never>?
+
+        func open() {
+            isOpen = true
+            waiter?.resume()
+            waiter = nil
+        }
+
+        func wait() async {
+            guard !isOpen else { return }
+            await withCheckedContinuation { waiter = $0 }
+        }
+    }
+
+    /// How long a stop waits for a start that has not finished, for example because the
+    /// permission dialog is still up.
+    static let startWaitTimeout: TimeInterval = 2
+
     var transcription: String = ""
+    private(set) var status: TranscriptStatus = .idle
 
-    @ObservationIgnored private let service = SpeechRecognitionService()
+    @ObservationIgnored private let service: SpeechRecognitionServiceProtocol
+    @ObservationIgnored private let sleep: Sleep
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var startTask: Task<Void, Never>?
+    /// True while the live recognizer owns `transcription`. After a stop the text comes
+    /// from the results, and a late live update must not overwrite it.
+    @ObservationIgnored private var isLive = false
+    /// Bumped by every start and cancel, so a transcript that is overtaken is dropped.
+    @ObservationIgnored private var generation = 0
+    @ObservationIgnored private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "xyz.nandamochammad.Reflect",
+        category: "Speech"
+    )
 
-    init() {
+    init(
+        service: SpeechRecognitionServiceProtocol = DIContainer.shared.makeSpeechRecognitionService(),
+        sleep: @escaping Sleep = { try await Task.sleep(for: .seconds($0)) }
+    ) {
+        self.service = service
+        self.sleep = sleep
+
         service.transcribedTextPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] text in self?.transcription = text }
+            .sink { [weak self] text in
+                guard let self, self.isLive else { return }
+                self.transcription = text
+            }
             .store(in: &cancellables)
     }
 
@@ -557,9 +636,128 @@ final class SpeechRecognizerWrapper {
     /// for both). Used to prime permissions from the voice-notes intro.
     func requestPermission() async -> Bool { await service.requestPermission() }
 
-    func startRecording(language: SpeechLanguage) async throws { try await service.startRecording(language: language) }
-    func stopRecording() async throws -> VoiceRecordingResult { try await service.stopRecording() }
-    func cancelRecording() { service.cancelRecording() }
+    /// Starts the live recognizer without making the caller wait for it. The start is kept,
+    /// so a stop that comes right after can wait for it instead of overtaking it.
+    func startRecording(language: SpeechLanguage) {
+        generation += 1
+        isLive = true
+        transcription = ""
+        status = .idle
+
+        startTask = Task { [service, logger] in
+            do {
+                try await service.startRecording(language: language)
+            } catch {
+                // The recording goes on without a live transcript. The stop reports why.
+                logger.error("Live transcription did not start: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Stops the live recognizer and settles the transcript: the live text when there is
+    /// one, otherwise the file transcription of `audioData`.
+    ///
+    /// Never throws and never touches the audio: the result always carries `audioData`
+    /// as it was passed in.
+    @discardableResult
+    func finishTranscript(audioData: Data, language: SpeechLanguage) async -> VoiceRecordingResult {
+        let myGeneration = generation
+        isLive = false
+        status = .transcribing
+
+        let live = await stopLive()
+        var text = live?.transcription ?? ""
+        var outcome = live?.outcome ?? .recognizerDidNotRun
+
+        let liveHasTranscript = outcome == .transcribed && !text.isEmpty
+        if !liveHasTranscript, !audioData.isEmpty {
+            let fallback = await service.transcribe(audioData: audioData, language: language)
+            if let fallbackText = fallback.transcription, !fallbackText.isEmpty {
+                text = fallbackText
+                outcome = .transcribed
+            } else if text.isEmpty {
+                outcome = fallback.outcome
+            }
+            // Otherwise the fallback gave nothing and the live partial text is what is left.
+        }
+
+        let result = VoiceRecordingResult(
+            audioData: audioData,
+            transcription: text.isEmpty ? nil : text,
+            language: language.rawValue,
+            duration: live?.duration ?? 0,
+            outcome: text.isEmpty ? outcome : .transcribed
+        )
+
+        // Cancelled, or a new recording started, while the recognizer was working.
+        guard myGeneration == generation else { return result }
+
+        transcription = text
+        status = Self.status(for: result)
+        return result
+    }
+
+    func cancelRecording() {
+        generation += 1
+        isLive = false
+        startTask?.cancel()
+        startTask = nil
+        service.cancelRecording()
+        transcription = ""
+        status = .idle
+    }
+
+    // MARK: - Private Helpers
+
+    private func stopLive() async -> VoiceRecordingResult? {
+        if let startTask {
+            await waitForStart(startTask)
+            self.startTask = nil
+        }
+
+        do {
+            return try await service.stopRecording()
+        } catch {
+            logger.error("Live transcription did not stop cleanly: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    private func waitForStart(_ startTask: Task<Void, Never>) async {
+        let gate = StartGate()
+
+        let started = Task {
+            await startTask.value
+            gate.open()
+        }
+        let timeout = Task { [sleep] in
+            do {
+                try await sleep(Self.startWaitTimeout)
+            } catch {
+                // Cancelled because the start finished first.
+                return
+            }
+            gate.open()
+        }
+        defer {
+            started.cancel()
+            timeout.cancel()
+        }
+
+        await gate.wait()
+    }
+
+    private static func status(for result: VoiceRecordingResult) -> TranscriptStatus {
+        if let text = result.transcription, !text.isEmpty {
+            return .transcript(text)
+        }
+        switch result.outcome {
+        case .noSpeechDetected:
+            return .noSpeech
+        case .transcribed, .recognizerFailed, .recognizerDidNotRun:
+            return .unavailable
+        }
+    }
 }
 
 // MARK: - Private Subviews
@@ -712,6 +910,54 @@ private struct TranscriptionCard: View {
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 18).fill(Color.primaryDefault.opacity(0.13)))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.primaryDefault.opacity(0.2), lineWidth: 1))
+    }
+}
+
+private struct TranscriptStatusRow: View {
+    enum Status {
+        case transcribing, noSpeech, unavailable
+    }
+
+    let status: Status
+
+    private var title: String {
+        switch status {
+        case .transcribing: return "Transcribing..."
+        case .noSpeech: return "No speech detected"
+        case .unavailable: return "Transcript unavailable"
+        }
+    }
+
+    private var identifier: String {
+        switch status {
+        case .transcribing: return "voice.transcript.transcribing"
+        case .noSpeech: return "voice.transcript.noSpeech"
+        case .unavailable: return "voice.transcript.unavailable"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            switch status {
+            case .transcribing:
+                ProgressView()
+            case .noSpeech:
+                Image(systemName: "waveform.slash")
+                    .accessibilityHidden(true)
+            case .unavailable:
+                Image(systemName: "exclamationmark.bubble")
+                    .accessibilityHidden(true)
+            }
+            Text(title)
+                .font(.subheadline)
+        }
+        .foregroundColor(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 18).fill(Color.secondary.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.secondary.opacity(0.1), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
     }
 }
 
