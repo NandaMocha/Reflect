@@ -6,8 +6,8 @@ import DSWaveformImage
 final class AudioRecorderService: NSObject, AudioRecorderServiceProtocol {
     /// Waveform levels are emitted at 20Hz regardless of the display's refresh rate — see
     /// `updateRecordingTime`. The view draws one bar per emission, so its window spans
-    /// `bar count × 0.05` seconds of audio. Keep in sync with `LiveWaveformBuffer.emissionInterval`.
-    private static let levelEmissionInterval: CFTimeInterval = 0.05
+    /// `bar count × 0.05` seconds of audio. `LiveWaveformBuffer.emissionInterval` reads this value.
+    static let levelEmissionInterval: CFTimeInterval = 0.05
     /// dBFS treated as silence. Metering runs to -160 dB, but nothing quieter than about
     /// -50 dB is audible room tone, and mapping the full range would leave speech crammed
     /// into the top few percent of the bar height.
