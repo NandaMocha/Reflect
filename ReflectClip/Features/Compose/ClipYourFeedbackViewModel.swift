@@ -14,8 +14,8 @@ import os
 /// POST marks those entries `.sent` and advances `ClipSession` to `.allFeedback`. A transient
 /// failure (`.network`/`.rateLimited`) keeps the guest on this screen with the drafts intact and
 /// an honest "will send when online" banner plus a manual retry — the entries stay `.queued` in
-/// the store either way, so the offline/foreground retry loop AC-021 documents still picks them
-/// up even if the guest never taps retry here. A `.linkRevoked` failure is a dead link, not a
+/// the store either way, so `ClipPendingAnswerRetrier` (launch/foreground) still picks them up
+/// even if the guest never taps retry here. A `.linkRevoked` failure is a dead link, not a
 /// transient one: the affected entries are marked `.failed` (so they stop being retried against a
 /// dead endpoint) and it routes to `ClipSession`'s existing `.invalidLink` phase rather than
 /// staying on a composer for a request that no longer exists.
@@ -139,7 +139,7 @@ final class ClipYourFeedbackViewModel {
     /// idempotency contract AC-021 documents: `LivePendingAnswerStore.enqueue` mints a fresh UUID
     /// on every call, so calling it unconditionally on a retry (or a normal re-tap of Send after a
     /// failure) would leave the earlier queued entry orphaned — never marked `.sent`, but still
-    /// picked up and POSTed by AC-021's background retry loop, double-ingesting the answer.
+    /// picked up and POSTed by `ClipPendingAnswerRetrier`, double-ingesting the answer.
     /// `SpaceQuestion` caps a request at 5 questions (`Constants.Limits.spaceMaxQuestions`), which
     /// already matches the endpoint's "≤ 5 answers per call" limit, so this never needs to split
     /// into multiple requests.
@@ -166,7 +166,11 @@ final class ClipYourFeedbackViewModel {
         var dtoAnswers: [ClipFeedbackAnswerDTO] = []
         dtoAnswers.reserveCapacity(entries.count)
         for entry in entries {
-            let pending = await pendingAnswerStore.enqueueIfAbsent(questionId: entry.questionId, body: entry.body)
+            let pending = await pendingAnswerStore.enqueueIfAbsent(
+                requestToken: requestToken,
+                questionId: entry.questionId,
+                body: entry.body
+            )
             dtoAnswers.append(
                 ClipFeedbackAnswerDTO(questionId: entry.questionId, submissionId: pending.submissionId, body: entry.body)
             )
@@ -198,7 +202,7 @@ final class ClipYourFeedbackViewModel {
             // The entries stay in PendingAnswerStore per AC-021's watch-out — a revoked link
             // means the *endpoint* is closed, not that the guest's text should vanish. But
             // there's nothing useful to retry against a dead link, so mark exactly the entries
-            // from this attempt `.failed`: they stop being picked up by AC-021's retry loop
+            // from this attempt `.failed`: they stop being picked up by `ClipPendingAnswerRetrier`
             // (which reads `.queued` only) instead of being POSTed against a 404 forever, and a
             // future UI (AC-032) can render them honestly rather than "Sending…" indefinitely.
             await pendingAnswerStore.markFailed(submissionIds: dtoAnswers.map(\.submissionId))

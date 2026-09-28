@@ -16,18 +16,25 @@ import SwiftUI
 /// `ClipSession.startResolutionTimeout()` gives path 2 a window to arrive before the phase
 /// machine gives up on `.loading`.
 ///
+/// `ClipPendingAnswerRetrier` re-sends queued (offline) answers whenever the scene becomes active
+/// (launch and every foreground) and whenever a guest identity resolves, since the endpoint needs
+/// one and a web-link continuation can deliver it after the first `.active`.
+///
 /// **Convention (binding for all later Clip tickets):** feature factories are added via
 /// `extension ClipDIContainer` inside the feature's own file — never by editing
 /// `ClipDIContainer.swift` again.
 @main
 struct ReflectClipApp: App {
     @State private var session: ClipSession
+    @State private var pendingAnswerRetrier: ClipPendingAnswerRetrier
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let session = ClipDIContainer.shared.session
         session.consumeAppClipURLFromEnvironment()
         session.startResolutionTimeout()
         _session = State(initialValue: session)
+        _pendingAnswerRetrier = State(initialValue: ClipDIContainer.shared.makeClipPendingAnswerRetrier())
     }
 
     var body: some Scene {
@@ -35,6 +42,14 @@ struct ReflectClipApp: App {
             ClipRootView(session: session)
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     session.handle(userActivity: activity)
+                }
+                .onChange(of: scenePhase, initial: true) { _, newPhase in
+                    guard newPhase == .active else { return }
+                    pendingAnswerRetrier.retryQueuedAnswers()
+                }
+                .onChange(of: session.guestIdentity?.guestId) { _, guestId in
+                    guard guestId != nil else { return }
+                    pendingAnswerRetrier.retryQueuedAnswers()
                 }
         }
     }

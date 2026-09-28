@@ -48,21 +48,36 @@ nonisolated struct PendingAnswer: Codable, Equatable, Sendable, Identifiable {
     var body: String
     let submittedAt: Date
     var state: State
+    /// The `/f/<token>` this answer was composed against. The automatic retry
+    /// (`ClipPendingAnswerRetrier`) runs on launch/foreground, possibly under a different
+    /// invocation link than the one the guest answered, and the write endpoint rejects a
+    /// `questionId` that isn't part of the posted request with a 400 (collapsed to `.network`,
+    /// so it would retry forever). Optional only so entries written before this field existed
+    /// still decode; those are attributed to the current session's token on retry.
+    var requestToken: String?
 
-    init(submissionId: String, questionId: String, body: String, submittedAt: Date, state: State) {
+    init(
+        submissionId: String,
+        questionId: String,
+        body: String,
+        submittedAt: Date,
+        state: State,
+        requestToken: String? = nil
+    ) {
         self.submissionId = submissionId
         self.questionId = questionId
         self.body = body
         self.submittedAt = submittedAt
         self.state = state
+        self.requestToken = requestToken
     }
 }
 
 // MARK: - Retry Backoff
 
 /// Pure delay calculation for the offline retry queue's exponential backoff (AC-021 scope). No
-/// scheduling/`Task` loop lives here on purpose — AC-031/032's ViewModels own *when* to retry
-/// (app foreground, launch); this only answers *how long to wait* for a given attempt number, so
+/// scheduling/`Task` loop lives here on purpose — `ClipPendingAnswerRetrier` owns *when* to retry
+/// (app launch, foreground); this only answers *how long to wait* for a given attempt number, so
 /// it's trivially testable without simulating app lifecycle events.
 nonisolated enum ClipRetryBackoff {
     /// `attempt` is 1-based (the 1st retry after an initial failed send). Doubles from `base` up
@@ -98,7 +113,7 @@ protocol PendingAnswerStoring: Sendable {
     /// retries re-read the already-persisted entry via `allAnswers()` instead, which is what
     /// keeps the submissionId stable across attempts.
     @discardableResult
-    func enqueue(questionId: String, body: String) async -> PendingAnswer
+    func enqueue(requestToken: String, questionId: String, body: String) async -> PendingAnswer
 
     /// Updates the body text of an existing entry in place — `submissionId`, `questionId`, and
     /// `state` are all left untouched. Used when the guest edits a draft after a failed submit,
@@ -118,9 +133,9 @@ protocol PendingAnswerStoring: Sendable {
     /// never persist. If more than one `.queued` entry for `questionId` already exists on disk
     /// (e.g. from data written by a build that had this race), only the earliest is reused —
     /// every other one is marked `.failed` so it stops being retried instead of lingering as an
-    /// orphan.
+    /// orphan. A reused entry written before `requestToken` existed is stamped with `requestToken`.
     @discardableResult
-    func enqueueIfAbsent(questionId: String, body: String) async -> PendingAnswer
+    func enqueueIfAbsent(requestToken: String, questionId: String, body: String) async -> PendingAnswer
 
     /// Marks every entry whose `submissionId` is in `submissionIds` as `.sent`, after
     /// `ClipFeedbackSubmitting` confirms the endpoint wrote it. A no-op for any id that isn't
@@ -176,14 +191,15 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
     }
 
     @discardableResult
-    func enqueue(questionId: String, body: String) -> PendingAnswer {
+    func enqueue(requestToken: String, questionId: String, body: String) -> PendingAnswer {
         var answers = loadIfNeeded()
         let answer = PendingAnswer(
             submissionId: UUID().uuidString,
             questionId: questionId,
             body: body,
             submittedAt: Date(),
-            state: .queued
+            state: .queued,
+            requestToken: requestToken
         )
         answers.append(answer)
         persist(answers)
@@ -199,7 +215,7 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
     }
 
     @discardableResult
-    func enqueueIfAbsent(questionId: String, body: String) -> PendingAnswer {
+    func enqueueIfAbsent(requestToken: String, questionId: String, body: String) -> PendingAnswer {
         var answers = loadIfNeeded()
         let queuedIndices = answers.indices.filter {
             answers[$0].questionId == questionId && answers[$0].state == .queued
@@ -211,7 +227,8 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
                 questionId: questionId,
                 body: body,
                 submittedAt: Date(),
-                state: .queued
+                state: .queued,
+                requestToken: requestToken
             )
             answers.append(answer)
             persist(answers)
@@ -228,6 +245,10 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
         }
         if answers[firstIndex].body != body {
             answers[firstIndex].body = body
+            changed = true
+        }
+        if answers[firstIndex].requestToken == nil {
+            answers[firstIndex].requestToken = requestToken
             changed = true
         }
         if changed {
@@ -288,7 +309,20 @@ actor LivePendingAnswerStore: PendingAnswerStoring {
     }
 
     private func readFromDisk() -> [PendingAnswer] {
-        guard let url = fileURL(), let data = try? Data(contentsOf: url) else {
+        guard let url = fileURL() else {
+            logger.error("App Group container unresolved for \(self.appGroupIdentifier, privacy: .public) — starting from an empty queue")
+            return []
+        }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch CocoaError.fileReadNoSuchFile {
+            // Nothing enqueued yet on this device — the normal first-launch case, not a failure.
+            return []
+        } catch {
+            // A real read failure looks identical to "no file yet" to every caller, and the next
+            // mutation persists over the on-disk file — log it so lost queued answers leave a trail.
+            logger.error("Failed to read pending-answer file — starting from an empty queue: \(String(describing: error), privacy: .public)")
             return []
         }
         guard let decoded = try? JSONDecoder().decode([PendingAnswer].self, from: data) else {

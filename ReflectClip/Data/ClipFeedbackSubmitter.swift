@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 // MARK: - Errors
 
@@ -10,6 +11,11 @@ import Foundation
 /// - everything else (validation 400s, `502` CloudKit-relay failures, transport errors,
 ///   malformed responses) collapses to `.network` — the composer's honest answer for any of
 ///   these is the same "will send when online" retry affordance, not a bespoke message per code.
+///
+/// `errorDescription` only states what failed. What happens next (saved on device, retried
+/// automatically the next time the Clip opens or comes back to the foreground via
+/// `ClipPendingAnswerRetrier`) is the composer banner's job, so this copy never promises a
+/// background retry that isn't running.
 enum ClipFeedbackError: Error, LocalizedError, Sendable {
     /// The request's link is gone (unknown or revoked `TokenIndex`). Retrying won't help —
     /// per AC-021's watch-out, callers must surface this rather than silently keep retrying or
@@ -25,7 +31,7 @@ enum ClipFeedbackError: Error, LocalizedError, Sendable {
         case .rateLimited:
             return "Too many requests. Try again in a moment."
         case .network:
-            return "Couldn't send your feedback. It'll retry automatically."
+            return "Couldn't send your feedback."
         }
     }
 }
@@ -131,10 +137,182 @@ final class ClipFeedbackSubmitter: ClipFeedbackSubmitting, Sendable {
     }
 }
 
+// MARK: - Automatic Retry
+
+/// The offline retry loop AC-021 documents: re-POSTs every `.queued` `PendingAnswerStore` entry
+/// when the Clip launches or returns to the foreground (`ReflectClipApp`), so a guest who
+/// submitted offline and left doesn't depend on reopening the composer and tapping Retry.
+///
+/// One pass = up to `maxAttempts` tries, spaced by `ClipRetryBackoff`. Every try re-reads the
+/// store, so it always resends the stored `submissionId`s (the idempotency contract) and skips
+/// anything the composer already delivered meanwhile. A pass stops early on success or
+/// `.linkRevoked`; if it runs out of attempts the entries stay `.queued` for the next trigger.
+@MainActor
+final class ClipPendingAnswerRetrier {
+
+    // MARK: - State
+
+    private var retryTask: Task<Void, Never>?
+
+    // MARK: - Dependencies
+
+    private let session: ClipSession
+    private let submitter: ClipFeedbackSubmitting
+    private let pendingAnswerStore: PendingAnswerStoring
+    private let installContinuityStore: ClipInstallContinuityStoring
+    private let maxAttempts: Int
+    private let logger = Logger(subsystem: "xyz.nandamochammad.Reflect.Clip", category: "ClipPendingAnswerRetrier")
+
+    /// Matches `MAX_ANSWERS_PER_CALL` in `scripts/server/clip-feedback.php`.
+    private static let maxAnswersPerCall = 5
+
+    // MARK: - Initialization
+
+    init(
+        session: ClipSession,
+        submitter: ClipFeedbackSubmitting,
+        pendingAnswerStore: PendingAnswerStoring,
+        installContinuityStore: ClipInstallContinuityStoring,
+        maxAttempts: Int = 5
+    ) {
+        self.session = session
+        self.submitter = submitter
+        self.pendingAnswerStore = pendingAnswerStore
+        self.installContinuityStore = installContinuityStore
+        self.maxAttempts = maxAttempts
+    }
+
+    // MARK: - Actions
+
+    /// Starts a retry pass unless one is already running. Safe to call on every launch,
+    /// foreground and identity change — a no-op when nothing is queued or no guest identity is
+    /// known yet (the endpoint requires `guestId` + `guestName`).
+    func retryQueuedAnswers() {
+        guard retryTask == nil else { return }
+        retryTask = Task { [weak self] in
+            await self?.runRetryPass()
+            self?.retryTask = nil
+        }
+    }
+
+    // MARK: - Private Helpers
+
+    private func runRetryPass() async {
+        for attempt in 1...maxAttempts {
+            guard !Task.isCancelled else { return }
+            guard let outcome = await attemptDelivery() else { return }
+            switch outcome {
+            case .delivered, .linkRevoked:
+                return
+            case .transientFailure:
+                guard attempt < maxAttempts else {
+                    logger.info("Queued answers still unsent after \(attempt, privacy: .public) attempts — waiting for the next launch/foreground")
+                    return
+                }
+                try? await Task.sleep(for: ClipRetryBackoff.delay(forAttempt: attempt))
+            }
+        }
+    }
+
+    private enum AttemptOutcome {
+        case delivered
+        case linkRevoked
+        case transientFailure
+    }
+
+    /// One try over every `.queued` entry. `nil` means there was nothing to send (empty queue or
+    /// no identity yet), which ends the pass.
+    private func attemptDelivery() async -> AttemptOutcome? {
+        guard let identity = session.guestIdentity else { return nil }
+        let queued = await pendingAnswerStore.allAnswers().filter { $0.state == .queued }
+        guard !queued.isEmpty else { return nil }
+
+        var sentAny = false
+        var sawTransientFailure = false
+        var revokedCurrentLink = false
+
+        for (token, answers) in Self.groupByRequestToken(queued, fallbackToken: session.requestToken) {
+            for batch in Self.chunked(answers, size: Self.maxAnswersPerCall) {
+                let request = ClipFeedbackSubmissionRequest(
+                    requestToken: token,
+                    guestId: identity.guestId.uuidString,
+                    guestName: identity.displayName,
+                    answers: batch.map {
+                        ClipFeedbackAnswerDTO(questionId: $0.questionId, submissionId: $0.submissionId, body: $0.body)
+                    }
+                )
+                do {
+                    let sentIds = try await submitter.submit(request)
+                    await pendingAnswerStore.markSent(submissionIds: sentIds)
+                    sentAny = sentAny || !sentIds.isEmpty
+                } catch ClipFeedbackError.linkRevoked {
+                    // Same handling as the composer: a dead link is not retryable, so stop
+                    // retrying these entries but keep them for the "couldn't be delivered" UI.
+                    await pendingAnswerStore.markFailed(submissionIds: batch.map(\.submissionId))
+                    revokedCurrentLink = revokedCurrentLink || token == session.requestToken
+                } catch {
+                    logger.error("Automatic retry failed — \(String(describing: error), privacy: .public)")
+                    sawTransientFailure = true
+                }
+            }
+        }
+
+        if sentAny {
+            // AC-040: same durable signal the composer records on its own successful send.
+            installContinuityStore.recordAnswerSent()
+        }
+        if revokedCurrentLink {
+            session.markLinkInvalid()
+            return .linkRevoked
+        }
+        if sentAny {
+            // The composer still shows the answers it failed to send, and a second tap on Send
+            // would mint a new `submissionId` now that the entries are `.sent` — move on exactly
+            // like the composer's own successful submit does. A no-op outside `.compose`.
+            session.advanceToAllFeedback()
+        }
+        return sawTransientFailure ? .transientFailure : .delivered
+    }
+
+    /// Groups entries by the request they were composed against, keeping insertion order. Entries
+    /// written before `PendingAnswer.requestToken` existed fall back to the current session's
+    /// token; they're skipped if no invocation has resolved yet.
+    private static func groupByRequestToken(
+        _ answers: [PendingAnswer],
+        fallbackToken: String?
+    ) -> [(token: String, answers: [PendingAnswer])] {
+        var groups: [(token: String, answers: [PendingAnswer])] = []
+        for answer in answers {
+            guard let token = answer.requestToken ?? fallbackToken else { continue }
+            if let index = groups.firstIndex(where: { $0.token == token }) {
+                groups[index].answers.append(answer)
+            } else {
+                groups.append((token, [answer]))
+            }
+        }
+        return groups
+    }
+
+    private static func chunked(_ answers: [PendingAnswer], size: Int) -> [[PendingAnswer]] {
+        stride(from: 0, to: answers.count, by: size).map {
+            Array(answers[$0..<min($0 + size, answers.count)])
+        }
+    }
+}
+
 // MARK: - DIContainer Factory
 
 extension ClipDIContainer {
     func makeClipFeedbackSubmitter() -> ClipFeedbackSubmitting {
         ClipFeedbackSubmitter()
+    }
+
+    func makeClipPendingAnswerRetrier() -> ClipPendingAnswerRetrier {
+        ClipPendingAnswerRetrier(
+            session: session,
+            submitter: makeClipFeedbackSubmitter(),
+            pendingAnswerStore: makePendingAnswerStore(),
+            installContinuityStore: makeClipInstallContinuityStore()
+        )
     }
 }

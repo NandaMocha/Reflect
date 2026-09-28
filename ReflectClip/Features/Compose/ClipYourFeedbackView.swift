@@ -210,7 +210,9 @@ struct ClipYourFeedbackView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Not sent yet")
                     .font(.caption.weight(.semibold))
-                Text("\(message) Your answer is saved and will send when you're back online.")
+                // Honest about timing: `ClipPendingAnswerRetrier` retries on launch/foreground
+                // only, never in the background.
+                Text("\(message) Your answer is saved on this device and will be sent automatically the next time you open this, or tap Retry.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
