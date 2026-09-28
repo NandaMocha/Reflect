@@ -17,8 +17,9 @@ import SwiftUI
 /// machine gives up on `.loading`.
 ///
 /// `ClipPendingAnswerRetrier` re-sends queued (offline) answers whenever the scene becomes active
-/// (launch and every foreground) and whenever a guest identity resolves, since the endpoint needs
-/// one and a web-link continuation can deliver it after the first `.active`.
+/// (launch and every foreground), whenever a guest identity resolves (the endpoint needs one), and
+/// whenever the request token resolves (queued entries from before `PendingAnswer.requestToken`
+/// existed fall back to it). A web-link continuation can deliver either after the first `.active`.
 ///
 /// **Convention (binding for all later Clip tickets):** feature factories are added via
 /// `extension ClipDIContainer` inside the feature's own file — never by editing
@@ -49,6 +50,10 @@ struct ReflectClipApp: App {
                 }
                 .onChange(of: session.guestIdentity?.guestId) { _, guestId in
                     guard guestId != nil else { return }
+                    pendingAnswerRetrier.retryQueuedAnswers()
+                }
+                .onChange(of: session.requestToken) { _, token in
+                    guard token != nil else { return }
                     pendingAnswerRetrier.retryQueuedAnswers()
                 }
         }

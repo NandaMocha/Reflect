@@ -145,8 +145,14 @@ final class ClipFeedbackSubmitter: ClipFeedbackSubmitting, Sendable {
 ///
 /// One pass = up to `maxAttempts` tries, spaced by `ClipRetryBackoff`. Every try re-reads the
 /// store, so it always resends the stored `submissionId`s (the idempotency contract) and skips
-/// anything the composer already delivered meanwhile. A pass stops early on success or
-/// `.linkRevoked`; if it runs out of attempts the entries stay `.queued` for the next trigger.
+/// anything the composer already delivered meanwhile. A try that finds the composer mid-send
+/// (`ClipSession.beginAnswerDelivery()` refused) backs off instead of POSTing over it. A pass
+/// stops early on success or `.linkRevoked`; if it runs out of attempts the entries stay
+/// `.queued` for the next trigger.
+///
+/// It never changes the phase on success. It publishes what it delivered through
+/// `ClipSession.recordAutoDelivery(_:)` and the composer decides what that means for the drafts
+/// on screen (`ClipYourFeedbackViewModel.reconcile(autoDelivery:)`).
 @MainActor
 final class ClipPendingAnswerRetrier {
 
@@ -204,7 +210,7 @@ final class ClipPendingAnswerRetrier {
             switch outcome {
             case .delivered, .linkRevoked:
                 return
-            case .transientFailure:
+            case .transientFailure, .deliveryBusy:
                 guard attempt < maxAttempts else {
                     logger.info("Queued answers still unsent after \(attempt, privacy: .public) attempts — waiting for the next launch/foreground")
                     return
@@ -218,16 +224,23 @@ final class ClipPendingAnswerRetrier {
         case delivered
         case linkRevoked
         case transientFailure
+        /// The composer was sending at the time; try again after the backoff.
+        case deliveryBusy
     }
 
     /// One try over every `.queued` entry. `nil` means there was nothing to send (empty queue or
     /// no identity yet), which ends the pass.
     private func attemptDelivery() async -> AttemptOutcome? {
         guard let identity = session.guestIdentity else { return nil }
+        // Claimed before reading the store, so the composer can't amend an entry's body between
+        // this snapshot and the POST below.
+        guard session.beginAnswerDelivery() else { return .deliveryBusy }
+        defer { session.endAnswerDelivery() }
+
         let queued = await pendingAnswerStore.allAnswers().filter { $0.state == .queued }
         guard !queued.isEmpty else { return nil }
 
-        var sentAny = false
+        var delivered: [ClipAutoDelivery.Answer] = []
         var sawTransientFailure = false
         var revokedCurrentLink = false
 
@@ -244,7 +257,10 @@ final class ClipPendingAnswerRetrier {
                 do {
                     let sentIds = try await submitter.submit(request)
                     await pendingAnswerStore.markSent(submissionIds: sentIds)
-                    sentAny = sentAny || !sentIds.isEmpty
+                    let sentSet = Set(sentIds)
+                    delivered += batch
+                        .filter { sentSet.contains($0.submissionId) }
+                        .map { ClipAutoDelivery.Answer(requestToken: token, questionId: $0.questionId, body: $0.body) }
                 } catch ClipFeedbackError.linkRevoked {
                     // Same handling as the composer: a dead link is not retryable, so stop
                     // retrying these entries but keep them for the "couldn't be delivered" UI.
@@ -257,19 +273,14 @@ final class ClipPendingAnswerRetrier {
             }
         }
 
-        if sentAny {
+        if !delivered.isEmpty {
             // AC-040: same durable signal the composer records on its own successful send.
             installContinuityStore.recordAnswerSent()
+            session.recordAutoDelivery(delivered)
         }
         if revokedCurrentLink {
             session.markLinkInvalid()
             return .linkRevoked
-        }
-        if sentAny {
-            // The composer still shows the answers it failed to send, and a second tap on Send
-            // would mint a new `submissionId` now that the entries are `.sent` — move on exactly
-            // like the composer's own successful submit does. A no-op outside `.compose`.
-            session.advanceToAllFeedback()
         }
         return sawTransientFailure ? .transientFailure : .delivered
     }
