@@ -3,39 +3,34 @@ import SwiftUI
 import UIKit
 
 /// The single, reusable camera-reflection flow. Every camera-reflection entry point attaches this
-/// modifier and just flips `isPresented` true to start — the intro sheet (first run), front/back
-/// choice, camera-permission gating, denied → Settings alert, and camera presentation all live here
-/// so no call site duplicates the logic.
+/// modifier and just flips `isPresented` true to start. Camera-permission gating, the permission
+/// primer, the denied → Settings alert, and camera presentation all live here so no call site
+/// duplicates the logic.
 ///
-/// State machine when started:
-/// - `.denied` / `.restricted` → show the "open Settings" alert (opened again while denied).
-/// - `.authorized` → intro if not yet seen, else straight to the camera.
-/// - `.notDetermined` → intro if not yet seen; else request access, then open or show the alert.
+/// When started, `PermissionPrimer` decides from the camera status:
+/// - `.settings` (denied / restricted) → the "open Settings" alert.
+/// - `.proceed` (authorized) → straight to the camera.
+/// - `.primer` (not determined) → the small primer sheet. "Continue" fires the system prompt while
+///   the sheet is still fully on screen; granted opens the camera once the sheet has dismissed,
+///   refused just closes (no black camera). "Not Now" closes without asking.
 ///
-/// Intro "Continue": persist the choice, then request access when needed — granted opens the camera,
-/// denied simply dismisses (no black camera).
+/// The camera opens on the remembered `preferredCameraPosition`, else the back camera; the user
+/// flips with the system camera's own control.
 struct CameraReflectionFlowModifier: ViewModifier {
     @Binding var isPresented: Bool
     let onPhotoPicked: (UIImage) -> Void
     let onVideoPicked: (URL, UIImage, TimeInterval) -> Void
 
-    private enum Stage: Int, Identifiable {
-        case intro
-        case camera
-        var id: Int { rawValue }
-    }
-
-    /// Deferred until the intro cover finishes dismissing — presenting a new cover while one is on
-    /// screen is unreliable, so the intro → camera / denied hand-off happens in `onDismiss`.
+    /// Deferred until the primer sheet finishes dismissing. Presenting the camera cover while the
+    /// sheet is still tearing down is unreliable, so the primer → camera hand-off runs in `onDismiss`.
     private enum PendingTransition {
         case openCamera
-        case showDenied
     }
 
-    @State private var stage: Stage?
+    @State private var showPrimer = false
+    @State private var showCamera = false
     @State private var pending: PendingTransition?
     @State private var showDeniedAlert = false
-    @State private var position: CameraPosition = UserDefaults.standard.preferredCameraPosition() ?? .back
 
     func body(content: Content) -> some View {
         content
@@ -45,29 +40,29 @@ struct CameraReflectionFlowModifier: ViewModifier {
                 isPresented = false
                 startFlow()
             }
-            .fullScreenCover(item: $stage, onDismiss: runPendingTransition) { stage in
-                switch stage {
-                case .intro:
-                    CameraReflectionIntroView(
-                        position: $position,
-                        onContinue: { Task { await handleIntroContinue() } },
-                        onCancel: { self.stage = nil }
-                    )
-                case .camera:
-                    ImagePickerView(
-                        sourceType: .camera,
-                        cameraPosition: position,
-                        onPhotoPicked: { image in
-                            onPhotoPicked(image)
-                            self.stage = nil
-                        },
-                        onVideoPicked: { url, thumbnail, duration in
-                            onVideoPicked(url, thumbnail, duration)
-                            self.stage = nil
-                        }
-                    )
-                    .ignoresSafeArea()
-                }
+            .sheet(isPresented: $showPrimer, onDismiss: runPendingTransition) {
+                PermissionPrimerView(
+                    content: .camera,
+                    onContinue: { Task { await handlePrimerContinue() } },
+                    onNotNow: { showPrimer = false }
+                )
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                ImagePickerView(
+                    sourceType: .camera,
+                    cameraPosition: UserDefaults.standard.preferredCameraPosition() ?? .back,
+                    onPhotoPicked: { image in
+                        onPhotoPicked(image)
+                        showCamera = false
+                    },
+                    onVideoPicked: { url, thumbnail, duration in
+                        onVideoPicked(url, thumbnail, duration)
+                        showCamera = false
+                    }
+                )
+                .ignoresSafeArea()
             }
             .confirmationAlert(
                 title: "Camera Access Needed",
@@ -83,53 +78,23 @@ struct CameraReflectionFlowModifier: ViewModifier {
     // MARK: - Flow
 
     private func startFlow() {
-        switch CameraPermission.status {
-        case .denied, .restricted:
+        switch PermissionPrimer.nextStep(for: [PermissionState(CameraPermission.status)]) {
+        case .settings:
             showDeniedAlert = true
-        case .authorized:
-            stage = hasSeenIntro ? .camera : .intro
-        case .notDetermined:
-            if hasSeenIntro {
-                Task { await requestThenOpen() }
-            } else {
-                stage = .intro
-            }
-        @unknown default:
-            stage = .intro
+        case .proceed:
+            showCamera = true
+        case .primer:
+            showPrimer = true
         }
     }
 
+    /// Asks for access while the primer is still on screen, then dismisses it. Only a grant queues
+    /// the camera; a refusal just closes the sheet.
     @MainActor
-    private func handleIntroContinue() async {
-        markIntroSeen()
-        UserDefaults.standard.setPreferredCameraPosition(position)
-
-        switch CameraPermission.status {
-        case .authorized:
-            transitionFromIntro(to: .openCamera)
-        case .notDetermined:
-            let granted = await CameraPermission.requestAccess()
-            transitionFromIntro(to: granted ? .openCamera : nil)
-        default:
-            transitionFromIntro(to: .showDenied)
-        }
-    }
-
-    @MainActor
-    private func requestThenOpen() async {
+    private func handlePrimerContinue() async {
         let granted = await CameraPermission.requestAccess()
-        if granted {
-            stage = .camera
-        } else {
-            showDeniedAlert = true
-        }
-    }
-
-    /// Dismisses the intro cover; `runPendingTransition` fires after and performs `next` (or nothing
-    /// when `next` is nil, i.e. permission was just denied).
-    private func transitionFromIntro(to next: PendingTransition?) {
-        pending = next
-        stage = nil
+        pending = granted ? .openCamera : nil
+        showPrimer = false
     }
 
     private func runPendingTransition() {
@@ -137,21 +102,11 @@ struct CameraReflectionFlowModifier: ViewModifier {
         self.pending = nil
         switch pending {
         case .openCamera:
-            stage = .camera
-        case .showDenied:
-            showDeniedAlert = true
+            showCamera = true
         }
     }
 
     // MARK: - Helpers
-
-    private var hasSeenIntro: Bool {
-        UserDefaults.standard.bool(forKey: Constants.UserDefaults.hasSeenCameraIntro)
-    }
-
-    private func markIntroSeen() {
-        UserDefaults.standard.set(true, forKey: Constants.UserDefaults.hasSeenCameraIntro)
-    }
 
     private func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
@@ -161,7 +116,7 @@ struct CameraReflectionFlowModifier: ViewModifier {
 
 extension View {
     /// Attaches the guided camera-reflection flow. Flip `isPresented` true to start it; the modifier
-    /// consumes the flag and drives the intro/permission/camera presentation itself.
+    /// consumes the flag and drives the primer/permission/camera presentation itself.
     func cameraReflectionFlow(
         isPresented: Binding<Bool>,
         onPhotoPicked: @escaping (UIImage) -> Void,
