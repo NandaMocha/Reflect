@@ -251,6 +251,53 @@ struct SpeechRecognitionServiceTests {
         #expect(engine.transcribedFiles.isEmpty)
     }
 
+    @Test func transcribeAudioDataTimesOutWhenTheFileTaskNeverAnswers() async throws {
+        engine.holdsFileResult = true
+        engine.fileResult = .success("too late")
+        let audio = Data("saved recording".utf8)
+
+        async let transcribed = service.transcribe(audioData: audio, language: .english)
+        try await waitUntil { !sleep.requested.isEmpty && !engine.transcribedFiles.isEmpty }
+        sleep.fire()
+
+        let result = await transcribed
+
+        #expect(result.transcription == nil)
+        #expect(result.outcome == .recognizerFailed(.timedOut))
+        #expect(result.audioData == audio)
+        #expect(engine.didCancelFileTask)
+
+        let url = try #require(engine.transcribedFiles.first)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        engine.releaseFile()
+    }
+
+    @Test func transcribeAudioDataKeepsAnAnswerThatArrivesBeforeTheTimeout() async throws {
+        engine.holdsFileResult = true
+        engine.fileResult = .success("from the file")
+
+        async let transcribed = service.transcribe(audioData: Data("saved recording".utf8), language: .english)
+        try await waitUntil { !sleep.requested.isEmpty && !engine.transcribedFiles.isEmpty }
+        engine.releaseFile()
+
+        let result = await transcribed
+        sleep.fire()
+
+        #expect(result.transcription == "from the file")
+        #expect(result.outcome == .transcribed)
+        #expect(!engine.didCancelFileTask)
+    }
+
+    @Test(arguments: [
+        (nil, 30.0),
+        (2.0, 10.0),
+        (45.0, 45.0),
+        (600.0, 60.0)
+    ] as [(TimeInterval?, TimeInterval)])
+    func fileTranscriptionTimeoutFollowsTheAudioDuration(duration: TimeInterval?, expected: TimeInterval) {
+        #expect(SpeechRecognitionService.fileTranscriptionTimeout(forDuration: duration) == expected)
+    }
+
     // MARK: - Cancel
 
     @Test func cancelRecordingCancelsTheTask() async throws {

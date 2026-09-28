@@ -58,6 +58,9 @@ nonisolated final class FakeSpeechRecognitionEngine: SpeechRecognitionEngine, @u
         var fileResult: Result<String, any Error> = .success("")
         var transcribedFiles: [URL] = []
         var fileExistedDuringTranscription = false
+        var holdsFileResult = false
+        var pendingFiles: [CheckedContinuation<Void, Never>] = []
+        var didCancelFileTask = false
     }
 
     private let state = OSAllocatedUnfairLock(initialState: State())
@@ -81,6 +84,24 @@ nonisolated final class FakeSpeechRecognitionEngine: SpeechRecognitionEngine, @u
     var fileResult: Result<String, any Error> {
         get { state.withLock { $0.fileResult } }
         set { state.withLock { $0.fileResult = newValue } }
+    }
+
+    /// When true, `transcribeFile` does not answer until `releaseFile()`, like a recognizer
+    /// that never calls back.
+    var holdsFileResult: Bool {
+        get { state.withLock { $0.holdsFileResult } }
+        set { state.withLock { $0.holdsFileResult = newValue } }
+    }
+
+    var didCancelFileTask: Bool { state.withLock { $0.didCancelFileTask } }
+
+    func releaseFile() {
+        let pending = state.withLock { state in
+            defer { state.pendingFiles = [] }
+            state.holdsFileResult = false
+            return state.pendingFiles
+        }
+        pending.forEach { $0.resume() }
     }
 
     var liveTasks: [FakeLiveRecognitionTask] { state.withLock { $0.liveTasks } }
@@ -125,10 +146,19 @@ nonisolated final class FakeSpeechRecognitionEngine: SpeechRecognitionEngine, @u
 
     func transcribeFile(at url: URL, language: SpeechLanguage) async throws -> String {
         let exists = FileManager.default.fileExists(atPath: url.path)
-        let result = state.withLock { state in
+        let (result, holds) = state.withLock { state in
             state.transcribedFiles.append(url)
             state.fileExistedDuringTranscription = exists
-            return state.fileResult
+            return (state.fileResult, state.holdsFileResult)
+        }
+        if holds {
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    state.withLock { $0.pendingFiles.append(continuation) }
+                }
+            } onCancel: {
+                state.withLock { $0.didCancelFileTask = true }
+            }
         }
         return try result.get()
     }
