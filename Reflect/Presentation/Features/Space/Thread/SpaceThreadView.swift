@@ -24,6 +24,9 @@ struct SpaceThreadView: View {
                     header
                     Divider()
                     yourAnswersSection
+                        .onTapGesture {
+                            hideKeyboard()
+                        }
                 }
                 .padding(Constants.Spacing.md)
             }
@@ -163,7 +166,7 @@ struct SpaceThreadView: View {
         }
 
         let myAnswers = viewModel.myAnswers(for: viewModel.selectedQuestionId)
-        Text("Your answers / \(myAnswers.count)")
+        Text("Your answers - \(myAnswers.count)")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
 
@@ -171,6 +174,7 @@ struct SpaceThreadView: View {
             AnswerBubble(
                 answer: answer,
                 spaceName: viewModel.space.name,
+                isSpaceOwner: viewModel.space.isOwner,
                 onEdit: { answer in
                     viewModel.beginEditing(answer)
                     composerFocused = true

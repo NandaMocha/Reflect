@@ -63,6 +63,10 @@ final class SpaceRepository: SpaceRepositoryProtocol {
         try await cloudService.fetchShare(for: space.zoneID)
     }
 
+    func publicInviteLink(for space: Space) async throws -> URL {
+        try await cloudService.ensurePublicInviteLink(for: space.zoneID)
+    }
+
     func members(of space: Space) async throws -> [SpaceMember] {
         try await cloudService.fetchMembers(for: space.zoneID)
     }
@@ -172,9 +176,21 @@ final class SpaceRepository: SpaceRepositoryProtocol {
     }
 
     func fetchReflections(for space: Space) async throws -> [SpaceReflection] {
-        let delta = try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        let delta = try await fetchZoneChanges(for: space)
         try applyZoneDelta(delta, spaceID: space.id)
         return cachedReflections(spaceID: space.id)
+    }
+
+    /// One zone-changes pass, with the "this zone is gone" case handled once for every
+    /// caller: the cached space (and its children) is evicted so the list stops offering a
+    /// space that can't be opened, then the error is rethrown for the UI to explain.
+    private func fetchZoneChanges(for space: Space) async throws -> SpaceZoneDelta {
+        do {
+            return try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        } catch SpaceError.spaceUnavailable {
+            try removeCached(id: space.id)
+            throw SpaceError.spaceUnavailable
+        }
     }
 
     func createReflection(in space: Space, title: String, note: String?, questions: [SpaceQuestion], imageData: Data?) async throws -> SpaceReflection {
@@ -237,7 +253,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
     }
 
     func fetchAnswers(for reflection: SpaceReflection, in space: Space) async throws -> [SpaceAnswer] {
-        let delta = try await cloudService.fetchChanges(in: space.zoneID, spaceID: space.id)
+        let delta = try await fetchZoneChanges(for: space)
         try applyZoneDelta(delta, spaceID: space.id)
         return cachedAnswers(reflectionID: reflection.id)
     }
@@ -361,6 +377,7 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             }
             existing.createdAt = reflection.createdAt
             existing.modifiedAt = reflection.modifiedAt
+            existing.requestToken = reflection.requestToken
             // Sticky true: `isMine` is fail-closed to false in SpaceCloudService.isMine(_:lane:myUserRecordName:)
             // whenever the current user's record name hasn't resolved yet (e.g. a
             // transient CKContainer.userRecordID() lookup on this pass), so a genuinely
@@ -389,6 +406,8 @@ final class SpaceRepository: SpaceRepositoryProtocol {
             }
             existing.createdAt = answer.createdAt
             existing.modifiedAt = answer.modifiedAt
+            existing.guestId = answer.guestId
+            existing.guestName = answer.guestName
             // Sticky true: see the matching comment in upsertReflection — never let a
             // resync downgrade a row already known to be mine, only let it flip false → true.
             existing.isMine = existing.isMine || answer.isMine

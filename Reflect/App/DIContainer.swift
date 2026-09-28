@@ -78,7 +78,22 @@ final class DIContainer {
     // MARK: - Space
 
     func makeSpaceCloudService() -> SpaceCloudServiceProtocol {
-        SpaceCloudService()
+        SpaceCloudService(mirrorService: makeSpaceMirrorService(), ingestService: makeSpaceClipIngestService())
+    }
+
+    /// The Clip guest-feedback public mirror publisher (AC-011). `SpaceCloudService`
+    /// takes this as a constructor dependency and calls it off its sync/delete paths;
+    /// exposed here too for any future caller (e.g. AC-014's share-revocation wiring)
+    /// that needs to call `revokeMirror` directly.
+    func makeSpaceMirrorService() -> SpaceMirrorServiceProtocol {
+        SpaceMirrorService()
+    }
+
+    /// The Clip pending-feedback auto-ingester (AC-012). `SpaceCloudService` takes this
+    /// as a constructor dependency and calls it off the same sync tail as
+    /// `makeSpaceMirrorService()`.
+    func makeSpaceClipIngestService() -> SpaceClipIngestServiceProtocol {
+        SpaceClipIngestService()
     }
 
     @MainActor
@@ -117,6 +132,11 @@ final class DIContainer {
     @MainActor
     func makeFetchSpaceMembersUseCase() -> FetchSpaceMembersUseCaseProtocol {
         FetchSpaceMembersUseCase(repository: makeSpaceRepository())
+    }
+
+    @MainActor
+    func makeShareSpaceInviteLinkUseCase() -> ShareSpaceInviteLinkUseCaseProtocol {
+        ShareSpaceInviteLinkUseCase(repository: makeSpaceRepository())
     }
 
     @MainActor
@@ -204,6 +224,7 @@ final class DIContainer {
         SpaceMembersViewModel(
             space: space,
             fetchUseCase: makeFetchSpaceMembersUseCase(),
+            shareLinkUseCase: makeShareSpaceInviteLinkUseCase(),
             repository: makeSpaceRepository()
         )
     }
@@ -223,6 +244,37 @@ final class DIContainer {
             deleteUseCase: makeDeleteOwnAnswerUseCase(),
             repository: makeSpaceRepository(),
             exportUseCase: makeExportFeedbackRequestUseCase()
+        )
+    }
+
+    // MARK: - Space — Clip guest-feedback links (AC-014)
+
+    /// The owner-side "share a request" flow: mints/reuses the request token, publishes
+    /// its public mirror, and returns the `/f/<token>` wrapper URL for the share sheet.
+    @MainActor
+    func makeShareFeedbackRequestUseCase() -> ShareFeedbackRequestUseCaseProtocol {
+        ShareFeedbackRequestUseCase(
+            cloudService: makeSpaceCloudService(),
+            mirrorService: makeSpaceMirrorService(),
+            repository: makeSpaceRepository()
+        )
+    }
+
+    /// Public-DB `TokenIndex` lookup + `CKShare.Metadata` fetch for an opened `/f/<token>`
+    /// link. No `@MainActor` dependency of its own — safe to call from a background task.
+    func makeSpaceRequestLinkService() -> SpaceRequestLinkServiceProtocol {
+        SpaceRequestLinkService()
+    }
+
+    /// The guest/invitee-side "open a request link" flow: resolves the token to a
+    /// `CKShare`, accepts it (unless already a member), and looks up the specific
+    /// `SpaceReflection` thread it points at.
+    @MainActor
+    func makeResolveRequestLinkUseCase() -> ResolveRequestLinkUseCaseProtocol {
+        ResolveRequestLinkUseCase(
+            linkService: makeSpaceRequestLinkService(),
+            acceptUseCase: makeAcceptSpaceInviteUseCase(),
+            repository: makeSpaceRepository()
         )
     }
 

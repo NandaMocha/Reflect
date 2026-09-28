@@ -100,6 +100,20 @@ struct SpaceMembersView: View {
             if viewModel.canInvite {
                 Section {
                     Button {
+                        Task { await viewModel.copyInviteLink() }
+                    } label: {
+                        HStack(spacing: Constants.Spacing.sm) {
+                            if viewModel.isPreparingLink {
+                                ProgressView()
+                            } else {
+                                Image(systemName: viewModel.didCopyLink ? "checkmark" : "link")
+                            }
+                            Text(viewModel.didCopyLink ? "Link Copied" : "Copy Invite Link")
+                        }
+                    }
+                    .disabled(viewModel.isPreparingLink)
+
+                    Button {
                         Task { await viewModel.prepareInvite() }
                     } label: {
                         HStack(spacing: Constants.Spacing.sm) {
@@ -112,6 +126,8 @@ struct SpaceMembersView: View {
                         }
                     }
                     .disabled(viewModel.isPreparingInvite)
+                } footer: {
+                    Text("Anyone with the invite link can join this space — paste it wherever you like. Invite People sends an invite to specific people instead.")
                 }
             }
 

@@ -11,9 +11,18 @@ struct SpaceDetailView: View {
     @State private var reflectionToEdit: SpaceReflection?
     @State private var selectedPhotoItem: PhotosPickerItem?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismiss) private var dismiss
+
+    // "Share feedback link" (AC-014) — mints the guest link for one request and hands it
+    // to the system share sheet. Lives here (not on `SpaceThreadView`) because the
+    // request's context menu is already the per-reflection action surface.
+    @State private var requestLinkPresenter: RequestLinkSharePresenter
 
     init(space: Space) {
         _viewModel = State(initialValue: DIContainer.shared.makeSpaceDetailViewModel(space: space))
+        _requestLinkPresenter = State(initialValue: RequestLinkSharePresenter(
+            useCase: DIContainer.shared.makeShareFeedbackRequestUseCase()
+        ))
     }
 
     var body: some View {
@@ -66,7 +75,18 @@ struct SpaceDetailView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await viewModel.refresh() } }
         }
+        // `sheet(item:)` off the presenter's `ShareItems?` unwraps safely and clears
+        // itself on dismiss — no separate `isPresented` flag to keep in sync.
+        .sheet(item: $requestLinkPresenter.shareItems) { items in
+            ReflectionShareSheet(items: items.values)
+        }
         .errorAlert($viewModel.errorMessage)
+        // The space's zone is gone in this build's iCloud environment and its cache row has
+        // been evicted — once the explanation is dismissed there's nothing left to show here.
+        .onChange(of: viewModel.errorMessage) { _, message in
+            if message == nil && viewModel.spaceWasRemoved { dismiss() }
+        }
+        .errorAlert($requestLinkPresenter.errorMessage, title: "Couldn't Share Link")
         .alert(
             "Delete request?",
             isPresented: Binding(
@@ -110,6 +130,19 @@ struct SpaceDetailView: View {
                                     reflectionToEdit = reflection
                                 } label: {
                                     Label("Edit questions", systemImage: "pencil")
+                                }
+                            }
+                            // Owner-only (AC-014): only the space owner can mint/publish a
+                            // guest-feedback link — `ShareFeedbackRequestUseCase` also
+                            // guards this server-side, this just avoids offering an action
+                            // that would fail.
+                            if viewModel.space.isOwner {
+                                Button {
+                                    Task {
+                                        await requestLinkPresenter.prepare(reflection: reflection, space: viewModel.space)
+                                    }
+                                } label: {
+                                    Label("Share feedback link", systemImage: "link")
                                 }
                             }
                             ReportContentButton(
@@ -291,9 +324,12 @@ struct SpaceReflectionRow: View {
 }
 
 /// Shared helper for rendering a content author: "You" for the current user, the resolved
-/// display name otherwise, falling back to "A member".
+/// display name otherwise, falling back to "A member". Guests (App Clip submitters, AC-010/013)
+/// are a distinct case — `isGuest` short-circuits before `isMine` is even consulted, so a guest
+/// answer can never render with "You" styling regardless of what `isMine` happens to be.
 enum SpaceAuthor {
-    static func label(isMine: Bool, name: String?) -> String {
+    static func label(isMine: Bool, name: String?, isGuest: Bool = false) -> String {
+        if isGuest { return "\(name ?? "Guest") · guest" }
         if isMine { return "You" }
         return name ?? "A member"
     }

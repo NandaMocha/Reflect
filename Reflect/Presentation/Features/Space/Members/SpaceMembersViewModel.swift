@@ -1,6 +1,7 @@
 import CloudKit
 import Foundation
 import Observation
+import UIKit
 
 /// Backs the members sheet: who's in a space, plus the owner's invite entry point.
 ///
@@ -30,20 +31,33 @@ final class SpaceMembersViewModel {
     var shareToPresent: CKShare?
     var isPreparingInvite: Bool = false
 
+    /// Drives the invite-link button's spinner while the share is fetched (and, the first
+    /// time, made public).
+    var isPreparingLink: Bool = false
+    /// Flips true once the link is on the pasteboard, so the button can confirm the copy.
+    /// Cleared automatically a couple of seconds later by `scheduleCopiedReset()`.
+    private(set) var didCopyLink: Bool = false
+
     // MARK: - Dependencies
 
     private let fetchUseCase: FetchSpaceMembersUseCaseProtocol
+    private let shareLinkUseCase: ShareSpaceInviteLinkUseCaseProtocol
     private let repository: SpaceRepositoryProtocol
+
+    /// Held so a repeat copy can restart the "Link Copied" timer rather than race it.
+    private var copiedResetTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
     init(
         space: Space,
         fetchUseCase: FetchSpaceMembersUseCaseProtocol,
+        shareLinkUseCase: ShareSpaceInviteLinkUseCaseProtocol,
         repository: SpaceRepositoryProtocol
     ) {
         self.space = space
         self.fetchUseCase = fetchUseCase
+        self.shareLinkUseCase = shareLinkUseCase
         self.repository = repository
     }
 
@@ -114,6 +128,47 @@ final class SpaceMembersViewModel {
         } catch {
             errorMessage = error.localizedDescription
             HapticManager.shared.error()
+        }
+    }
+
+    /// Copies the space's invite link to the pasteboard — the "paste it in a group chat and
+    /// anyone can join" path, which needs no named participants up front.
+    ///
+    /// This is also the point where the space becomes link-joinable: shares are created
+    /// invite-only and `ensurePublicInviteLink` opens them on the first call, so it can
+    /// take a round trip. `isPreparingLink` covers that.
+    func copyInviteLink() async {
+        guard canInvite, !isPreparingLink else { return }
+        isPreparingLink = true
+        defer { isPreparingLink = false }
+        do {
+            let url = try await shareLinkUseCase.execute(for: space)
+            // `.url` rather than `.string` so pasting into Messages/Mail produces a real
+            // tappable link; the string form is set too for plain-text destinations.
+            UIPasteboard.general.url = url
+            UIPasteboard.general.string = url.absoluteString
+            didCopyLink = true
+            errorMessage = nil
+            HapticManager.shared.success()
+            scheduleCopiedReset()
+        } catch {
+            errorMessage = error.localizedDescription
+            HapticManager.shared.error()
+        }
+    }
+
+    /// Reverts the transient "Link Copied" label after a beat.
+    ///
+    /// Owned here rather than driven by an `.onChange` in the view: the button lives inside
+    /// a `List` `Section`, and `List` destructures its sections, so a modifier hung off the
+    /// section is unreliable — it can be dropped or applied once per row. Holding the task
+    /// lets a second copy restart the timer cleanly instead of racing the first one's reset.
+    private func scheduleCopiedReset() {
+        copiedResetTask?.cancel()
+        copiedResetTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            self?.didCopyLink = false
         }
     }
 

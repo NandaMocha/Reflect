@@ -42,6 +42,14 @@ protocol SpaceCloudServiceProtocol {
     /// for `zone.lane`.
     func fetchShare(for zone: SpaceZoneRef) async throws -> CKShare
 
+    /// Owner-only. Ensures the space's `CKShare` accepts anyone who has its URL (public
+    /// `.readWrite`) and returns that URL, for the "Copy Invite Link" flow.
+    ///
+    /// Idempotent, and doubles as the lazy migration for spaces created before invite
+    /// links existed — those shares were saved with `publicPermission = .none`, which
+    /// makes their URL resolve only for already-named participants.
+    func ensurePublicInviteLink(for zone: SpaceZoneRef) async throws -> URL
+
     /// The share's participants, flattened into `SpaceMember` values. Owner first, then
     /// joined members, then still-pending invites. Display names are resolved from
     /// self-registered `MemberProfile` records first, then CloudKit's identity name.
@@ -97,6 +105,16 @@ protocol SpaceCloudServiceProtocol {
     /// Deletes a single child record (reflection or answer) by record name. UI-level
     /// trust: the caller guards `isMine` (no server enforcement, plan §11.2).
     func deleteRecord(id: String, in zone: SpaceZoneRef) async throws
+
+    // MARK: - Clip guest feedback — AC-010
+
+    /// Mints and persists the Clip guest-feedback share token for a reflection, if it
+    /// doesn't already have one, and creates the public `TokenIndex` lookup record
+    /// (`"tok-" + token`) that resolves it back to this zone/reflection. Idempotent: a
+    /// second call for an already-tokenized reflection returns the stored token as-is —
+    /// no re-save, no duplicate `TokenIndex`. Owner-only (`zone.lane == .privateDB`);
+    /// a joined participant can't mint a link for someone else's request.
+    func ensureRequestToken(for reflectionID: String, in zone: SpaceZoneRef) async throws -> String
 
     // MARK: - Subscriptions / background sync — T22
 

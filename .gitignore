@@ -21,3 +21,10 @@ loop/REPLAN-*.sh.failed
 *.p12
 eckey*
 cloudkit-key*
+
+# Xcode build output
+build/
+
+# loop/ runner cache and local db
+loop/__pycache__/
+loop/loop.db

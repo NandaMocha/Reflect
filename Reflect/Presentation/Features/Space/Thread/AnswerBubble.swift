@@ -1,23 +1,42 @@
 import SwiftUI
 
 /// A single answer, styled for own vs others'. Context menu offers Edit/Delete (own, with a
-/// delete confirmation) and Report (any). Shows a photo thumbnail with a fullscreen viewer
-/// when the answer has an attached image.
+/// delete confirmation) and Report (any). Delete also renders for a guest's answer when the
+/// current user is the space owner — moderation affordance for App Clip submissions (AC-013).
+/// Shows a photo thumbnail with a fullscreen viewer when the answer has an attached image.
 struct AnswerBubble: View {
     let answer: SpaceAnswer
     let spaceName: String
+    /// Whether the current user owns the space. Only relevant for guest answers — it's what
+    /// lets the owner delete a guest's submission for moderation.
+    var isSpaceOwner: Bool = false
     var onEdit: ((SpaceAnswer) -> Void)? = nil
     var onDelete: ((SpaceAnswer) -> Void)? = nil
 
     @State private var showImageFullscreen = false
     @State private var showDeleteConfirmation = false
 
+    /// "You" styling and the own-answer highlight must never apply to a guest answer, even if
+    /// `isMine` were ever true for one (defensive — see `SpaceAuthor`).
+    private var showsAsMine: Bool { answer.isMine && !answer.isGuest }
+
+    /// Delete renders for the author's own answer, or for a guest's answer if the current user
+    /// owns the space. This mirrors (but does not replace) the trust-boundary guard in
+    /// `DeleteOwnSpaceContentUseCase` — that guard is the actual enforcement point.
+    private var canDelete: Bool {
+        showsAsMine || (answer.isGuest && isSpaceOwner)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Text(SpaceAuthor.label(isMine: answer.isMine, name: answer.authorDisplayName))
+                Text(SpaceAuthor.label(
+                    isMine: answer.isMine,
+                    name: answer.isGuest ? answer.guestName : answer.authorDisplayName,
+                    isGuest: answer.isGuest
+                ))
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(answer.isMine ? Color.primaryDefault : .secondary)
+                    .foregroundStyle(showsAsMine ? Color.primaryDefault : .secondary)
                 if let createdAt = answer.createdAt {
                     Text("·")
                     Text(createdAt, format: .relative(presentation: .named))
@@ -53,16 +72,14 @@ struct AnswerBubble: View {
         .padding(Constants.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: Constants.CornerRadius.medium)
-                .fill(answer.isMine ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
+                .fill(showsAsMine ? Color.primaryDefault.opacity(0.10) : Color.secondary.opacity(0.08))
         )
         .contextMenu {
-            if answer.isMine {
-                if let onEdit {
-                    Button { onEdit(answer) } label: { Label("Edit", systemImage: "pencil") }
-                }
-                if onDelete != nil {
-                    Button(role: .destructive) { showDeleteConfirmation = true } label: { Label("Delete", systemImage: "trash") }
-                }
+            if showsAsMine, let onEdit {
+                Button { onEdit(answer) } label: { Label("Edit", systemImage: "pencil") }
+            }
+            if canDelete, onDelete != nil {
+                Button(role: .destructive) { showDeleteConfirmation = true } label: { Label("Delete", systemImage: "trash") }
             }
             ReportContentButton(contentKind: "feedback", contentID: answer.id, spaceName: spaceName)
         }
@@ -75,4 +92,78 @@ struct AnswerBubble: View {
             Button("Cancel", role: .cancel) {}
         }
     }
+}
+
+private let previewOwnAnswer = SpaceAnswer(
+    id: "answer-1",
+    reflectionID: "reflection-1",
+    questionId: "question-1",
+    text: "I finally got the retry logic working after three tries.",
+    authorRecordName: "me",
+    authorDisplayName: "Me",
+    createdAt: .now.addingTimeInterval(-3600),
+    isMine: true
+)
+
+private let previewMemberAnswer = SpaceAnswer(
+    id: "answer-2",
+    reflectionID: "reflection-1",
+    questionId: "question-1",
+    text: "Same here — the flaky test was hiding a race condition.",
+    authorRecordName: "rina",
+    authorDisplayName: "Rina",
+    createdAt: .now.addingTimeInterval(-7200),
+    isMine: false
+)
+
+private let previewGuestAnswer = SpaceAnswer(
+    id: "answer-3",
+    reflectionID: "reflection-1",
+    questionId: "question-1",
+    text: "Joined from the App Clip — this was my first reflection!",
+    authorRecordName: nil,
+    authorDisplayName: nil,
+    createdAt: .now.addingTimeInterval(-1800),
+    isMine: true,
+    guestId: "g-1",
+    guestName: "Alex"
+)
+
+/// Renders own / member / guest answers under both non-owner and owner viewpoints, per
+/// AC-013's acceptance criterion: guest answers show a guest byline, never an Edit action,
+/// and Delete only when the viewer owns the space; non-owner members only ever see Report.
+#Preview("Non-owner viewer") {
+    VStack(alignment: .leading, spacing: 8) {
+        AnswerBubble(
+            answer: previewOwnAnswer, spaceName: "Study Group", isSpaceOwner: false,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewMemberAnswer, spaceName: "Study Group", isSpaceOwner: false,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewGuestAnswer, spaceName: "Study Group", isSpaceOwner: false,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+    }
+    .padding()
+}
+
+#Preview("Space owner viewer") {
+    VStack(alignment: .leading, spacing: 8) {
+        AnswerBubble(
+            answer: previewOwnAnswer, spaceName: "Study Group", isSpaceOwner: true,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewMemberAnswer, spaceName: "Study Group", isSpaceOwner: true,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+        AnswerBubble(
+            answer: previewGuestAnswer, spaceName: "Study Group", isSpaceOwner: true,
+            onEdit: { _ in }, onDelete: { _ in }
+        )
+    }
+    .padding()
 }

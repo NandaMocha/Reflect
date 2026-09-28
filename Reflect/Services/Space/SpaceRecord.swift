@@ -30,6 +30,11 @@ enum SpaceRecordField {
     static let imageAsset = "imageAsset"
     static let note = "note"
     static let questionsJSON = "questionsJSON"
+    /// The Clip guest-feedback share token (AC-010), when this reflection has one.
+    /// Same string as `ClipMirrorField.requestToken` — kept as a separate constant here
+    /// because `ClipShared` (which `ClipMirrorField` lives in) is a cross-target folder
+    /// and this file is app-only.
+    static let requestToken = "requestToken"
 
     // SpaceReflection child records (Answer)
     static let reflectionID = "reflectionID"
@@ -41,6 +46,10 @@ enum SpaceRecordField {
     // Answer (child of SpaceReflection)
     static let questionId = "questionId"
     static let text = "text"
+    /// Set only on answers authored by an unauthenticated Clip guest (AC-010); nil for
+    /// answers from a signed-in member.
+    static let guestId = "guestId"
+    static let guestName = "guestName"
 }
 
 // MARK: - CKRecord <-> Entity Mapping
@@ -164,7 +173,8 @@ enum SpaceRecordMapper {
         title: String,
         note: String?,
         questions: [SpaceQuestion],
-        imageAsset: CKAsset? = nil
+        imageAsset: CKAsset? = nil,
+        requestToken: String? = nil
     ) -> CKRecord {
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: SpaceRecordType.spaceReflection, recordID: recordID)
@@ -176,6 +186,9 @@ enum SpaceRecordMapper {
         }
         if let imageAsset {
             record[SpaceRecordField.imageAsset] = imageAsset
+        }
+        if let requestToken {
+            record[SpaceRecordField.requestToken] = requestToken as CKRecordValue
         }
         let parentID = CKRecord.ID(recordName: spaceID, zoneID: zoneID)
         record.parent = CKRecord.Reference(recordID: parentID, action: .none)
@@ -216,7 +229,8 @@ enum SpaceRecordMapper {
             authorDisplayName: nil, // resolved from CKShare.participants by the caller
             createdAt: record.creationDate,
             modifiedAt: record.modificationDate,
-            isMine: isMine
+            isMine: isMine,
+            requestToken: record[SpaceRecordField.requestToken] as? String
         )
     }
 
@@ -232,7 +246,9 @@ enum SpaceRecordMapper {
         reflectionID: String,
         questionId: String,
         text: String,
-        imageAsset: CKAsset? = nil
+        imageAsset: CKAsset? = nil,
+        guestId: String? = nil,
+        guestName: String? = nil
     ) -> CKRecord {
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: SpaceRecordType.answer, recordID: recordID)
@@ -241,6 +257,12 @@ enum SpaceRecordMapper {
         record[SpaceRecordField.reflectionID] = reflectionID as CKRecordValue
         if let imageAsset {
             record[SpaceRecordField.imageAsset] = imageAsset
+        }
+        if let guestId {
+            record[SpaceRecordField.guestId] = guestId as CKRecordValue
+        }
+        if let guestName {
+            record[SpaceRecordField.guestName] = guestName as CKRecordValue
         }
         let parentID = CKRecord.ID(recordName: reflectionID, zoneID: zoneID)
         record.parent = CKRecord.Reference(recordID: parentID, action: .none)
@@ -278,7 +300,112 @@ enum SpaceRecordMapper {
             authorDisplayName: nil, // resolved from CKShare.participants by the caller
             createdAt: record.creationDate,
             modifiedAt: record.modificationDate,
-            isMine: isMine
+            isMine: isMine,
+            guestId: record[SpaceRecordField.guestId] as? String,
+            guestName: record[SpaceRecordField.guestName] as? String
         )
+    }
+
+    // MARK: - Clip Mirror: TokenIndex (public DB, AC-010)
+
+    /// Builds the public-DB `TokenIndex` record for a freshly-minted request token.
+    /// `recordName` is exactly `"tok-" + token` (via `ClipMirrorRecordName.tokenIndex`) —
+    /// AC-015's Clip-side `records/lookup` depends on that being byte-for-byte stable.
+    /// Lives in the public database's default zone (no `zoneID`), unlike the Space
+    /// hierarchy above.
+    static func makeTokenIndexRecord(
+        token: String,
+        shareURL: String,
+        reflectionID: String,
+        zoneOwnerName: String
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: ClipMirrorRecordName.tokenIndex(for: token))
+        let record = CKRecord(recordType: ClipMirrorRecordType.tokenIndex, recordID: recordID)
+        record[ClipMirrorField.shareURL] = shareURL as CKRecordValue
+        record[ClipMirrorField.reflectionID] = reflectionID as CKRecordValue
+        record[ClipMirrorField.zoneOwnerName] = zoneOwnerName as CKRecordValue
+        return record
+    }
+
+    // MARK: - Clip Mirror: MirroredRequest / MirroredAnswer (public DB, AC-011)
+
+    /// Builds (or rebuilds) the public-DB `MirroredRequest` record for one tokenized
+    /// `SpaceReflection`. `recordName` is deterministic in `token` (via
+    /// `SpaceMirrorRecordName.mirroredRequest`) so re-publishing overwrites the same
+    /// record — `SpaceMirrorService` upserts with `.allKeys`. Lives in the public
+    /// database's default zone, like `TokenIndex`.
+    static func makeMirroredRequestRecord(
+        token: String,
+        title: String,
+        note: String?,
+        questionsJSON: String,
+        thumbnail: CKAsset?
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: SpaceMirrorRecordName.mirroredRequest(for: token))
+        let record = CKRecord(recordType: ClipMirrorRecordType.mirroredRequest, recordID: recordID)
+        record[ClipMirrorField.requestToken] = token as CKRecordValue
+        record[ClipMirrorField.title] = title as CKRecordValue
+        if let note {
+            record[ClipMirrorField.note] = note as CKRecordValue
+        }
+        record[ClipMirrorField.questionsJSON] = questionsJSON as CKRecordValue
+        if let thumbnail {
+            record[ClipMirrorField.thumbnail] = thumbnail
+        }
+        return record
+    }
+
+    /// Builds (or rebuilds) the public-DB `MirroredAnswer` record mirroring one owned
+    /// `Answer`. `recordName` is deterministic in the source Answer's record name (via
+    /// `SpaceMirrorRecordName.mirroredAnswer`), so diffing against a source `Answer` that
+    /// no longer exists is a simple recordName-set comparison (`SpaceMirrorService`).
+    static func makeMirroredAnswerRecord(
+        token: String,
+        sourceAnswerRecordName: String,
+        questionId: String,
+        answerIndex: Int,
+        authorDisplayName: String,
+        text: String,
+        guestId: String?
+    ) -> CKRecord {
+        let recordID = CKRecord.ID(recordName: SpaceMirrorRecordName.mirroredAnswer(for: sourceAnswerRecordName))
+        let record = CKRecord(recordType: ClipMirrorRecordType.mirroredAnswer, recordID: recordID)
+        record[ClipMirrorField.requestToken] = token as CKRecordValue
+        record[ClipMirrorField.sourceAnswerRecordName] = sourceAnswerRecordName as CKRecordValue
+        record[ClipMirrorField.questionId] = questionId as CKRecordValue
+        record[ClipMirrorField.answerIndex] = answerIndex as CKRecordValue
+        record[ClipMirrorField.authorDisplayName] = authorDisplayName as CKRecordValue
+        record[ClipMirrorField.text] = text as CKRecordValue
+        if let guestId {
+            record[ClipMirrorField.guestId] = guestId as CKRecordValue
+        }
+        return record
+    }
+}
+
+// MARK: - Mirror recordName conventions (AC-011)
+
+/// `recordName` conventions for the mirror records `SpaceMirrorService` publishes.
+///
+/// Deliberately separate from `ClipMirrorRecordName` (in `ClipShared/ClipMirrorSchema.swift`,
+/// read-only after AC-010): that file only defines the conventions the Clip target itself
+/// depends on byte-for-byte (`TokenIndex`, `PendingClipFeedback`). `MirroredRequest`/
+/// `MirroredAnswer` are looked up by the Clip via a `requestToken` query, never by
+/// recordName, so their naming is a full-app-only implementation detail owned here.
+enum SpaceMirrorRecordName {
+    static let mirroredRequestPrefix = "mreq-"
+    static let mirroredAnswerPrefix = "mans-"
+
+    /// The `MirroredRequest` recordName for a given token — one per token, so
+    /// re-publishing overwrites in place instead of accumulating duplicates.
+    static func mirroredRequest(for token: String) -> String {
+        mirroredRequestPrefix + token
+    }
+
+    /// The `MirroredAnswer` recordName for one source `Answer` record — deterministic in
+    /// the Answer's own recordName so `SpaceMirrorService` can diff "does a mirror for
+    /// this Answer already exist" without a query.
+    static func mirroredAnswer(for sourceAnswerRecordName: String) -> String {
+        mirroredAnswerPrefix + sourceAnswerRecordName
     }
 }

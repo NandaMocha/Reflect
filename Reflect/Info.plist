@@ -17,6 +17,15 @@
 	</array>
 	<key>CKSharingSupported</key>
 	<true/>
+	<!-- Answers App Store Connect's export-compliance question up front, so TestFlight
+	     builds go straight to "Ready to Test" instead of parking on "Missing Compliance".
+	     `false` is the equivalent of picking "None of the algorithms mentioned above":
+	     the app uses only exempt encryption — HTTPS/CloudKit in transit, Apple's Keychain
+	     (SecItem) for guest identity, and SecRandomCopyBytes for token generation, which
+	     is an RNG rather than a cipher. Revisit this if custom or non-exempt cryptography
+	     is ever added. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
