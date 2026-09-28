@@ -87,6 +87,9 @@ struct VoiceAudioView: View {
                         .padding(.bottom, 16)
                 }
             }
+            // A container of its own, so the identifier names the screen without overriding the
+            // identifiers of the controls and transcript states inside it.
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("voice.recorder")
             .navigationTitle("Voice Note")
             .navigationBarTitleDisplayMode(.inline)
@@ -980,6 +983,8 @@ private struct StopButton: View {
                         .frame(width: 24, height: 24)
                 }
             }
+            .accessibilityLabel("Stop recording")
+            .accessibilityIdentifier("voice.stop")
         }
     }
 }
@@ -1014,8 +1019,99 @@ private struct RecordButton: View {
                     .foregroundColor(.white)
             }
         }
+        .accessibilityLabel("Start recording")
+        .accessibilityIdentifier("voice.record")
     }
 }
+
+#if DEBUG
+// MARK: - UI Testing
+
+/// Stands in for speech recognition when the app is launched with `-uiTestingSpeech <scenario>`,
+/// so a UI test can reach every transcript state on a simulator, where the real recognizer
+/// cannot be steered. Only the transcript is faked: the audio is still recorded for real.
+final class UITestingSpeechRecognitionService: SpeechRecognitionServiceProtocol {
+    enum Scenario: String {
+        /// The live recognizer heard speech.
+        case live
+        /// The live recognizer failed and the file fallback heard speech.
+        case fallback
+        /// Neither heard speech.
+        case noSpeech
+        /// Both failed, for example offline without on-device support.
+        case unavailable
+        /// The fallback does not answer, so the screen stays on "Transcribing...".
+        case transcribing
+    }
+
+    static let launchKey = "uiTestingSpeech"
+    static let transcript = "Today I learned that the voice note keeps its audio even when the transcript fails."
+
+    /// The scenario named by the launch arguments, or nil when the app is not under a UI test.
+    static var launchScenario: Scenario? {
+        UserDefaults.standard.string(forKey: launchKey).flatMap(Scenario.init(rawValue:))
+    }
+
+    private let scenario: Scenario
+
+    init(scenario: Scenario) {
+        self.scenario = scenario
+    }
+
+    var isRecording: Bool { false }
+    var transcribedText: String { "" }
+    var transcribedTextPublisher: AnyPublisher<String, Never> { Empty().eraseToAnyPublisher() }
+    var recordingStatePublisher: AnyPublisher<RecordingState, Never> { Empty().eraseToAnyPublisher() }
+    var audioLevelPublisher: AnyPublisher<Float, Never> { Empty().eraseToAnyPublisher() }
+
+    func requestPermission() async -> Bool { true }
+    func startRecording(language: SpeechLanguage) async throws {}
+    func cancelRecording() {}
+
+    func stopRecording() async throws -> VoiceRecordingResult {
+        switch scenario {
+        case .live:
+            return result(Data(), text: Self.transcript, outcome: .transcribed, language: .indonesian)
+        case .fallback, .unavailable:
+            return result(Data(), text: nil, outcome: .recognizerFailed(.recognitionFailed), language: .indonesian)
+        case .noSpeech:
+            return result(Data(), text: nil, outcome: .noSpeechDetected, language: .indonesian)
+        case .transcribing:
+            return result(Data(), text: nil, outcome: .recognizerDidNotRun, language: .indonesian)
+        }
+    }
+
+    func transcribe(audioData: Data, language: SpeechLanguage) async -> VoiceRecordingResult {
+        switch scenario {
+        case .live, .fallback:
+            return result(audioData, text: Self.transcript, outcome: .transcribed, language: language)
+        case .noSpeech:
+            return result(audioData, text: nil, outcome: .noSpeechDetected, language: language)
+        case .unavailable:
+            return result(audioData, text: nil, outcome: .recognizerFailed(.notAvailable), language: language)
+        case .transcribing:
+            // Ends early only when the screen drops the transcript (Done or Cancel).
+            try? await Task.sleep(for: .seconds(600))
+            return result(audioData, text: nil, outcome: .recognizerFailed(.timedOut), language: language)
+        }
+    }
+
+    private func result(
+        _ audioData: Data,
+        text: String?,
+        outcome: TranscriptionOutcome,
+        language: SpeechLanguage
+    ) -> VoiceRecordingResult {
+        VoiceRecordingResult(
+            audioData: audioData,
+            transcription: text,
+            language: language.rawValue,
+            duration: 0,
+            outcome: outcome
+        )
+    }
+}
+#endif
 
 // MARK: - Preview
 
