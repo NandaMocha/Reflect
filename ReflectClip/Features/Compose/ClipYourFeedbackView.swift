@@ -103,7 +103,6 @@ struct ClipYourFeedbackView: View {
                 VStack(alignment: .leading, spacing: Constants.Spacing.xs) {
                     Text(viewModel.request?.title ?? "")
                         .font(.title3.weight(.bold))
-                        .lineLimit(3)
 
                     if let note = viewModel.request?.note, !note.isEmpty {
                         Text(note)

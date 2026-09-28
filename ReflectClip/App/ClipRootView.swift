@@ -49,26 +49,32 @@ private struct InvocationTimedOutPlaceholderView: View {
     @ScaledMetric(relativeTo: .title) private var iconSize: CGFloat = 40
 
     var body: some View {
-        VStack(spacing: Constants.Spacing.lg) {
-            VStack(spacing: Constants.Spacing.sm) {
-                Image(systemName: "wifi.exclamationmark")
-                    .font(.system(size: iconSize))
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
-                Text("Still connecting")
-                    .font(.title2.bold())
-                Text("This is taking longer than expected. You can try again.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+        // Scrollable like the composer's/All feedback's error views, so accessibility text
+        // sizes push "Try Again" below the fold instead of clipping it off-screen.
+        ScrollView {
+            VStack(spacing: Constants.Spacing.lg) {
+                VStack(spacing: Constants.Spacing.sm) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.system(size: iconSize))
+                        .foregroundStyle(.tint)
+                        .accessibilityHidden(true)
+                    Text("Still connecting")
+                        .font(.title2.bold())
+                    Text("This is taking longer than expected. You can try again.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
-            Button("Try Again") {
-                session.retryResolution()
+                Button("Try Again") {
+                    session.retryResolution()
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
+            .padding(Constants.Spacing.lg)
+            .frame(maxWidth: .infinity)
         }
-        .padding(Constants.Spacing.lg)
+        .scrollBounceBehavior(.basedOnSize)
     }
 }
 
@@ -79,18 +85,22 @@ private struct PhasePlaceholderView: View {
     @ScaledMetric(relativeTo: .title) private var iconSize: CGFloat = 40
 
     var body: some View {
-        VStack(spacing: Constants.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.system(size: iconSize))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
-            Text(title)
-                .font(.title2.bold())
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        ScrollView {
+            VStack(spacing: Constants.Spacing.sm) {
+                Image(systemName: systemImage)
+                    .font(.system(size: iconSize))
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(.title2.bold())
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(Constants.Spacing.lg)
+            .frame(maxWidth: .infinity)
         }
-        .padding(Constants.Spacing.lg)
+        .scrollBounceBehavior(.basedOnSize)
     }
 }
