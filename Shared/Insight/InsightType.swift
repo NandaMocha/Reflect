@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import SwiftUI
 
 /// The kind of quick-capture insight. Categorisation only — Insight is a
 /// standalone feature, decoupled from Reflection/Learning.
@@ -35,10 +36,15 @@ enum InsightType: String, Codable, CaseIterable, Identifiable, AppEnum {
     }
 
     /// Hex string WITHOUT leading '#', consumed by each target's own Color(hex:) extension.
-    var colorHex: String {
-        switch self {
-        case .question: return "81D4FA"
-        case .note: return "FFCC80"
+    /// Light and dark differ because the tag pill tints its fill with the same colour as its
+    /// text, so no single hex reaches WCAG AA 4.5:1 in both appearances
+    /// (see `InsightTypeContrastTests`).
+    func colorHex(for colorScheme: ColorScheme) -> String {
+        switch (self, colorScheme) {
+        case (.question, .dark): return "C7EBFF"
+        case (.question, _): return "065F8F"
+        case (.note, .dark): return "FFE0BD"
+        case (.note, _): return "854806"
         }
     }
 
