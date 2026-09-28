@@ -28,11 +28,16 @@ struct LiveWaveformBuffer: Sendable, Equatable {
     }
 
     /// Seconds between two level updates from `AudioRecorderService`.
-    static let emissionInterval: TimeInterval = 0.05
+    static let emissionInterval: TimeInterval = AudioRecorderService.levelEmissionInterval
 
     // MARK: - State
 
     private(set) var samples: [Float]
+    /// When the newest level arrived. `nil` while no levels are taken, which parks the
+    /// waveform's scroll animation.
+    private(set) var lastAppend: Date?
+    /// `false` after `stop`. Levels that arrive then are dropped.
+    private var isCapturing = true
     /// Smoothed loudness of the newest bar (`1` = loudest).
     private var envelope: Float = 0
     private let tuning: Tuning
@@ -46,8 +51,13 @@ struct LiveWaveformBuffer: Sendable, Equatable {
 
     // MARK: - Actions
 
-    /// Takes a raw level (`0...1`, `1` = loudest) and scrolls the window one slot.
-    mutating func append(level: Float) {
+    /// Takes a raw level (`0...1`, `1` = loudest), scrolls the window one slot and stamps `date`.
+    ///
+    /// Does nothing after `stop`: the recorder delivers levels through the main queue, so one
+    /// that was already queued still arrives after the recording ended.
+    mutating func append(level: Float, at date: Date = Date()) {
+        guard isCapturing else { return }
+
         let target = Self.curve(level, tuning: tuning)
         let coefficient = target > envelope ? tuning.attack : tuning.release
         envelope += coefficient * (target - envelope)
@@ -55,6 +65,19 @@ struct LiveWaveformBuffer: Sendable, Equatable {
 
         samples.removeFirst()
         samples.append(max(0, min(1, 1 - envelope)))
+        lastAppend = date
+    }
+
+    /// Takes levels again. The window keeps its values.
+    mutating func start() {
+        isCapturing = true
+    }
+
+    /// Drops every level from here on. The window keeps its values, because the recorder screen
+    /// falls back to them as the stored waveform.
+    mutating func stop() {
+        isCapturing = false
+        lastAppend = nil
     }
 
     /// Changes the window length. The newest values stay right-aligned, silence fills the left.
@@ -68,10 +91,12 @@ struct LiveWaveformBuffer: Sendable, Equatable {
         }
     }
 
-    /// Back to an all-silent window with a resting envelope.
+    /// Back to an all-silent window with a resting envelope, taking levels again.
     mutating func reset() {
         samples = Self.silence(samples.count)
         envelope = 0
+        lastAppend = nil
+        isCapturing = true
     }
 
     // MARK: - Level shaping

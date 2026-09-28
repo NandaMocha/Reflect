@@ -511,7 +511,7 @@ final class AudioRecorderWrapper {
 
     /// When the newest level arrived. `nil` while no levels are coming in, which parks the
     /// waveform's scroll animation.
-    private(set) var lastWaveformAppend: Date?
+    var lastWaveformAppend: Date? { waveformBuffer.lastAppend }
 
     private var waveformBuffer: LiveWaveformBuffer
 
@@ -522,7 +522,9 @@ final class AudioRecorderWrapper {
     #endif
 
     init(visibleBarCount: Int = 60) {
-        self.waveformBuffer = LiveWaveformBuffer(count: visibleBarCount + 1)
+        var buffer = LiveWaveformBuffer(count: visibleBarCount + 1)
+        buffer.stop()
+        self.waveformBuffer = buffer
 
         if !Self.usesSyntheticLevels {
             service.audioLevelPublisher
@@ -541,8 +543,12 @@ final class AudioRecorderWrapper {
 
     func startRecording() async throws {
         waveformBuffer.reset()
-        lastWaveformAppend = nil
-        try await service.startRecording()
+        do {
+            try await service.startRecording()
+        } catch {
+            waveformBuffer.stop()
+            throw error
+        }
         startSyntheticLevelsIfNeeded()
     }
 
@@ -562,16 +568,16 @@ final class AudioRecorderWrapper {
     }
 
     /// Scrolls the window one bar and stamps the time, which restarts the view's scroll.
+    /// The buffer drops levels that arrive after stop or cancel.
     private func appendLevel(_ level: Float) {
         waveformBuffer.append(level: level)
-        lastWaveformAppend = Date()
     }
 
     private func stopLevels() {
         #if DEBUG
         syntheticLevels = nil
         #endif
-        lastWaveformAppend = nil
+        waveformBuffer.stop()
     }
 
     // MARK: - UI test seam

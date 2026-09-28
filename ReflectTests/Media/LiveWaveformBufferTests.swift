@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 import CoreGraphics
 @testable import Reflect
 
@@ -86,6 +87,79 @@ struct LiveWaveformBufferTests {
         // The envelope restarts too: a first quiet tick must not inherit the old loudness.
         buffer.append(level: 0)
         #expect(newestLoudness(buffer) == 0)
+    }
+
+    // MARK: - Capturing
+
+    @Test func appendStampsTheTimeWhileCapturing() {
+        var buffer = LiveWaveformBuffer(count: 6)
+        #expect(buffer.lastAppend == nil)
+
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        buffer.append(level: 0.8, at: now)
+
+        #expect(buffer.lastAppend == now)
+    }
+
+    /// A level that was already queued when the recording stopped must not scroll the waveform
+    /// or restart its animation.
+    @Test func appendAfterStopChangesNothing() {
+        var buffer = LiveWaveformBuffer(count: 6)
+        for level in [Float(0.3), 0.9, 0.6] { buffer.append(level: level) }
+        buffer.stop()
+        let stopped = buffer.samples
+
+        for level in [Float(1), 0.5, 0] { buffer.append(level: level) }
+
+        #expect(buffer.samples == stopped)
+        #expect(buffer.lastAppend == nil)
+    }
+
+    /// The recorder screen falls back to the window as the stored waveform, so stop keeps it.
+    @Test func stopKeepsTheSamples() {
+        var buffer = LiveWaveformBuffer(count: 6)
+        for level in [Float(0.3), 0.9, 0.6] { buffer.append(level: level) }
+        let before = buffer.samples
+
+        buffer.stop()
+
+        #expect(buffer.samples == before)
+        #expect(buffer.samples.contains { $0 < 1 })
+        #expect(buffer.lastAppend == nil)
+    }
+
+    @Test func appendAfterStartScrollsAgain() {
+        var buffer = LiveWaveformBuffer(count: 6)
+        for level in [Float(0.3), 0.9, 0.6] { buffer.append(level: level) }
+        buffer.stop()
+        buffer.append(level: 1)
+        let before = buffer.samples
+
+        buffer.start()
+        let now = Date(timeIntervalSinceReferenceDate: 2_000)
+        buffer.append(level: 1, at: now)
+
+        #expect(buffer.samples.count == before.count)
+        #expect(Array(buffer.samples.dropLast()) == Array(before.dropFirst()))
+        #expect(buffer.lastAppend == now)
+    }
+
+    @Test func resetStartsCapturingAgain() {
+        var buffer = LiveWaveformBuffer(count: 6)
+        buffer.append(level: 1)
+        buffer.stop()
+
+        buffer.reset()
+        #expect(buffer.samples == [Float](repeating: 1, count: 6))
+        #expect(buffer.lastAppend == nil)
+
+        buffer.append(level: 1)
+        #expect(newestLoudness(buffer) > 0)
+        #expect(buffer.lastAppend != nil)
+    }
+
+    @Test func serviceEmitsAtTheBufferInterval() {
+        #expect(LiveWaveformBuffer.emissionInterval == AudioRecorderService.levelEmissionInterval)
     }
 
     // MARK: - Resize
