@@ -6,13 +6,15 @@ struct InsightCard: View {
     let insight: Insight
     let onTap: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Button(action: onTap) {
             EntryCard(
                 tag: EntryCardTag(
                     label: insight.type.title,
                     icon: insight.type.icon,
-                    colorHex: insight.type.colorHex
+                    colorHex: insight.type.colorHex(for: colorScheme)
                 ),
                 bodyText: insight.preview,
                 dateText: insight.createdAt.relativeFormatted,
