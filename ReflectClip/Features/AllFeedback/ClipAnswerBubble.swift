@@ -122,13 +122,13 @@ struct ClipAnswerBubble: View {
         }
         .padding(Constants.Spacing.sm)
         .background(bubbleBackground(highlighted: true))
-        // Honest per AC-032's decision: no automatic-retry claim here — see
-        // `ClipAllFeedbackView`'s footer note for the delivery-timing copy.
+        // No automatic-retry claim here: `ClipPendingAnswerRetrier` only runs on launch or
+        // foreground. See `ClipAllFeedbackView`'s footer note for the delivery-timing copy.
         .accessibilityElement(children: .combine)
     }
 
-    /// Honest, state-specific copy — never implies a background retry process is running (none
-    /// exists yet, see `docs/features/app-clip-tasks.md` AC-032's watch-outs).
+    /// Honest, state-specific copy — never implies a background retry process is running
+    /// (`ClipPendingAnswerRetrier` retries on launch/foreground only).
     private func pendingStatusLabel(for state: PendingAnswer.State) -> String {
         switch state {
         case .queued:
