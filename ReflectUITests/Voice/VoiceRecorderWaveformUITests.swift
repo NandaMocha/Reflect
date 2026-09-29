@@ -152,7 +152,6 @@ final class VoiceRecorderWaveformUITests: XCTestCase {
             "-UITestSyntheticAudioLevels",
             "-hasCompletedOnboarding", "YES",
             "-debugAlwaysShowOnboarding", "NO",
-            "-hasSeenVoiceIntro", "YES",
             "-lastOpenedLearningId", seededLearningID,
         ]
         app.launch()
