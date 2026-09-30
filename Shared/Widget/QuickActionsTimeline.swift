@@ -13,11 +13,19 @@ enum QuickActionsTimeline {
         QuickActionsEntry(date: date, quote: DailyQuote.forDate(date, calendar: calendar))
     }
 
-    /// Start of the day after `date`, so the daily quote turns over at midnight. Uses the day's
-    /// interval rather than adding 86,400 seconds so 23 and 25 hour DST days land on midnight.
+    /// Start of the next tone slot after `date` (05:00, 12:00 or 18:00), so the quote changes
+    /// three times a day. Matches wall-clock hours through the calendar rather than adding
+    /// seconds, so slots that span a DST change still end on the hour.
     static func nextRefreshDate(after date: Date, calendar: Calendar = .current) -> Date {
-        if let end = calendar.dateInterval(of: .day, for: date)?.end {
-            return end
+        let boundaries = DailyQuote.Tone.allCases.compactMap { tone in
+            calendar.nextDate(
+                after: date,
+                matching: DateComponents(hour: tone.startHour, minute: 0, second: 0),
+                matchingPolicy: .nextTime
+            )
+        }
+        if let next = boundaries.min() {
+            return next
         }
         return calendar.startOfDay(for: date.addingTimeInterval(86_400))
     }

@@ -26,7 +26,7 @@ struct QuickActionsProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         let now = Date()
         let entry = QuickActionsTimeline.entry(for: now)
-        // Refresh at the start of tomorrow so the daily quote turns over at midnight.
+        // Refresh at the next tone slot (05:00, 12:00, 18:00) so the quote matches the time of day.
         completion(Timeline(entries: [entry], policy: .after(QuickActionsTimeline.nextRefreshDate(after: now))))
     }
 }
