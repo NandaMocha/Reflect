@@ -24,7 +24,7 @@ Text uses text styles (`.headline`, `.footnote`, `.caption2`) with `lineLimit` a
 
 URLs come from `WidgetDeepLink` (`Shared/Widget/WidgetDeepLink.swift`), which both the widget and the app use, so they can't drift. The app parses them in `ReflectApp.handleWidgetURL`. Actions are defined in `Shared/Widget/QuickAction.swift`.
 
-The daily quote comes from `DailyQuote.forDate(_:)` and turns over at midnight (`QuickActionsTimeline.nextRefreshDate(after:)`).
+The quote comes from `DailyQuote.forDate(_:)` and follows the time of day. There are three pools with their own tone: morning (05:00 to 11:59, a fresh start), afternoon (12:00 to 17:59, keep going) and evening (18:00 to 04:59, reflect on today and look toward tomorrow). Each pool rotates one quote per day, so the quote is stable within a slot and changes at 05:00, 12:00 and 18:00. The hours after midnight still belong to the previous evening. `QuickActionsTimeline.nextRefreshDate(after:)` schedules the widget refresh at the next slot boundary.
 
 ## Code layout
 
@@ -63,4 +63,4 @@ Needs a real device. Tick each one in light and in dark appearance.
 - [ ] Tap Photo: the camera capture flow opens.
 - [ ] Tap Voice: the voice recording flow opens.
 - [ ] Tap Insight: the add insight flow opens.
-- [ ] Check the medium widget the next day: the quote has changed.
+- [ ] Check the medium widget after 05:00, 12:00 and 18:00: the quote has changed and its tone matches the time of day.
