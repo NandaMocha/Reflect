@@ -81,6 +81,20 @@ struct SettingsView: View {
                     Text("Clearing data will permanently delete all learnings, reflections, and attachments.")
                 }
 
+                Section {
+                    NavigationLink(destination: SettingsAboutView()) {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(Color.primaryDefault)
+                                .frame(width: 28)
+                            Text("About \(Constants.App.name)")
+                        }
+                    }
+                    .accessibilityIdentifier("settings.about")
+                } header: {
+                    Text("About")
+                }
+
 #if DEBUG
                 Section {
                     NavigationLink(destination: SpaceDebugView()) {
